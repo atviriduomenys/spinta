@@ -2,25 +2,29 @@
 
 ## Python versijos patikrinimas
 
-Daugelis Linux distribucijų ateina su įdiegta Python versija, tačiau reikia įsitikinti, ar distribucijos Python versija yra tinkama:
+Daugelis Linux distribucijų ateina su įdiegta Python versija, tačiau reikia įsitikinti, ar distribucijos Python versija
+yra tinkama:
 
 ```bash
 python3 --version
 ```
 
-Jei sisteminė Python versija yra tarp 3.10 ir 3.13 imtinai ir ji jums tinkama, gali būti, kad operacinėje sistemoje nėra Python virtualių aplinkų kūrimo įrankio. Jį galite sudiegti taip:
+Jei sisteminė Python versija yra tarp 3.10 ir 3.13 imtinai ir ji jums tinkama, gali būti, kad operacinėje sistemoje nėra
+Python virtualių aplinkų kūrimo įrankio. Jį galite sudiegti taip:
 
 ```bash
 sudo apt install python3-venv
 ```
 
 :::{note}
-Jei Python versija yra tarp 3.10 ir 3.13 imtinai bei turite Python virtualių aplinkų kūrimo įrankį, tada galite praleisti sekantį žingsnį, kitu atveju reikia įsidiegti tinkamą Python versiją.
+Jei Python versija yra tarp 3.10 ir 3.13 imtinai bei turite Python virtualių aplinkų kūrimo įrankį, tada galite
+praleisti sekantį žingsnį, kitu atveju reikia įsidiegti tinkamą Python versiją.
 :::
 
 ## Tinkamos Python versijos diegimas
 
-Paprasčiausias būdas įdiegti tinkamą Python versiją yra naudojantis **Pyenv** metodu, Ubuntu atveju galite tai padaryti taip:
+Paprasčiausias būdas įdiegti tinkamą Python versiją yra naudojantis **Pyenv** metodu, Ubuntu atveju galite tai padaryti
+taip:
 
 ```bash
 sudo apt install -y \
@@ -46,7 +50,8 @@ sudo apt install python3.13 python3.13-venv python3.13-dev build-essential
 ## Spinta diegimas
 
 :::{note}
-Atkreipkite dėmesį, kad visos komandos diegiant Spintą turi būti vykdomos Spintos naudotojo teisėmis ir iš Spintos naudotojo namų katalogo /opt/spinta.
+Atkreipkite dėmesį, kad visos komandos diegiant Spintą turi būti vykdomos Spintos naudotojo teisėmis ir iš Spintos
+naudotojo namų katalogo /opt/spinta.
 :::
 
 Aktyvų naudotoją ir katalogą galite pasikeisti taip:
@@ -56,7 +61,8 @@ sudo -Hsu spinta
 cd
 ```
 
-Agentas veikia Spinta įrankio pagalba, kuriam yra reikalinga Python programavimo kalba. Rekomenduojama visus Python paketus diegti izoliuotoje Python aplinkoje, kurią galima susikurti taip:
+Agentas veikia Spinta įrankio pagalba, kuriam yra reikalinga Python programavimo kalba. Rekomenduojama visus Python
+paketus diegti izoliuotoje Python aplinkoje, kurią galima susikurti taip:
 
 ```bash
 python3 -m venv env
@@ -64,7 +70,8 @@ python3 -m venv env
 
 ### Pyenv
 
-Jei diegėte Python versiją **Pyenv** metodu - nepamirškite nurodyti jūsų naudojamos Python versijos numerio, kuris gali skirtis:
+Jei diegėte Python versiją **Pyenv** metodu - nepamirškite nurodyti jūsų naudojamos Python versijos numerio, kuris gali
+skirtis:
 
 ```bash
 /opt/pyenv/versions/3.13.9/bin/python -m venv env
@@ -101,10 +108,12 @@ env/bin/spinta --version
 </p>
 
 :::{note}
-Spintos Agentą galima konfigūruoti ne vienu būdu ir žemiau pateiktos instrukcijos yra bazinės, kai Agentas konfigūruojamas darbui su SOAP/WSDL šaltiniu (paveikslėlyje atitinka Agentą B).
+Spintos Agentą galima konfigūruoti ne vienu būdu ir žemiau pateiktos instrukcijos yra bazinės, kai Agentas
+konfigūruojamas darbui su SOAP/WSDL šaltiniu (paveikslėlyje atitinka Agentą B).
 :::
 
-Spinta yra konfigūruojama konfigūracijos failo pagalba, kurio, pagal nutylėjimą ieškoma aktyviame kataloge. Kur Spinta ieško konfigūracijos failo, galima patikrinti taip:
+Spinta yra konfigūruojama konfigūracijos failo pagalba, kurio, pagal nutylėjimą ieškoma aktyviame kataloge. Kur Spinta
+ieško konfigūracijos failo, galima patikrinti taip:
 
 ```bash
 env/bin/spinta config config
@@ -134,6 +143,10 @@ config_path: /opt/spinta/config
 env: production
 access: protected
 
+resource_server_id: https://agentas.example.lt
+auth_server_id: https://agentas.example.lt
+auth_server_url: https://agentas.example.lt
+
 keymaps:
   default:
     type: redis
@@ -147,18 +160,28 @@ EOF
 
 ### Failo aprašas
 
-| Kintamasis  | Privalomas ar neprivalomas | Aprašas                                                                                                                                            |
-| ----------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| config_path | Privalomas                 | Nurodo kelią į direktoriją, kurioje yra įvairūs konfigūracijos duomenys                                                                            |
-| env         |                            | Nurodo, ar aplinka testinė, ar vystymo, ar produkcinė. Rekomenduojama diegti su `production`, nes `dev` arba `test` įrašo papildomų konfigūracijų. |
-| access      | **Privalomas nuo 0.2dev22** | Nurodo numatytąjį prieigos lygį. Rekomenduojama nurodyti `protected`. Nuo versijos 0.2dev22 numatytoji reikšmė pasikeitė iš `protected` į `open` — neaprašius šio lauko, modeliai su `access=protected` grąžins `ModelNotFound` klaidą. |
-| keymaps     | Privalomas                 | Aprašyta žemiau                                                                                                                                    |
-| .default    |                            | Nurodo numatytąjį                                                                                                                                  |
-| ..type      |                            | Tipas - `redis`                                                                                                                                    |
-| ..dsn       |                            | Nurodo, kaip pasiekti servisą                                                                                                                      |
-| accesslog   |                            | Nurodo, kur bus saugomi prieigos žurnalai                                                                                                          |
-| .type       |                            | Tipas - ar saugoma faile, ar kitaip                                                                                                                |
-| .file       |                            | Jei saugoma faile, nurodo, kuriame faile                                                                                                           |
+| Kintamasis         | Privalomas ar neprivalomas  | Aprašas                                                                                                                                                                                                                                 |
+|--------------------|-----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| config_path        | Privalomas                  | Nurodo kelią į direktoriją, kurioje yra įvairūs konfigūracijos duomenys                                                                                                                                                                 |
+| env                |                             | Nurodo, ar aplinka testinė, ar vystymo, ar produkcinė. Rekomenduojama diegti su `production`, nes `dev` arba `test` įrašo papildomų konfigūracijų.                                                                                      |
+| access             | **Privalomas nuo 0.2dev22** | Nurodo numatytąjį prieigos lygį. Rekomenduojama nurodyti `protected`. Nuo versijos 0.2dev22 numatytoji reikšmė pasikeitė iš `protected` į `open` — neaprašius šio lauko, modeliai su `access=protected` grąžins `ModelNotFound` klaidą. |
+| resource_server_id | Privalomas                  | Šio agento (resursų serverio) identifikatorius. Spinta jį įrašo į išduodamų žetonų `aud` ir priima tik žetonus, kurių `aud` sutampa.                                                                                                    |
+| auth_server_id     | Privalomas                  | Autorizacijos serverio identifikatorius. Spinta jį įrašo į žetono `iss` ir priima tik žetonus, kurių `iss` sutampa. Naudojant lokalų AM — agento adresas.                                                                               |
+| auth_server_url    | Privalomas                  | Autorizacijos serverio adresas, pagal kurį sudaromi `/auth/token`, `/auth/introspect` ir JWKS adresai. Naudojant lokalų AM — agento adresas.                                                                                            |
+| keymaps            | Privalomas                  | Aprašyta žemiau                                                                                                                                                                                                                         |
+| .default           |                             | Nurodo numatytąjį                                                                                                                                                                                                                       |
+| ..type             |                             | Tipas - `redis`                                                                                                                                                                                                                         |
+| ..dsn              |                             | Nurodo, kaip pasiekti servisą                                                                                                                                                                                                           |
+| accesslog          |                             | Nurodo, kur bus saugomi prieigos žurnalai                                                                                                                                                                                               |
+| .type              |                             | Tipas - ar saugoma faile, ar kitaip                                                                                                                                                                                                     |
+| .file              |                             | Jei saugoma faile, nurodo, kuriame faile                                                                                                                                                                                                |
+
+```{versionchanged} 1.3.0
+`resource_server_id`, `auth_server_id` ir `auth_server_url` atsirado 1.3.0 versijoje. 1.2.0 versijoje
+tie patys nustatymai vadinasi `resource_server` ir `token_issuer` (seni pavadinimai vis dar skaitomi).
+Iki 1.2.0 šių parametrų nebuvo. Žr. [Pakeitimai pagal versijas](../versiju-pakeitimai.md).
+```
+
 
 Prieš testuojant ar konfigūracija veikia, sukuriame reikalingus katalogus:
 
@@ -199,7 +222,8 @@ Pagal numatytuosius nustatymus naudojama SQLite, tačiau būtina pakeisti į Red
 
 Keymap naudojamas susieti išorinius identifikatorius su vidiniais identifikatoriais. Gali būti konfigūruojama.
 
-Spintos agentui nurodome kokį keymap komponentą naudoti ir kaip jį pasiektį per config.yml failą. Pateikiame config.yml failo fragmentą:
+Spintos agentui nurodome kokį keymap komponentą naudoti ir kaip jį pasiektį per config.yml failą. Pateikiame config.yml
+failo fragmentą:
 
 ```
 keymaps:
@@ -232,10 +256,12 @@ volumes:
 EOF
 ```
 
-:::{caution}
-**SVARBU! Redis būtinai turi būti leidžiamas persistent režimu (appendonly:yes ir appendfsync:always parametrai)**
+:::{caution} **SVARBU! Redis būtinai turi būti leidžiamas persistent režimu (appendonly:yes ir appendfsync:always
+parametrai)**
 
-Yra keli persistent režimai (žr. Redis/Valkey dokumentaciją). Numatytasis režimas (appendonly:yes ir appendfsync:always) užtikrina didžiausią duomenų nepraradimo patikimumą, tačiau turi mažiausią greitį naujo rakto kūrimo metu, lyginant su kitais režimais.
+Yra keli persistent režimai (žr. Redis/Valkey dokumentaciją). Numatytasis režimas (appendonly:yes ir appendfsync:always)
+užtikrina didžiausią duomenų nepraradimo patikimumą, tačiau turi mažiausią greitį naujo rakto kūrimo metu, lyginant su
+kitais režimais.
 :::
 
 Paleiskite dockerį ir patikrinkite:
@@ -258,7 +284,8 @@ env/bin/spinta check
 ```
 
 :::{warning}
-Keymap (Redis) yra kritinis elementas, tad privalote užtikrinti, kad duomenys nebūtų prarasti ar sugadinti, nes tokiu atveju bus pažeistas perduodamų duomenų integralumas.
+Keymap (Redis) yra kritinis elementas, tad privalote užtikrinti, kad duomenys nebūtų prarasti ar sugadinti, nes tokiu
+atveju bus pažeistas perduodamų duomenų integralumas.
 :::
 
 ## Spinta Agento web serverio serviso konfigūravimas
@@ -285,7 +312,8 @@ Atsijunkite nuo Spintos vartotojo
 exit
 ```
 
-Su `root` teisėmis sukuriame [SystemD](https://systemd.io/ "SystemD") servisą (atkreipkite dėmesį, kad jūsų pasirinkta distribucija gali naudoti kitą servisų valdymo priemonę, tuomet šis pavyzdys netiks):
+Su `root` teisėmis sukuriame [SystemD](https://systemd.io/ "SystemD") servisą (atkreipkite dėmesį, kad jūsų pasirinkta
+distribucija gali naudoti kitą servisų valdymo priemonę, tuomet šis pavyzdys netiks):
 
 ```bash
 cat << 'EOF' | sudo tee /etc/systemd/system/spinta.service
@@ -330,7 +358,8 @@ sudo systemctl status spinta
 ```
 
 :::{note}
-Net kai `systemctl status` rodo `active (running)`, Spinta web serveris gali dar kelias sekundes inicializuotis. Norėdami įsitikinti, kad servisas tikrai pasiruošęs priimti užklausas, galite patikrinti `/version` endpoint:
+Net kai `systemctl status` rodo `active (running)`, Spinta web serveris gali dar kelias sekundes inicializuotis.
+Norėdami įsitikinti, kad servisas tikrai pasiruošęs priimti užklausas, galite patikrinti `/version` endpoint:
 
 ```bash
 curl -s http://127.0.0.1:8000/version
@@ -339,7 +368,18 @@ curl -s http://127.0.0.1:8000/version
 Jei servisas veikia, gausite atsakymą su versijos informacija, pvz.:
 
 ```json
-{"implementation":{"name":"Spinta","version":"0.2.dev16"},"uapi":{"version":"0.1.0"},"dsa":{"version":"0.1.0"}}
+{
+  "implementation": {
+    "name": "Spinta",
+    "version": "0.2.dev16"
+  },
+  "uapi": {
+    "version": "0.1.0"
+  },
+  "dsa": {
+    "version": "0.1.0"
+  }
+}
 ```
 
 Jei gausite klaidą arba jokio atsakymo — patikrinkite žurnalus: `sudo journalctl -u spinta -xe`
@@ -348,8 +388,8 @@ Jei gausite klaidą arba jokio atsakymo — patikrinkite žurnalus: `sudo journa
 ## Paralelinis apdorojimas su Gunicorn
 
 :::{note}
-Ši konfigūracija rekomenduojama institucijoms, kurių duomenų šaltinis yra
-**SQL/reliacinė duomenų bazė** ir kurios tikisi didelės vartotojų apkrovos.
+Ši konfigūracija rekomenduojama institucijoms, kurių duomenų šaltinis yra **SQL/reliacinė duomenų bazė** ir kurios
+tikisi didelės vartotojų apkrovos.
 Standartinis `spinta run` servisas veikia su vienu darbo procesu ir nepalaiko
 kelių lygiagrečių užklausų apdorojimo vienu metu.
 :::

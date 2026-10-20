@@ -50,6 +50,14 @@ gettext_compact = False
 
 
 def setup(app):
+    # Sphinx neturi lietuviško vertimo „Added in version" etiketei.
+    from sphinx.domains import changeset
+
+    changeset.versionlabels.update(
+        versionadded="Nauja %s versijoje",
+        versionchanged="Pakeista %s versijoje",
+        deprecated="Nebenaudotina nuo %s versijos",
+    )
     if app.config.language:
         app.tags.add(app.config.language)
 

@@ -1,6 +1,7 @@
 # Autentifikacija ir autorizacija
 
-Spinta Agentas naudoja [OAuth 2.0 Client Credentials](https://ivpk.github.io/uapi/#section/Authorization "UAPI autorizacija")
+Spinta Agentas
+naudoja [OAuth 2.0 Client Credentials](https://ivpk.github.io/uapi/#section/Authorization "UAPI autorizacija")
 srautą prieigos kontrolei — tas pats standartas, kurį nustato UAPI specifikacija.
 
 :::{note}
@@ -81,10 +82,10 @@ echo $SECRET
 
 Yra du būdai valdyti autorizaciją:
 
-| Būdas | Kada naudoti | Kas valdo |
-|-------|-------------|-----------|
-| **Lokalus AM** (integruotas į Spintą) | Lokalus testavimas | Institucija |
-| **Nutolęs AM** (Gravitee Access Manager) | Test/Produkcinė aplinka | VSSA |
+| Būdas                                    | Kada naudoti            | Kas valdo   |
+|------------------------------------------|-------------------------|-------------|
+| **Lokalus AM** (integruotas į Spintą)    | Lokalus testavimas      | Institucija |
+| **Nutolęs AM** (Gravitee Access Manager) | Test/Produkcinė aplinka | VSSA        |
 
 ## Lokalus autorizacijos valdymas (testavimui)
 
@@ -154,19 +155,20 @@ backends:
 
 ### Leidimų (scopes) aprašas
 
-| Leidimas | Paskirtis |
-|----------|-----------|
-| `uapi:/:getone` | Gauti vieną įrašą pagal ID |
-| `uapi:/:getall` | Gauti visus įrašus (sąrašas) |
-| `uapi:/:search` | Filtruoti ir ieškoti įrašų |
-| `uapi:/:changes` | Gauti pakeitimų istoriją |
+| Leidimas         | Paskirtis                    |
+|------------------|------------------------------|
+| `uapi:/:getone`  | Gauti vieną įrašą pagal ID   |
+| `uapi:/:getall`  | Gauti visus įrašus (sąrašas) |
+| `uapi:/:search`  | Filtruoti ir ieškoti įrašų   |
+| `uapi:/:changes` | Gauti pakeitimų istoriją     |
 
-Daugiau informacijos apie leidimus: [UAPI — Authorization](https://ivpk.github.io/uapi/#section/Authorization/Scope "UAPI scopes")
+Daugiau informacijos apie
+leidimus: [UAPI — Authorization](https://ivpk.github.io/uapi/#section/Authorization/Scope "UAPI scopes")
 
 ### Leidimų siejimas su sutartimi (`contract_scopes`)
 
-Kliento faile šalia `scopes` yra ir `contract_scopes` blokas. Jo paskirtis —
-**atsekamumas**: užfiksuoti, pagal kurią duomenų teikimo sutartį klientui suteikti
+Kliento faile šalia `scopes` yra ir `contract_scopes` blokas. Jo paskirtis — **atsekamumas**: užfiksuoti, pagal kurią
+duomenų teikimo sutartį klientui suteikti
 leidimai. Naujai sukurto kliento faile blokas tuščias (`contract_scopes: {}`).
 
 ```yaml
@@ -178,9 +180,9 @@ scopes:
   - uapi:/datasets/gov/vssa/demo/:getall
   - uapi:/datasets/gov/vssa/demo/:search
   - uapi:/datasets/gov/vssa/demo/:changes
-backends: {}
+backends: { }
 contract_scopes:
-  SUT-2026-0042:                                    # sutarties identifikatorius
+  SUT-2026-0042: # sutarties identifikatorius
     - uapi:/datasets/gov/vssa/demo/:getone
     - uapi:/datasets/gov/vssa/demo/:getall
     - uapi:/datasets/gov/vssa/demo/:search
@@ -243,23 +245,96 @@ curl -s http://localhost:8000/version \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+## Introspekcijos kliento sukūrimas
+
+```{versionadded} 1.2.0
+Introspekcijos endpoint'as `/auth/introspect` ir leidimas `uapi:/:auth_introspect`.
+Senesnėse versijose šio žingsnio atlikti negalima.
+```
+
+Introspekcijos klientas leidžia per `/auth/introspect` patikrinti, ar agento išduotas žetonas galioja. Šiam klientui
+reikia leidimo (scope) `uapi:/:auth_introspect`.
+
+:::{important}
+Šiuo metu introspekcijos klientas **reikalingas publikuojant duomenų paslaugas į vartus**.
+Sukūrę klientą, **išsaugokite kliento pavadinimą ir `secret`** — abu reikės nurodyti
+konfigūruojant paslaugą vartuose (Gravitee).
+
+- **Kliento pavadinimas** — tai reikšmė, nurodyta su `-n` (žemiau esančiuose pavyzdžiuose —
+  `introspector`). Jei pasirinksite kitą pavadinimą, išsaugokite būtent jį.
+- **`secret`** — vėliau jo pamatyti nebegalėsite (konfigūracijos faile saugomas tik hash'as).
+
+Kaip pasiimti `secret`, priklauso nuo diegimo būdo:
+
+- **Docker diegimas** — `secret` ekrane nerodomas, jis įrašomas į kintamąjį
+  `INTROSPECT_SECRET`. Jį pamatysite ir išsisaugosite komanda `echo $INTROSPECT_SECRET`
+  (prieš uždarydami terminalo sesiją).
+- **OS diegimas** — `secret` parodomas ekrane po eilute `Client secret:`. Nukopijuokite ir
+  išsisaugokite jį iš karto.
+:::
+
+**Docker diegimas:**
+
+```bash
+OUTPUT=$(docker exec -i spinta spinta client add -n introspector --scope - << 'EOF'
+uapi:/:auth_introspect
+EOF
+) && \
+INTROSPECT_SECRET=$(echo "$OUTPUT" | grep -A2 "Client secret:" | tail -1 | xargs)
+```
+
+**OS diegimas:**
+
+```bash
+sudo -Hsu spinta
+cd
+export SPINTA_CONFIG=/opt/spinta/config.yml
+```
+
+```bash
+env/bin/spinta client add -n introspector --scope - << 'EOF'
+uapi:/:auth_introspect
+EOF
+```
+
+Išsisaugokite ekrane parodytą `secret`. Žemiau esančiam patikrinimui jį priskirkite kintamajam:
+
+```bash
+INTROSPECT_SECRET=<ekrane parodytas secret>
+```
+
+Žetono patikrinimas:
+
+```bash
+SERVER=http://localhost:8000
+curl -sS -u "introspector:$INTROSPECT_SECRET" \
+  -d "token=$TOKEN" \
+  "$SERVER/auth/introspect"
+```
+
+Galiojančiam žetonui grąžinama `"active": true` ir žetono duomenys (`client_id`,
+`scope`, `aud`, `iss`, `exp`). Negaliojančiam — `{"active": false}`. Klientas be
+`uapi:/:auth_introspect` leidimo gauna `403`.
 
 # Nutolusio (Gravitee) AM viešųjų raktų sukėlimas ir konfigūravimas
 
-`Spinta` automatiškai įkelia visus galimus viešuosius raktus JWT žetonų tikrinimui iš `config.yml` aprašytų vietų. Raktai parenkami iš šių šaltinių prioritetų tvarka:
+`Spinta` automatiškai įkelia visus galimus viešuosius raktus JWT žetonų tikrinimui iš `config.yml` aprašytų vietų.
+Raktai parenkami iš šių šaltinių prioritetų tvarka:
 
 1. **Konfigūracijoje nustatyti raktai** (`token_validation_key`)
 
-   Jei `token_validation_key` yra nurodytas `config.yml` faile, visi jame esantys raktai bus naudojami. Galima nurodyti vieną raktą arba kelis raktus sąraše `keys`.
+   Jei `token_validation_key` yra nurodytas `config.yml` faile, visi jame esantys raktai bus naudojami. Galima nurodyti
+   vieną raktą arba kelis raktus sąraše `keys`.
 
 2. **URL atsisiunčiami raktai** (`token_validation_keys_download_url`)
-   
-   Jei konfigūracijoje nėra raktų, galima nurodyti OAuth serverio URL, iš kurio raktai bus atsisiųsti. Atsisiųsti raktai paprastai saugomi lokaliame faile (`downloaded_public_keys_file`) tolimesniam naudojimui.
+
+   Jei konfigūracijoje nėra raktų, galima nurodyti OAuth serverio URL, iš kurio raktai bus atsisiųsti. Atsisiųsti raktai
+   paprastai saugomi lokaliame faile (`downloaded_public_keys_file`) tolimesniam naudojimui.
 
 ## Konfigūracijos parametrai
 
 ```yaml
-token_validation_key:  > # vienas raktas arba raktų sąrašas
+token_validation_key: > # vienas raktas arba raktų sąrašas
   {
     "keys": [
       {
@@ -282,7 +357,9 @@ downloaded_public_keys_file: "custom-well-knows.json" # vietinis failas atsisių
 ```
 
 :::{note}
-`token_validation_keys_download_url` negali būti naudojamas kartu su `token_validation_key`, nes abu atlieka tą pačią funkciją. Skirtumas tas, kad `token_validation_keys_download_url` yra dinamiškesnis ir palaiko raktų rotaciją. Dėl šios priežasties siūloma naudoti `token_validation_keys_download_url`.
+`token_validation_keys_download_url` negali būti naudojamas kartu su `token_validation_key`, nes abu atlieka tą pačią
+funkciją. Skirtumas tas, kad `token_validation_keys_download_url` yra dinamiškesnis ir palaiko raktų rotaciją. Dėl šios
+priežasties siūloma naudoti `token_validation_keys_download_url`.
 :::
 
 Naujus raktus galima parsisiųsti su komanda:
@@ -292,7 +369,9 @@ spinta key download
 ```
 
 :::{warning}
-Jei naudojamas `token_validation_keys_download_url` ir reikalingas raktų rotavimas, papildomai reikia sukonfigūruoti CRON, kuris periodiškai vykdytų komandą `spinta key download` (priklausomai nuo naudojamo auth serverio raktų rotacijos dažnio).
+Jei naudojamas `token_validation_keys_download_url` ir reikalingas raktų rotavimas, papildomai reikia sukonfigūruoti
+CRON, kuris periodiškai vykdytų komandą `spinta key download` (priklausomai nuo naudojamo auth serverio raktų rotacijos
+dažnio).
 :::
 
 Pavyzdys CRON konfigūracijos:

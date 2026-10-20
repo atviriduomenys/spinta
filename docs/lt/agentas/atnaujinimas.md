@@ -35,6 +35,16 @@ Prieš atnaujinant **peržiūrėkite pakeitimus** — naujoje versijoje gali bū
   darbus atlikite ne piko metu.
 - Pasižymėkite dabartinę versiją, kad galėtumėte palyginti po atnaujinimo.
 
+## Ar reikia keisti konfigūraciją?
+
+Kai kurios versijos keičia konfigūracijos parametrus ar diegimo žingsnius. Jei atnaujinate
+**per kelias versijas iš karto**, pakeitimai sumuojasi:
+
+1. Pasižymėkite dabartinę versiją (`spinta --version`).
+2. Puslapyje [Pakeitimai pagal versijas](versiju-pakeitimai.md) peržiūrėkite **visas eilutes
+   nuo jūsų versijos iki naujosios**.
+3. Prieš atnaujindami atlikite visus veiksmus, pažymėtus „Privaloma".
+
 ## Atnaujinimas naudojant Docker
 
 Jei Agentas paleistas per `docker compose` (žr. [Docker diegimas](diegimas/docker.md)),
