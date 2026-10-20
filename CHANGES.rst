@@ -4,6 +4,11 @@ Changes
 1.4.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- Fixed PostgreSQL column type and geometry migrations failing on Citus distributed tables due to table-qualified column references (`#2027`_).
+
+.. _#2027: https://github.com/atviriduomenys/spinta/issues/2027
 
 1.3.0 (2026-10-19)
 =====================
