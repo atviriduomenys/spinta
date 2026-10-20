@@ -1436,10 +1436,10 @@ def test_migrate_change_basic_type(migration_db: Engine, rc: RawConfig, cli: Spi
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someInt" TYPE INTEGER USING '
-        'CAST("migrate/example"."Test"."someInt" AS INTEGER);\n'
+        'CAST("someInt" AS INTEGER);\n'
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someFloat" TYPE FLOAT USING '
-        'CAST("migrate/example"."Test"."someFloat" AS FLOAT);\n'
+        'CAST("someFloat" AS FLOAT);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -1485,10 +1485,10 @@ def test_migrate_change_basic_type(migration_db: Engine, rc: RawConfig, cli: Spi
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someInt" TYPE TEXT USING '
-        'CAST("migrate/example"."Test"."someInt" AS TEXT);\n'
+        'CAST("someInt" AS TEXT);\n'
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someFloat" TYPE TEXT USING '
-        'CAST("migrate/example"."Test"."someFloat" AS TEXT);\n'
+        'CAST("someFloat" AS TEXT);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -2081,7 +2081,7 @@ def test_migrate_invalid_cast_warning(migration_db: Engine, rc: RawConfig, cli: 
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE DATE USING '
-        'CAST("migrate/example"."Test"."someDate" AS DATE);\n'
+        'CAST("someDate" AS DATE);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -2139,7 +2139,7 @@ def test_migrate_unsafe_cast_warning(migration_db: Engine, rc: RawConfig, cli: S
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someInt" TYPE INTEGER USING '
-        'CAST("migrate/example"."Test"."someInt" AS INTEGER);\n'
+        'CAST("someInt" AS INTEGER);\n'
         "\n"
         "COMMIT;\n"
         "\n"

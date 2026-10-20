@@ -66,7 +66,7 @@ def test_migrate_custom_big_integer(migration_db: Engine, rc: RawConfig, cli: Sp
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN id TYPE BIGINT USING '
-        'CAST("migrate/example"."Test".id AS BIGINT);\n'
+        "CAST(id AS BIGINT);\n"
         "\n"
         "COMMIT;\n"
         "\n"

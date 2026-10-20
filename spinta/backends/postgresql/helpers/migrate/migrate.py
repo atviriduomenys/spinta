@@ -571,8 +571,13 @@ def extract_literal_name_from_column(
     return type_
 
 
+def unbound_column(column: sa.Column) -> sa.Column:
+    return sa.Column(column.name, column.type, nullable=column.nullable)
+
+
 def extract_using_from_columns(old_column: sa.Column, new_column: sa.Column, type_):
     using = None
+    old_column = unbound_column(old_column)
     if (
         isinstance(old_column.type, geoalchemy2.types.Geometry)
         and isinstance(new_column.type, geoalchemy2.types.Geometry)
@@ -588,9 +593,7 @@ def extract_using_from_columns(old_column: sa.Column, new_column: sa.Column, typ
             compile_kwargs={"literal_binds": True}, dialect=postgresql.dialect()
         )
     elif type_ is not None:
-        using = sa.func.cast(old_column, type_).compile(
-            compile_kwargs={"literal_binds": True}, dialect=postgresql.dialect()
-        )
+        using = sa.cast(old_column, type_).compile(compile_kwargs={"literal_binds": True}, dialect=postgresql.dialect())
 
     return using
 

@@ -57,7 +57,7 @@ def test_migrate_date_to_datetime(migration_db: Engine, rc: RawConfig, cli: Spin
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE TIMESTAMP '
-        'WITHOUT TIME ZONE USING CAST("migrate/example"."Test"."someDate" AS TIMESTAMP '
+        'WITHOUT TIME ZONE USING CAST("someDate" AS TIMESTAMP '
         "WITHOUT TIME ZONE);\n"
         "\n"
         "COMMIT;\n"
@@ -121,7 +121,7 @@ def test_migrate_date_to_time_error(migration_db: Engine, rc: RawConfig, cli: Sp
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE TIME WITHOUT '
-        'TIME ZONE USING CAST("migrate/example"."Test"."someDate" AS TIME WITHOUT TIME '
+        'TIME ZONE USING CAST("someDate" AS TIME WITHOUT TIME '
         "ZONE);\n"
         "\n"
         "COMMIT;\n"
@@ -180,7 +180,7 @@ def test_migrate_datetime_to_date(migration_db: Engine, rc: RawConfig, cli: Spin
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE DATE USING '
-        'CAST("migrate/example"."Test"."someDate" AS DATE);\n'
+        'CAST("someDate" AS DATE);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -243,7 +243,7 @@ def test_migrate_datetime_to_time(migration_db: Engine, rc: RawConfig, cli: Spin
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE TIME WITHOUT '
-        'TIME ZONE USING CAST("migrate/example"."Test"."someDate" AS TIME WITHOUT TIME '
+        'TIME ZONE USING CAST("someDate" AS TIME WITHOUT TIME '
         "ZONE);\n"
         "\n"
         "COMMIT;\n"
@@ -307,7 +307,7 @@ def test_migrate_time_to_date_error(migration_db: Engine, rc: RawConfig, cli: Sp
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE DATE USING '
-        'CAST("migrate/example"."Test"."someDate" AS DATE);\n'
+        'CAST("someDate" AS DATE);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -365,7 +365,7 @@ def test_migrate_time_to_datetime_error(migration_db: Engine, rc: RawConfig, cli
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someDate" TYPE TIMESTAMP '
-        'WITHOUT TIME ZONE USING CAST("migrate/example"."Test"."someDate" AS TIMESTAMP '
+        'WITHOUT TIME ZONE USING CAST("someDate" AS TIMESTAMP '
         "WITHOUT TIME ZONE);\n"
         "\n"
         "COMMIT;\n"
