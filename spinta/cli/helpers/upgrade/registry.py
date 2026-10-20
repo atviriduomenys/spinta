@@ -24,6 +24,14 @@ from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.redirect_support impo
     requires_sql_keymap_redirect_migration,
     sql_keymap_redirect_migration,
 )
+from spinta.cli.helpers.upgrade.scripts.push_state.initial_setup import (
+    push_state_initial_migration,
+    requires_push_state_initial_migration,
+)
+from spinta.cli.helpers.upgrade.scripts.push_state.rename_rev import (
+    push_state_rename_rev_migration,
+    requires_push_state_rename_rev_migration,
+)
 from spinta.cli.helpers.upgrade.scripts.redirect import cli_requires_redirect_migration, migrate_redirect
 
 # For convenience, easier access to upgrade scripts
@@ -97,5 +105,26 @@ script_registry.register(
         required=[Script.SQL_KEYMAP_REDIRECT.value],
         targets={ScriptTarget.SQLALCHEMY_KEYMAP.value},
         tags={ScriptTag.DB_MIGRATION.value},
+    )
+)
+
+# Push state migrations
+script_registry.register(
+    UpgradeScript(
+        name=Script.PUSH_STATE_INITIAL.value,
+        run=push_state_initial_migration,
+        check=requires_push_state_initial_migration,
+        targets={ScriptTarget.PUSH_STATE_DB.value},
+        tags={ScriptTag.DB_MIGRATION.value},
+    )
+)
+script_registry.register(
+    UpgradeScript(
+        name=Script.PUSH_REV_RENAME.value,
+        run=push_state_rename_rev_migration,
+        check=requires_push_state_rename_rev_migration,
+        targets={ScriptTarget.PUSH_STATE_DB.value},
+        tags={ScriptTag.DB_MIGRATION.value},
+        required=[Script.PUSH_STATE_INITIAL.value],
     )
 )

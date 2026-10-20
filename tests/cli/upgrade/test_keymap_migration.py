@@ -83,8 +83,8 @@ def test_upgrade_missing_initial_migration(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.get_table(keymap.migration_table_name)
-        keymap.conn.execute(migration_table.delete())
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
+        keymap.db.conn.execute(migration_table.delete())
 
     # Check keymap state before sync for Country
     keymap_before_sync = check_keymap_state(context, "syncdataset/countries/Country")
@@ -168,8 +168,8 @@ def test_upgrade_missing_redirect_migration_entry(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.get_table(keymap.migration_table_name)
-        keymap.conn.execute(
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
+        keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_REDIRECT.value)
         )
 
@@ -259,8 +259,8 @@ def test_upgrade_missing_modified_migration_entry(
     modified_at = datetime.datetime.fromisoformat(modified_at)
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.get_table(keymap.migration_table_name)
-        keymap.conn.execute(
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
+        keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_MODIFIED.value)
         )
 
@@ -347,14 +347,14 @@ def test_upgrade_redirect_migration_from_old_version(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.get_table(keymap.migration_table_name)
-        keymap.conn.execute(
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
+        keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_REDIRECT.value)
         )
 
         old_table = sa.Table(
             "syncdataset/countries/Country",
-            keymap.metadata,
+            keymap.db.metadata,
             sa.Column("key", sa.Text, primary_key=True),
             sa.Column("hash", sa.Text, unique=True, index=True),
             sa.Column("value", sa.LargeBinary),
@@ -440,32 +440,32 @@ def test_upgrade_redirect_migration_from_old_version_with_data(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.get_table(keymap.migration_table_name)
-        keymap.conn.execute(
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
+        keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_REDIRECT.value)
         )
         first_entry_id = keymap.encode(name="syncdataset/countries/Country", value=1)
         second_entry_id = keymap.encode(name="syncdataset/countries/Country", value=5)
         third_entry_id = keymap.encode(name="syncdataset/countries/Country", value=10)
-        table_to_remove = keymap.get_table("syncdataset/countries/Country")
-        keymap.conn.execute("""
+        table_to_remove = keymap.db.get_table("syncdataset/countries/Country")
+        keymap.db.conn.execute("""
             ALTER TABLE "syncdataset/countries/Country" RENAME TO "_correct_table";
         """)
-        keymap.metadata.remove(table_to_remove)
+        keymap.db.metadata.remove(table_to_remove)
         old_table = sa.Table(
             "syncdataset/countries/Country",
-            keymap.metadata,
+            keymap.db.metadata,
             sa.Column("key", sa.Text, primary_key=True),
             sa.Column("hash", sa.Text, unique=True, index=True),
             sa.Column("value", sa.LargeBinary),
         )
         old_table.create()
-        for row in keymap.conn.execute("""
+        for row in keymap.db.conn.execute("""
             SELECT * FROM "_correct_table"
         """):
             value_, hash_ = _hash_value(json.loads(row["value"]))
-            keymap.conn.execute(old_table.insert().values(key=row["key"], value=value_, hash=hash_))
-        keymap.conn.execute("""
+            keymap.db.conn.execute(old_table.insert().values(key=row["key"], value=value_, hash=hash_))
+        keymap.db.conn.execute("""
             DROP TABLE "_correct_table"
         """)
 
@@ -561,32 +561,32 @@ def test_upgrade_redirect_migration_from_old_version_with_multi_column_data(
 
     keymap: SqlAlchemyKeyMap = remote.app.context.get("store").keymaps["default"]
     with keymap:
-        migration_table = keymap.get_table(keymap.migration_table_name)
-        keymap.conn.execute(
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
+        keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_REDIRECT.value)
         )
         first_entry_id = keymap.encode(name=city_model, value=[1, "Vilnius", country_id_1])
         second_entry_id = keymap.encode(name=city_model, value=[5, "Kaunas", country_id_1])
         third_entry_id = keymap.encode(name=city_model, value=[10, "Siauliai", country_id_1])
-        table_to_remove = keymap.get_table(city_model)
-        keymap.conn.execute(f'''
+        table_to_remove = keymap.db.get_table(city_model)
+        keymap.db.conn.execute(f'''
             ALTER TABLE "{city_model}" RENAME TO "_correct_table";
         ''')
-        keymap.metadata.remove(table_to_remove)
+        keymap.db.metadata.remove(table_to_remove)
         old_table = sa.Table(
             city_model,
-            keymap.metadata,
+            keymap.db.metadata,
             sa.Column("key", sa.Text, primary_key=True),
             sa.Column("hash", sa.Text, unique=True, index=True),
             sa.Column("value", sa.LargeBinary),
         )
         old_table.create()
-        for row in keymap.conn.execute("""
+        for row in keymap.db.conn.execute("""
             SELECT * FROM "_correct_table"
         """):
             value_, hash_ = _hash_value(json.loads(row["value"]))
-            keymap.conn.execute(old_table.insert().values(key=row["key"], value=value_, hash=hash_))
-        keymap.conn.execute("""
+            keymap.db.conn.execute(old_table.insert().values(key=row["key"], value=value_, hash=hash_))
+        keymap.db.conn.execute("""
             DROP TABLE "_correct_table"
         """)
 
@@ -700,14 +700,14 @@ def test_upgrade_modified_from_old_version(
     assert result.exit_code == 0
 
     with keymap:
-        migration_table = keymap.get_table(keymap.migration_table_name)
-        keymap.conn.execute(
+        migration_table = keymap.db.get_table(keymap.migrations.migration_table_name)
+        keymap.db.conn.execute(
             migration_table.delete().where(migration_table.c.migration == Script.SQL_KEYMAP_MODIFIED.value)
         )
-        keymap.conn.execute(f"""
+        keymap.db.conn.execute(f"""
             DROP INDEX "ix_{country_model}_modified_at";
         """)
-        keymap.conn.execute(f'''
+        keymap.db.conn.execute(f'''
             ALTER TABLE "{country_model}" DROP COLUMN "modified_at";
         ''')
 
