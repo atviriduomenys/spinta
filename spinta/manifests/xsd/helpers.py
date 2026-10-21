@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from copy import copy, deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.request import urlopen
 
@@ -132,6 +132,9 @@ class XSDKey:
     name: str
     selector_xpath: str
     field_xpaths: list[str]
+    # models of the element the key is declared in, or its named complexType
+    element_models: list[XSDModel] = field(default_factory=list)
+    element_type: str | None = None
 
 
 """
@@ -324,6 +327,23 @@ def _is_array(node: _Element) -> bool:
     return node.attrib.get("maxOccurs", 1) == "unbounded" or int(node.attrib.get("maxOccurs", 1)) > 1
 
 
+def _xpath_steps(xpath: str) -> list[str] | None:
+    """Splits xs:key selector or field xpath into steps without namespace prefixes, e.g. "@tns:ID" -> ["@ID"].
+
+    Returns None for unions, wildcards and descendant paths, which are not supported.
+    """
+    if any(token in xpath for token in ("|", "*", "//", "::")):
+        return None
+
+    steps = []
+    for step in xpath.strip().split("/"):
+        if step == ".":
+            continue
+        attribute_marker = "@" if step.startswith("@") else ""
+        steps.append(attribute_marker + step.removeprefix("@").split(":")[-1])
+    return steps
+
+
 class XSDReader:
     dataset_resource: XSDDatasetResource
     models: list[XSDModel]
@@ -339,7 +359,7 @@ class XSDReader:
     properties_xsd_type_to_set: set[str]
     namespaces: dict[str, str] | None = None
     global_attribute_properties: dict[str, list[XSDProperty]] = {}
-    keys: dict[str, list[XSDKey]]  # element_name -> list of xs:key constraints
+    keys: list[XSDKey]
 
     def __init__(self, path: str, dataset_name: str) -> None:
         self._path = path
@@ -351,7 +371,7 @@ class XSDReader:
         self.top_level_complex_type_models = {}
         self.separate_complex_type_root_elements = []
         self.properties_xsd_type_to_set = set()
-        self.keys = {}
+        self.keys = []
 
     def register_simple_types(self, state: State) -> None:
         custom_types_nodes = self.root.xpath('./*[local-name() = "simpleType"]')
@@ -469,51 +489,57 @@ class XSDReader:
 
     def _post_process_keys(self) -> None:
         """Sets model `ref` (primary key) from xs:key constraints."""
-        for element_name, keys in self.keys.items():
-            if element_name not in self.top_level_element_models:
-                logger.warning(f"xs:key defined for unknown element: {element_name}")
-                continue
-
-            for key in keys:
-                target_models = self._find_key_target_models(key)
-                for target_model in target_models:
-                    self._apply_key_to_model(key, target_model)
+        for key in self.keys:
+            for target_model in self._find_key_target_models(key):
+                self._apply_key_to_model(key, target_model)
 
     def _find_key_target_models(self, key: XSDKey) -> list[XSDModel]:
-        # selector is an xpath like "City" or "tns:Cities/tns:City", only the last element is needed
-        target_element_name = key.selector_xpath.split("/")[-1].split(":")[-1]
+        steps = _xpath_steps(key.selector_xpath)
+        if steps is None:
+            logger.warning(f"xs:key '{key.name}' selector '{key.selector_xpath}' is not supported")
+            return []
 
-        if target_element_name in self.top_level_element_models:
-            return self.top_level_element_models[target_element_name]
+        if key.element_type:
+            models = self.top_level_complex_type_models.get(key.element_type, [])
+        else:
+            models = key.element_models
 
-        target_models = [model for model in self.models if model.xsd_name == target_element_name]
-        if not target_models:
-            logger.warning(f"xs:key selector references unknown element: {target_element_name}")
-        return target_models
+        # selector is relative to the element the key is declared in
+        for step in steps:
+            models = [
+                xsd_property.ref_model
+                for model in models
+                for xsd_property in model.properties.values()
+                if xsd_property.ref_model and xsd_property.xsd_name == step
+            ]
+
+        if not models:
+            logger.warning(f"xs:key '{key.name}' selector '{key.selector_xpath}' does not match any model")
+        return list(dict.fromkeys(models))
 
     def _apply_key_to_model(self, key: XSDKey, model: XSDModel) -> None:
         key_property_names = []
         for field_xpath in key.field_xpaths:
-            field_xpath = field_xpath.split(":")[-1]
             property_name = self._find_property_name_by_field_xpath(model, field_xpath)
-            if property_name:
-                key_property_names.append(property_name)
-            else:
-                logger.warning(f"xs:key field '{field_xpath}' not found in model {model.name}")
+            if property_name is None:
+                # a key with some of its fields missing does not guarantee uniqueness
+                logger.warning(f"xs:key '{key.name}' field '{field_xpath}' not found in model {model.name}")
+                return
+            key_property_names.append(property_name)
 
-        if key_property_names:
-            model.ref = key_property_names
+        model.ref = key_property_names
 
     @staticmethod
     def _find_property_name_by_field_xpath(model: XSDModel, field_xpath: str) -> str | None:
-        # attribute fields ("@ID") match the source as is, element fields ("Name") match "Name/text()"
-        if field_xpath.startswith("@"):
-            source = field_xpath
-        else:
-            source = f"{field_xpath}/text()"
+        steps = _xpath_steps(field_xpath)
+        # fields in nested elements are not supported
+        if not steps or len(steps) > 1:
+            return None
 
+        step = steps[0]
+        source = step if step.startswith("@") else f"{step}/text()"
         for property_name, xsd_property in model.properties.items():
-            if xsd_property.source in (source, field_xpath):
+            if xsd_property.source == source:
                 return property_name
         return None
 
@@ -752,7 +778,9 @@ class XSDReader:
             elif QName(child).localname == "key":
                 # keys are applied after all models are created, see _post_process_keys
                 key = self.process_key(child, state)
-                self.keys.setdefault(property_name, []).append(key)
+                key.element_models = models
+                key.element_type = property_type_to
+                self.keys.append(key)
 
             else:
                 raise RuntimeError(f"This node type cannot be in the element: {QName(child).localname}")
