@@ -248,7 +248,7 @@ class XSDModel:
     extends_model: XSDModel | None = None
     is_partial: bool = True
     features: str | None = None
-    ref: List[str] | None = None  # primary key fields from xs:key
+    ref: list[str] | None = None  # primary key fields from xs:key
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
@@ -285,7 +285,6 @@ class XSDModel:
             model_data["properties"] = properties
 
         if self.ref:
-            # Set primary keys in external dict (follows SQL manifest pattern)
             model_data["external"]["pk"] = self.ref
 
         if self.uri is not None:
@@ -469,73 +468,54 @@ class XSDReader:
                     model.extends_model = None
 
     def _post_process_keys(self) -> None:
-        """
-        Apply xs:key constraints to models by setting the ref column.
-
-        The ref column indicates which properties form the primary key.
-        For composite keys, multiple property names are stored in a list.
-        """
+        """Sets model `ref` (primary key) from xs:key constraints."""
         for element_name, keys in self.keys.items():
-            # Find the model(s) for this element
             if element_name not in self.top_level_element_models:
                 logger.warning(f"xs:key defined for unknown element: {element_name}")
                 continue
 
             for key in keys:
-                # Parse selector to find target model
-                # Selector xpath like "City" or "Cities/City"
-                selector_parts = key.selector_xpath.split("/")
-                # Remove namespace prefixes (e.g., "tns:City" -> "City")
-                selector_parts = [part.split(":")[-1] for part in selector_parts]
-
-                # Get the target element name from selector
-                target_element_name = selector_parts[-1]
-
-                # Find target model(s) by xsd_name
-                # First check top_level_element_models (for root elements)
-                if target_element_name in self.top_level_element_models:
-                    target_models = self.top_level_element_models[target_element_name]
-                else:
-                    # Search through all models for nested elements
-                    target_models = [m for m in self.models if m.xsd_name == target_element_name]
-
-                if not target_models:
-                    logger.warning(f"xs:key selector references unknown element: {target_element_name}")
-                    continue
-
-                # Apply key to target model(s)
+                target_models = self._find_key_target_models(key)
                 for target_model in target_models:
-                    # Parse field xpaths to property names
-                    ref_properties = []
-                    for field_xpath in key.field_xpaths:
-                        # Remove namespace prefix
-                        field_xpath = field_xpath.split(":")[-1]
+                    self._apply_key_to_model(key, target_model)
 
-                        # Handle attribute vs element
-                        if field_xpath.startswith("@"):
-                            # Attribute: @ID -> find property with source="@ID"
-                            attr_name = field_xpath[1:]
-                            source_to_find = f"@{attr_name}"
-                        else:
-                            # Element: Name -> find property with source="Name/text()"
-                            source_to_find = f"{field_xpath}/text()"
+    def _find_key_target_models(self, key: XSDKey) -> list[XSDModel]:
+        # selector is an xpath like "City" or "tns:Cities/tns:City", only the last element is needed
+        target_element_name = key.selector_xpath.split("/")[-1].split(":")[-1]
 
-                        # Find matching property
-                        prop_name = None
-                        for pname, prop in target_model.properties.items():
-                            if prop.source == source_to_find or prop.source == field_xpath:
-                                prop_name = pname
-                                break
+        if target_element_name in self.top_level_element_models:
+            return self.top_level_element_models[target_element_name]
 
-                        if prop_name:
-                            ref_properties.append(prop_name)
-                        else:
-                            logger.warning(f"xs:key field '{field_xpath}' not found in model {target_model.name}")
+        target_models = [model for model in self.models if model.xsd_name == target_element_name]
+        if not target_models:
+            logger.warning(f"xs:key selector references unknown element: {target_element_name}")
+        return target_models
 
-                    # Set model's ref if we found all fields
-                    if ref_properties:
-                        target_model.ref = ref_properties
-                        logger.info(f"xs:key applied to model '{target_model.name}': ref={ref_properties}")
+    def _apply_key_to_model(self, key: XSDKey, model: XSDModel) -> None:
+        key_property_names = []
+        for field_xpath in key.field_xpaths:
+            field_xpath = field_xpath.split(":")[-1]
+            property_name = self._find_property_name_by_field_xpath(model, field_xpath)
+            if property_name:
+                key_property_names.append(property_name)
+            else:
+                logger.warning(f"xs:key field '{field_xpath}' not found in model {model.name}")
+
+        if key_property_names:
+            model.ref = key_property_names
+
+    @staticmethod
+    def _find_property_name_by_field_xpath(model: XSDModel, field_xpath: str) -> str | None:
+        # attribute fields ("@ID") match the source as is, element fields ("Name") match "Name/text()"
+        if field_xpath.startswith("@"):
+            source = field_xpath
+        else:
+            source = f"{field_xpath}/text()"
+
+        for property_name, xsd_property in model.properties.items():
+            if xsd_property.source in (source, field_xpath):
+                return property_name
+        return None
 
     def post_process_separate_complex_type_root_elements(self) -> None:
         processed_models = []
@@ -770,11 +750,9 @@ class XSDReader:
                 description = self.process_annotation(child, state)
 
             elif QName(child).localname == "key":
-                # Process xs:key constraint - store for post-processing
+                # keys are applied after all models are created, see _post_process_keys
                 key = self.process_key(child, state)
-                if property_name not in self.keys:
-                    self.keys[property_name] = []
-                self.keys[property_name].append(key)
+                self.keys.setdefault(property_name, []).append(key)
 
             else:
                 raise RuntimeError(f"This node type cannot be in the element: {QName(child).localname}")
@@ -1002,17 +980,16 @@ class XSDReader:
         """
         key_name = node.attrib.get("name")
 
-        # Extract selector xpath
         selector_nodes = node.xpath('./*[local-name() = "selector"]')
         if not selector_nodes:
             raise RuntimeError(f"xs:key '{key_name}' must have a selector element")
         selector_xpath = selector_nodes[0].attrib.get("xpath")
 
-        # Extract field xpath(s) - can be multiple for composite keys
+        # composite keys have several fields
         field_nodes = node.xpath('./*[local-name() = "field"]')
         if not field_nodes:
             raise RuntimeError(f"xs:key '{key_name}' must have at least one field element")
-        field_xpaths = [f.attrib.get("xpath") for f in field_nodes]
+        field_xpaths = [field_node.attrib.get("xpath") for field_node in field_nodes]
 
         return XSDKey(name=key_name, selector_xpath=selector_xpath, field_xpaths=field_xpaths)
 
