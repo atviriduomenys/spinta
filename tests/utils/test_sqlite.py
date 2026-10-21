@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
@@ -193,7 +191,7 @@ def test_different_tables(copy):
     assert str(e.value) == ("Can't migrate, table 'table' is completely different, from what is expected.")
 
 
-def _schema(inspector: Inspector) -> Dict[str, List[str]]:
+def _schema(inspector: Inspector) -> dict[str, list[str]]:
     schema = {}
     for table in inspector.get_table_names():
         columns = []

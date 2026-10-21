@@ -1,4 +1,4 @@
-from typing import Optional, overload
+from typing import overload
 
 from spinta import commands
 from spinta.backends.constants import BackendFeatures, TableType
@@ -61,7 +61,7 @@ def getfile(
     backend: PostgreSQL,
     *,
     data: FileObjectData,
-) -> Optional[bytes]:
+) -> bytes | None:
     if not data["_blocks"]:
         return None
 

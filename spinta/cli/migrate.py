@@ -1,5 +1,4 @@
 import asyncio
-from typing import List, Optional
 
 import click
 from typer import Argument, Option
@@ -17,7 +16,7 @@ from spinta.manifests.commands.manifest import has_dataset
 
 def bootstrap(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    manifests: list[str] | None = Argument(None, help=("Manifest files to load")),
 ):
     """Initialize backends
 
@@ -49,7 +48,7 @@ def sync(ctx: TyperContext):
 
 def migrate(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    manifests: list[str] | None = Argument(None, help=("Manifest files to load")),
     plan: bool = Option(
         False, "-p", "--plan", help=("If added, prints SQL code instead of executing it"), is_flag=True
     ),
@@ -64,7 +63,7 @@ def migrate(
             "If added, migrate will do atomic transactions, meaning it will automatically commit after each action (use it at your own risk)"
         ),
     ),
-    datasets: Optional[List[str]] = Option(None, "-d", "--datasets", help=("List of datasets to migrate")),
+    datasets: list[str] | None = Option(None, "-d", "--datasets", help=("List of datasets to migrate")),
     raise_potential_error: bool = Option(
         False,
         "--raise",

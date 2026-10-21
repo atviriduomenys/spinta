@@ -1,4 +1,4 @@
-from typing import Dict, TypedDict
+from typing import TypedDict
 
 
 class Lang(TypedDict):
@@ -6,7 +6,7 @@ class Lang(TypedDict):
     description: str
 
 
-LangData = Dict[
+LangData = dict[
     str,  # two letter locale code
     Lang,
 ]

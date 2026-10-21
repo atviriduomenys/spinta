@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import TYPE_CHECKING, Any, List, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import array_agg
@@ -31,7 +31,7 @@ class PgQueryBuilder(QueryBuilder):
     model: Model
     table: sa.Table
     joins: dict
-    columns: List[sa.Column]
+    columns: list[sa.Column]
 
     def init(self, backend: PostgreSQL, table: sa.Table, params: QueryParams = None):
         result = self(
@@ -84,11 +84,11 @@ class PgQueryBuilder(QueryBuilder):
             qry = qry.group_by(*self.group_by)
         return qry
 
-    def add_column(self, column: Union[sa.Column, Function, sa.sql.expression.ColumnElement]) -> int:
+    def add_column(self, column: sa.Column | Function | sa.sql.expression.ColumnElement) -> int:
         """Returns position in select column list, which is stored in
         Selected.item.
         """
-        assert isinstance(column, (sa.Column, Function, sa.sql.expression.ColumnElement)), column
+        assert isinstance(column, sa.Column | Function | sa.sql.expression.ColumnElement), column
         if column not in self.columns:
             self.columns.append(column)
         return self.columns.index(column)
@@ -214,7 +214,7 @@ class PgQueryBuilder(QueryBuilder):
         return self.joins[base_model.name]
 
     def generate_backref_select(
-        self, left: Property, right: Property, required_columns: List[Tuple[str, str]], aggregate: bool = False
+        self, left: Property, right: Property, required_columns: list[tuple[str, str]], aggregate: bool = False
     ):
         select_columns = []
         group_by = []
@@ -301,7 +301,7 @@ class Positive(Func):
 
 @dataclasses.dataclass
 class Recurse(Func):
-    args: List[Union[DataType, Func]] = None
+    args: list[DataType | Func] = None
 
 
 # This might be a hack, to access `_base` property

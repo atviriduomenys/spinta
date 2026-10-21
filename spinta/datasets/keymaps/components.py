@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 from spinta.components import Component
 
@@ -10,7 +10,7 @@ from spinta.components import Component
 class KeyMap(Component):
     name: str = None
 
-    def encode(self, name: str, value: Any, primary_key: Optional[str] = None) -> Optional[str]:
+    def encode(self, name: str, value: Any, primary_key: str | None = None) -> str | None:
         """From external to internal."""
         raise NotImplementedError
 
@@ -37,7 +37,7 @@ class KeyMap(Component):
     def validate_data(self, name: str):
         raise NotImplementedError
 
-    def copy(self) -> "KeyMap":
+    def copy(self) -> KeyMap:
         """Creates a new copy of itself with a separate context manager state."""
         raise NotImplementedError
 

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import math
-from typing import Any, Dict, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 import dask
 import numpy as np
@@ -137,7 +138,7 @@ def _get_row_value(context: Context, row: Any, sel: Any, params: dict | None) ->
 
 
 @commands.load.register(Context, DaskBackend, dict)
-def load(context: Context, backend: DaskBackend, config: Dict[str, Any]):
+def load(context: Context, backend: DaskBackend, config: dict[str, Any]):
     pass
 
 
@@ -213,7 +214,7 @@ def getall(
 ) -> Iterator[ObjectData]:
     yaml_file = backend.config["dsn"]
 
-    with open(yaml_file, "r") as f:
+    with open(yaml_file) as f:
         data = list(yaml.safe_load_all(f))
 
     df = pd.json_normalize(data)

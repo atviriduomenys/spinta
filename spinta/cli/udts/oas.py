@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import pathlib
-from typing import List, Optional
 
 from typer import Argument, Option, echo
 from typer import Context as TyperContext
@@ -20,15 +19,13 @@ from spinta.manifests.open_api.udts_config import UdtsConfig
 
 def oas(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help="Manifest files to load"),
-    output: Optional[str] = Option(
-        None, "-o", "--output", help="Write specification to a given file, `.json` or `.yaml`"
-    ),
-    path: Optional[str] = Option(None, "--path", help="Data service path, for example `datasets/gov/rc/jadis/at280/1`"),
-    udts_cfg: Optional[pathlib.Path] = Option(
+    manifests: list[str] | None = Argument(None, help="Manifest files to load"),
+    output: str | None = Option(None, "-o", "--output", help="Write specification to a given file, `.json` or `.yaml`"),
+    path: str | None = Option(None, "--path", help="Data service path, for example `datasets/gov/rc/jadis/at280/1`"),
+    udts_cfg: pathlib.Path | None = Option(
         None, "--udts-cfg", help="YAML file with environments, `info` and authorization server, required"
     ),
-    api_version: Optional[str] = Option(None, "--api-version", help="Value of `info.version`"),
+    api_version: str | None = Option(None, "--api-version", help="Value of `info.version`"),
     list_services: bool = Option(False, "--list", help="List data services found in a manifest and exit"),
 ):
     """Export OpenAPI specification of one UDTS data service

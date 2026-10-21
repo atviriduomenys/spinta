@@ -1,5 +1,5 @@
 import contextlib
-from typing import Dict, Final, List, Literal, Optional
+from typing import Final, Literal
 
 import sqlalchemy as sa
 
@@ -8,7 +8,7 @@ from spinta.manifests.components import Manifest
 
 class InternalSQLManifest(Manifest):
     type = "internal"
-    path: Optional[str] = None
+    path: str | None = None
     engine: sa.engine.Engine = None
     table = None
 
@@ -77,7 +77,7 @@ InternalManifestColumn = Literal[
     "title",
     "description",
 ]
-INTERNAL_MANIFEST_COLUMNS: List[InternalManifestColumn] = [
+INTERNAL_MANIFEST_COLUMNS: list[InternalManifestColumn] = [
     INDEX,
     ID,
     PARENT,
@@ -97,4 +97,4 @@ INTERNAL_MANIFEST_COLUMNS: List[InternalManifestColumn] = [
     DESCRIPTION,
 ]
 
-InternalManifestRow = Dict[InternalManifestColumn, str]
+InternalManifestRow = dict[InternalManifestColumn, str]

@@ -1,23 +1,16 @@
 from __future__ import annotations
 
 import base64
+import builtins
 import contextlib
 import dataclasses
 import json
 import pathlib
+from collections.abc import AsyncIterator, Callable, Iterator
 from typing import (
     TYPE_CHECKING,
     Any,
-    AsyncIterator,
-    Callable,
-    Dict,
-    Iterator,
-    List,
-    Optional,
-    Set,
-    Type,
     TypedDict,
-    Union,
 )
 
 from spinta import exceptions
@@ -46,9 +39,9 @@ if TYPE_CHECKING:
 
 class Context:
     _name: str
-    _parent: Optional[Context]
-    _exitstack: List[Optional[contextlib.ExitStack]]
-    _local_names: List[Set[str]]
+    _parent: Context | None
+    _exitstack: list[contextlib.ExitStack | None]
+    _local_names: list[builtins.set[str]]
 
     def __init__(self, name: str, parent: Context = None):
         self._name = name
@@ -302,7 +295,7 @@ class Store:
     manifest: Manifest = None
     internal: InternalManifest = None
     accesslog: AccessLog = None
-    backends: Dict[str, Backend]
+    backends: dict[str, Backend]
 
     def __init__(self):
         self.config = None
@@ -374,7 +367,7 @@ class Node(Component):
 
 # MetaData entry ID can be file path, uuid, table row id of a Model, Dataset,
 # etc, depends on manifest type.
-EntryId = Union[int, str, pathlib.Path]
+EntryId = int | str | pathlib.Path
 
 
 class MetaData(Node):
@@ -423,10 +416,10 @@ class NamespaceGiven:
 class Namespace(MetaData):
     access: Access
     keymap: KeyMap = None
-    names: Dict[str, Namespace]
-    models: Dict[str, Model]
+    names: dict[str, Namespace]
+    models: dict[str, Model]
     backend: Backend = None
-    parent: Union[Namespace, Manifest]
+    parent: Namespace | Manifest
     title: str
     description: str
     # Namespaces generated from model name.
@@ -461,7 +454,7 @@ class Namespace(MetaData):
 class Base(ExtraMetaData):
     model: Model  # a.base.b - here `model` is `b`
     parent: Model  # a.base.b - here `parent` is `a`
-    pk: List[Property]  # a.base.b - list of properties of `a` model
+    pk: list[Property]  # a.base.b - list of properties of `a` model
     lang: LangData = None
     level: Level
 
@@ -500,10 +493,10 @@ class PageBy:
 class PageInfo:
     model: Model
     enabled: bool
-    keys: Dict[str, Property]
+    keys: dict[str, Property]
     size: int
 
-    def __init__(self, model: Model, enabled: bool = True, size: int = None, keys: Dict[str, Property] = None):
+    def __init__(self, model: Model, enabled: bool = True, size: int = None, keys: dict[str, Property] = None):
         self.model = model
         self.enabled = enabled
         self.size = size
@@ -513,7 +506,7 @@ class PageInfo:
 class Page:
     model: Model
     enabled: bool
-    by: Dict[str, PageBy]
+    by: dict[str, PageBy]
     size: int
     filter_only: bool
     first_time: bool
@@ -633,7 +626,7 @@ def check_if_revision_explicit(prop: Property) -> bool:
 
 
 class ParamsPage:
-    values: List[Any]
+    values: list[Any]
     size: int
     is_enabled: bool
 
@@ -654,12 +647,12 @@ class Model(MetaData):
     description: str
     ns: Namespace
     external: Entity = None
-    scopes: Dict[str, Scope]
-    properties: Dict[str, Property]
+    scopes: dict[str, Scope]
+    properties: dict[str, Property]
     mode: Mode = None
     given: ModelGiven
     lang: LangData = None
-    comments: List[Comment] = None
+    comments: list[Comment] = None
     base: Base = None
     uri: str = None
     page: PageInfo = None
@@ -744,7 +737,7 @@ class Model(MetaData):
 
         # return self.name.split('/')[-1]
 
-    def add_keymap_property_combination(self, given_props: List[Property]):
+    def add_keymap_property_combination(self, given_props: list[Property]):
         extract_names = tuple([prop.place for prop in given_props])
         if extract_names not in self.required_keymap_properties:
             self.required_keymap_properties.append(extract_names)
@@ -800,7 +793,7 @@ class Property(ExtraMetaData):
     enums: Enums
     lang: LangData = None
     unit: Unit = None  # Given in ref column.
-    comments: List[Comment] = None
+    comments: builtins.list[Comment] = None
     status: Status | None = None
     visibility: Visibility | None = None
     eli: str | None = None
@@ -903,18 +896,18 @@ class Attachment:
 
 class UrlParseNode(TypedDict):
     name: str
-    args: List[Any]
+    args: list[Any]
     id_prop: Property
 
 
 class UrlParams:
-    parsetree: List[UrlParseNode]
+    parsetree: list[UrlParseNode]
 
-    path_parts: List[str] = None
-    path: Optional[str] = None
-    model: Optional[Model, Namespace] = None
-    pk: Optional[str] = None
-    prop: Optional[Property] = None
+    path_parts: list[str] = None
+    path: str | None = None
+    model: Model | Namespace | None = None
+    pk: str | None = None
+    prop: Property | None = None
     # Tells if we accessing property content or reference. Applies only for some
     # property types, like references.
     propref: bool = False
@@ -926,27 +919,27 @@ class UrlParams:
     external: bool = False
 
     changes: bool = False
-    changes_offset: Optional[str] = None
+    changes_offset: str | None = None
 
     fmt: Format
-    format: Optional[str] = None
+    format: str | None = None
     formatparams: dict
 
-    select: Optional[List[str]] = None
-    select_props: Optional[Dict[str, Union[Expr, Bind]]] = None
-    select_funcs: Optional[Dict[str, FuncProperty]] = None
+    select: list[str] | None = None
+    select_props: dict[str, Expr | Bind] | None = None
+    select_funcs: dict[str, FuncProperty] | None = None
 
     custom_scope: str | None = None
 
-    sort: List[dict] = None
-    limit: Optional[int] = None
-    offset: Optional[int] = None
+    sort: list[dict] = None
+    limit: int | None = None
+    offset: int | None = None
     # Limit can be enforced even if it is not explicitly given in URL.
     limit_enforced: bool = False
     limit_enforced_to: int = 100
     # In batch requests, return summary of what was done.
     summary: bool = False
-    bbox: Optional[List[float]] = None
+    bbox: list[float] | None = None
     # In batch requests, continue execution even if some actions fail.
     fault_tolerant: bool = False
 
@@ -956,16 +949,16 @@ class UrlParams:
     # returned only headers.
     head: bool = False
 
-    query: List[Dict[str, Any]] = None
+    query: list[dict[str, Any]] = None
 
-    page: Optional[ParamsPage] = None
+    page: ParamsPage | None = None
 
-    expand: Optional[List[str]] = None
+    expand: list[str] | None = None
 
-    lang: Optional[List[str]] = None
+    lang: list[str] | None = None
 
-    accept_langs: Optional[List[str]] = None
-    content_langs: Optional[List[str]] = None
+    accept_langs: list[str] | None = None
+    content_langs: list[str] | None = None
 
     def changed_parsetree(self, change):
         ptree = {x["name"]: x["args"] for x in (self.parsetree or [])}
@@ -978,26 +971,26 @@ class Version:
 
 
 class DataItem:
-    model: Optional[Model] = None  # Data model.
-    prop: Optional[Property] = None  # Action on a property, not a whole model.
+    model: Model | None = None  # Data model.
+    prop: Property | None = None  # Action on a property, not a whole model.
     propref: bool = False  # Action on property reference or instance.
-    backend: Optional[Backend] = None  # Model or property backend depending on prop and propref.
-    action: Optional[Action] = None  # Action.
-    payload: Optional[dict] = None  # Original data from request.
-    given: Optional[dict] = None  # Request data converted to Python-native data types.
-    saved: Optional[dict] = None  # Current data stored in database.
-    patch: Optional[dict] = None  # Patch that is going to be stored to database.
-    error: Optional[exceptions.UserError] = None  # Error while processing data.
+    backend: Backend | None = None  # Model or property backend depending on prop and propref.
+    action: Action | None = None  # Action.
+    payload: dict | None = None  # Original data from request.
+    given: dict | None = None  # Request data converted to Python-native data types.
+    saved: dict | None = None  # Current data stored in database.
+    patch: dict | None = None  # Patch that is going to be stored to database.
+    error: exceptions.UserError | None = None  # Error while processing data.
 
     def __init__(
         self,
-        model: Optional[Model] = None,
-        prop: Optional[Property] = None,
+        model: Model | None = None,
+        prop: Property | None = None,
         propref: bool = False,
-        backend: Optional[Backend] = None,
-        action: Optional[Action] = None,
-        payload: Optional[dict] = None,
-        error: Optional[exceptions.UserError] = None,
+        backend: Backend | None = None,
+        action: Action | None = None,
+        payload: dict | None = None,
+        error: exceptions.UserError | None = None,
     ):
         self.model = model
         self.prop = prop
@@ -1013,7 +1006,7 @@ class DataItem:
     def __getitem__(self, key):
         return DataSubItem(self, *(d.get(key, NA) if d else NA for d in (self.given, self.saved, self.patch)))
 
-    def copy(self, **kwargs) -> "DataItem":
+    def copy(self, **kwargs) -> DataItem:
         data = DataItem()
         attrs = [
             "model",
@@ -1080,7 +1073,7 @@ DataStream = AsyncIterator[DataItem]
 ScopeFormatterFunc = Callable[
     [
         Context,
-        Union[Namespace, Model, Property],
+        Namespace | Model | Property,
         Action,
     ],
     str,
@@ -1090,7 +1083,7 @@ ScopeFormatterFunc = Callable[
 ScopeFormatterFuncUDTS = Callable[
     [
         Context,
-        Union[Namespace, Model, Property],
+        Namespace | Model | Property,
         Action,
     ],
     str,
@@ -1138,14 +1131,14 @@ class Config:
     root: str = None
     credentials_file: pathlib.Path
     data_path: pathlib.Path
-    AccessLog: Type[AccessLog]
-    exporters: Dict[str, Format]
+    AccessLog: type[AccessLog]
+    exporters: dict[str, Format]
     default_page_size: int
     enable_pagination: bool
     sync_page_size: int = None
     sync_retry_count: int
     sync_retry_delay_range: tuple[float]
-    languages: List[str]
+    languages: list[str]
     # For CLI commands `spinta copy` and `spinta check --check-names`
     check_names: bool = False
     # MB

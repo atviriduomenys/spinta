@@ -1,5 +1,5 @@
-from collections.abc import Generator
-from typing import Any, AsyncIterator, Iterable, List
+from collections.abc import AsyncIterator, Generator, Iterable
+from typing import Any
 
 from typer import echo
 
@@ -105,7 +105,7 @@ async def prepare_export_patch(
 
 
 async def export_data(
-    context: Context, models: List[Model], fmt: Any, output: str, counter: CounterManager, access: Access
+    context: Context, models: list[Model], fmt: Any, output: str, counter: CounterManager, access: Access
 ):
     txn = commands.gen_object_id(context, fmt)
     for model in models:

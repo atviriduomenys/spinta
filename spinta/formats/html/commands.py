@@ -1,8 +1,9 @@
 import dataclasses
 import datetime
+from collections.abc import Iterable, Iterator
 from decimal import Decimal
 from itertools import chain, count
-from typing import Any, Dict, Generic, Iterable, Iterator, List, Optional, TypeVar
+from typing import Any, Generic, TypeVar
 from urllib.parse import urlparse
 
 from shapely.geometry.base import BaseGeometry
@@ -70,7 +71,7 @@ from spinta.utils.schema import NotAvailable
 from spinta.utils.url import build_url_path
 
 
-def _get_model_reserved_props(action: Action, include_page: bool, include_revision: bool) -> List[str]:
+def _get_model_reserved_props(action: Action, include_page: bool, include_revision: bool) -> list[str]:
     if action in [Action.GETALL, Action.SEARCH]:
         reserved = ["_id"]
     else:
@@ -82,7 +83,7 @@ def _get_model_reserved_props(action: Action, include_page: bool, include_revisi
     return reserved
 
 
-def _render_check(request: Request, data: Dict[str, Any] = None):
+def _render_check(request: Request, data: dict[str, Any] = None):
     if data:
         if "errors" in data:
             result = {
@@ -134,7 +135,7 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
 ):
     if action == Action.CHECK:
         return _render_check(request, data)
@@ -153,7 +154,7 @@ def render(
     params: UrlParams,
     data: Iterator[ComplexCell],
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
 ):
     if action == Action.GETONE:
         data = [data]
@@ -165,13 +166,13 @@ T = TypeVar("T")
 
 class _LimitIter(Generic[T]):
     _iterator: Iterator[T]
-    limit: Optional[int]
+    limit: int | None
     exhausted: bool = False
     last_page: Any = None
     header_page_id: int = None
     params: UrlParams = None
 
-    def __init__(self, limit: Optional[int], it: Iterable[T], header: list = None, params: UrlParams = None) -> None:
+    def __init__(self, limit: int | None, it: Iterable[T], header: list = None, params: UrlParams = None) -> None:
         self._iterator = iter(it)
         self._counter = count(1)
         self.limit = limit
@@ -208,7 +209,7 @@ def _is_empty(rows: Iterator[T]) -> Iterator[T]:
     return rows, empty
 
 
-def _iter_values(header: List[str], rows: Iterator[Dict[str, T]]) -> Iterator[List[T]]:
+def _iter_values(header: list[str], rows: Iterator[dict[str, T]]) -> Iterator[list[T]]:
     na = Cell("", color=Color.null)
     for row in rows:
         yield [row.get(h, na) for h in header]
@@ -219,7 +220,7 @@ def _get_model_tabular_header(
     model: Model,
     action: Action,
     params: UrlParams,
-) -> List[str]:
+) -> list[str]:
     if model.name == "_ns":
         reserved = get_ns_reserved_props(action)
     else:
@@ -240,7 +241,7 @@ def build_template_context(
     model: Model,
     action: Action,
     params: UrlParams,
-    rows: Iterable[Dict[str, Cell]],
+    rows: Iterable[dict[str, Cell]],
 ):
     rows = flatten(rows, sepgetter(model))
 
@@ -272,7 +273,7 @@ def _render_model(
     model: Model,
     action: Action,
     params: UrlParams,
-    rows: Iterable[Dict[str, Cell]],
+    rows: Iterable[dict[str, Cell]],
     http_headers,
 ):
     ctx = build_template_context(
@@ -324,7 +325,7 @@ def prepare_data_for_response(
     *,
     action: Action,
     select: SelectTree,
-    prop_names: List[str],
+    prop_names: list[str],
 ) -> dict:
     if model.name == "_ns":
         value = value.copy()
@@ -363,7 +364,7 @@ def prepare_dtype_for_response(
     dtype: String,
     value: _NamespaceName,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -377,7 +378,7 @@ def prepare_dtype_for_response(
     dtype: String,
     value: _ModelName,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -391,7 +392,7 @@ def prepare_dtype_for_response(
     dtype: DataType,
     value: None,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -405,7 +406,7 @@ def prepare_dtype_for_response(
     dtype: DataType,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -428,7 +429,7 @@ def prepare_dtype_for_response(
     dtype: URL | URI,
     value: str,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -451,7 +452,7 @@ def prepare_dtype_for_response(
     dtype: UUID,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -474,7 +475,7 @@ def prepare_dtype_for_response(
     dtype: UUID,
     value: NotAvailable,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -492,7 +493,7 @@ def prepare_dtype_for_response(
     dtype: Date,
     value: datetime.date,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -506,7 +507,7 @@ def prepare_dtype_for_response(
     dtype: Time,
     value: datetime.time,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -520,7 +521,7 @@ def prepare_dtype_for_response(
     dtype: DateTime,
     value: datetime.datetime,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -534,7 +535,7 @@ def prepare_dtype_for_response(
     dtype: Number,
     value: Decimal,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -548,7 +549,7 @@ def prepare_dtype_for_response(
     dtype: Binary,
     value: bytes,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -564,7 +565,7 @@ def prepare_dtype_for_response(
     dtype: PageType,
     value: list,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -579,7 +580,7 @@ def prepare_dtype_for_response(
     dtype: JSON,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -593,7 +594,7 @@ def prepare_dtype_for_response(
     dtype: Array,
     value: tuple,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -608,7 +609,7 @@ def prepare_dtype_for_response(
     dtype: Array,
     value: None,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -623,7 +624,7 @@ def prepare_dtype_for_response(
     dtype: File,
     value: NotAvailable,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -639,9 +640,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
     dtype: ExternalRef,
-    value: Optional[Dict[str, Any]],
+    value: dict[str, Any] | None,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -692,7 +693,7 @@ def prepare_dtype_for_response(
     dtype: File,
     value: NotAvailable,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -705,9 +706,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
     dtype: File,
-    value: Dict[str, Any],
+    value: dict[str, Any],
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -737,9 +738,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
     dtype: Object,
-    value: Dict[str, Any],
+    value: dict[str, Any],
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -759,9 +760,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
     dtype: Array,
-    value: List[Any],
+    value: list[Any],
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -781,9 +782,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
     dtype: Inherit,
-    value: List[Any],
+    value: list[Any],
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -806,7 +807,7 @@ def prepare_dtype_for_response(
     dtype: Inherit,
     value: NotAvailable,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -824,7 +825,7 @@ def prepare_dtype_for_response(
     dtype: ArrayBackRef,
     value: tuple,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -839,7 +840,7 @@ def prepare_dtype_for_response(
     dtype: ArrayBackRef,
     value: list,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -854,7 +855,7 @@ def prepare_dtype_for_response(
     dtype: ArrayBackRef,
     value: type(None),
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -869,7 +870,7 @@ def prepare_dtype_for_response(
     dtype: BackRef,
     value: dict,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -887,7 +888,7 @@ def prepare_dtype_for_response(
     dtype: BackRef,
     value: str,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -903,7 +904,7 @@ def prepare_dtype_for_response(
     dtype: BackRef,
     value: type(None),
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -915,9 +916,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Html,
     dtype: Text,
-    value: Dict[str, str],
+    value: dict[str, str],
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -936,7 +937,7 @@ def prepare_dtype_for_response(
     dtype: Geometry,
     value: BaseGeometry,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -952,7 +953,7 @@ def prepare_dtype_for_response(
     dtype: Denorm,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):

@@ -1,5 +1,6 @@
+from collections.abc import Iterable, Iterator
 from itertools import chain, islice
-from typing import Any, Iterable, Iterator, List, TypeVar, Union
+from typing import Any, TypeVar
 
 
 def consume(generator, n=None):
@@ -78,7 +79,7 @@ def last(it, default=None):
 T = TypeVar("T")
 
 
-def flatten(it: Iterable[Union[T, List[T]]]) -> Iterator[T]:
+def flatten(it: Iterable[T | list[T]]) -> Iterator[T]:
     for x in it:
         if isinstance(x, list):
             yield from x
@@ -104,7 +105,7 @@ def first_dict_key(it: dict, default=None):
     return res
 
 
-def ensure_list(value: Any) -> List[Any]:
+def ensure_list(value: Any) -> list[Any]:
     if isinstance(value, tuple):
         return list(value)
     if isinstance(value, list):

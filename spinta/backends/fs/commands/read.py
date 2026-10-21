@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, overload
+from typing import overload
 
 from spinta import commands
 from spinta.backends.fs.components import FileSystem
@@ -47,7 +47,7 @@ def getfile(
     backend: FileSystem,
     *,
     data: FileObjectData,
-) -> Optional[Path]:
+) -> Path | None:
     filename = data["_id"]
     if filename is None:
         return None

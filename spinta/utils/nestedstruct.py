@@ -1,5 +1,6 @@
 import itertools
-from typing import Any, Callable, Dict, Iterator, List, Optional, Set, Tuple, Union
+from collections.abc import Callable, Iterator
+from typing import Any
 
 from multipledispatch import dispatch
 
@@ -8,7 +9,7 @@ from spinta.components import Model, Property
 from spinta.types.datatype import DataType, Object, Partial, Ref
 from spinta.types.text.components import Text
 
-SEP_GETTER_TYPE = Callable[[str], Tuple[Callable, str]]
+SEP_GETTER_TYPE = Callable[[str], tuple[Callable, str]]
 
 
 @dispatch(type(None))
@@ -32,7 +33,7 @@ def _get_seperator(target: Text):
 
 
 @dispatch((Model, Object, Partial), str)
-def _get_child(parent: Union[Model, Object, Partial], target: str):
+def _get_child(parent: Model | Object | Partial, target: str):
     if target in parent.properties:
         return parent.properties[target]
 
@@ -131,7 +132,7 @@ def _flatten(value, sep_getter: SEP_GETTER_TYPE, key: str = "", omit_none: bool 
                 lists += more
         return data, lists
 
-    elif isinstance(value, (list, Iterator)):
+    elif isinstance(value, list | Iterator):
         if value:
             if key:
                 key = f"{key}[]"
@@ -143,8 +144,8 @@ def _flatten(value, sep_getter: SEP_GETTER_TYPE, key: str = "", omit_none: bool 
         return {key: value} if value is not None or not omit_none else {}, []
 
 
-def build_select_tree(select: List[str]) -> Dict[str, Set[Optional[str]]]:
-    tree: Dict[str, Set[Optional[str]]] = {}
+def build_select_tree(select: list[str]) -> dict[str, set[str | None]]:
+    tree: dict[str, set[str | None]] = {}
     for name in select:
         split = name, None
         while len(split) == 2:
@@ -266,8 +267,8 @@ def get_last_attr(value: str):
 
 def extract_list_property_names(
     model: Model,
-    properties: List[str],
-) -> List[str]:
+    properties: list[str],
+) -> list[str]:
     list_keys = []
     for key in properties:
         if key in model.flatprops:

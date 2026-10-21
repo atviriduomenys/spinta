@@ -3,8 +3,9 @@ import json
 import logging
 import pathlib
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from copy import deepcopy
-from typing import IO, Any, Iterator
+from typing import IO, Any
 
 import requests
 from lxml import etree

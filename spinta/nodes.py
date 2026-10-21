@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Optional, Tuple, Type, Union, overload
+from typing import Any, Literal, overload
 
 from spinta import commands, exceptions
 from spinta.components import Component, Config, Context, EntryId, Node
@@ -106,18 +106,18 @@ def get_node(
 @overload
 def load_node(
     context: Context,
-    node: Union[Node, Component],
+    node: Node | Component,
     data: dict,
     *,
     mixed: Literal[True] = False,
     parent: Node = None,
-) -> Tuple[Node, dict]: ...
+) -> tuple[Node, dict]: ...
 
 
 @overload
 def load_node(
     context: Context,
-    node: Union[Node, Component],
+    node: Node | Component,
     data: dict,
     *,
     mixed: Literal[False] = False,
@@ -130,12 +130,12 @@ ARRAY_TYPES = [DataTypeEnum.ARRAY.value, DataTypeEnum._PARTIAL_ARRAY.value, Data
 
 def load_node(
     context: Context,
-    node: Union[Node, Component],
+    node: Node | Component,
     data: dict,
     *,
     mixed: bool = False,
-    parent: Union[Node, Manifest] = None,
-) -> Union[Node, Tuple[Node, Dict[str, Any]]]:
+    parent: Node | Manifest = None,
+) -> Node | tuple[Node, dict[str, Any]]:
     remainder = {}
     node_schema = resolve_schema(node, Component)
     for name in set(node_schema) | set(data):
@@ -183,8 +183,8 @@ def load_node(
 def load_model_properties(
     context: Context,
     model: Node,
-    Prop: Type[Node],
-    data: Optional[dict],
+    Prop: type[Node],
+    data: dict | None,
 ) -> None:
     data = data or {}
 

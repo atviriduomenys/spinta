@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List
 
 import pytest
 
@@ -26,7 +25,7 @@ from spinta.testing.request import make_get_request
         ("select(_id, country._id, country.name)", ["_id", "country._id", "country.name"]),
     ],
 )
-def test_get_model_tabular_header(manifest_type: str, tmp_path: Path, rc: RawConfig, query: str, header: List[str]):
+def test_get_model_tabular_header(manifest_type: str, tmp_path: Path, rc: RawConfig, query: str, header: list[str]):
     context, manifest = load_manifest_and_context(
         rc,
         """
