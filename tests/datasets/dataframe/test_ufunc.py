@@ -23,7 +23,7 @@ def fs():
 
 
 def test_csv_tabular_seperator_default_error(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("šalis;miestas\nlt;Vilnius\nlv;Ryga\nee;Talin").encode("utf-8"))
+    fs.pipe("cities.csv", ("šalis;miestas\nlt;Vilnius\nlv;Ryga\nee;Talin").encode())
 
     context, manifest = prepare_manifest(
         rc,
@@ -46,7 +46,7 @@ def test_csv_tabular_seperator_default_error(rc: RawConfig, fs: AbstractFileSyst
 
 
 def test_csv_tabular_seperator(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("šalis;miestas\nlt;Vilnius\nlv;Ryga\nee;Talin").encode("utf-8"))
+    fs.pipe("cities.csv", ("šalis;miestas\nlt;Vilnius\nlv;Ryga\nee;Talin").encode())
 
     context, manifest = prepare_manifest(
         rc,
@@ -315,7 +315,7 @@ def test_json_boolean_eq_filter(rc: RawConfig, tmp_path: Path):
 
 
 def test_csv_and_operation(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("salis,miestas\nlt,Vilnius\nlt,Kaunas\nlt,Siauliai\nlv,Ryga\nee,Talin").encode("utf-8"))
+    fs.pipe("cities.csv", (b"salis,miestas\nlt,Vilnius\nlt,Kaunas\nlt,Siauliai\nlv,Ryga\nee,Talin"))
 
     context, manifest = prepare_manifest(
         rc,
@@ -340,7 +340,7 @@ def test_csv_and_operation(rc: RawConfig, fs: AbstractFileSystem):
 
 
 def test_csv_or_operation(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("salis,miestas\nlt,Vilnius\nlt,Kaunas\nlt,Siauliai\nlv,Ryga\nee,Talin").encode("utf-8"))
+    fs.pipe("cities.csv", (b"salis,miestas\nlt,Vilnius\nlt,Kaunas\nlt,Siauliai\nlv,Ryga\nee,Talin"))
 
     context, manifest = prepare_manifest(
         rc,
@@ -363,7 +363,7 @@ def test_csv_or_operation(rc: RawConfig, fs: AbstractFileSystem):
 
 
 def test_csv_and_or_operation(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("salis,miestas\nlt,Vilnius\nlt,Kaunas\nlt,Siauliai\nlv,Ryga\nee,Talin").encode("utf-8"))
+    fs.pipe("cities.csv", (b"salis,miestas\nlt,Vilnius\nlt,Kaunas\nlt,Siauliai\nlv,Ryga\nee,Talin"))
 
     context, manifest = prepare_manifest(
         rc,

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime
 import uuid
-from typing import Any, Union
+from typing import Any
 
 import geoalchemy2.functions
 import sqlalchemy as sa
@@ -421,7 +421,7 @@ def select(env, dtype):
 @ufunc.resolver(PgQueryBuilder, Denorm)
 def _denorm_to_foreign_property(env: PgQueryBuilder, dtype: Denorm):
     ref = dtype.prop.parent
-    if isinstance(ref, Property) and isinstance(ref.dtype, (Ref, BackRef)):
+    if isinstance(ref, Property) and isinstance(ref.dtype, Ref | BackRef):
         fpr = None
         if ref.dtype.inherited:
             root_ref_parent = ref.parent
@@ -429,7 +429,7 @@ def _denorm_to_foreign_property(env: PgQueryBuilder, dtype: Denorm):
             while (
                 root_ref_parent
                 and isinstance(root_ref_parent, Property)
-                and isinstance(root_ref_parent.dtype, (Ref, BackRef))
+                and isinstance(root_ref_parent.dtype, Ref | BackRef)
             ):
                 fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.id_prop.dtype)
 
@@ -773,8 +773,8 @@ def compare(
     env: PgQueryBuilder,
     op: str,
     fpr: ForeignProperty,
-    dtype: Union[Integer, Number],
-    value: Union[int, float],
+    dtype: Integer | Number,
+    value: int | float,
 ):
     table = env.get_joined_table(fpr)
     column = table.c[fpr.right.prop.place]
@@ -959,8 +959,8 @@ def ne(env, dtype, value):
 def ne(
     env: PgQueryBuilder,
     fpr: ForeignProperty,
-    dtype: Union[Integer, Number],
-    value: Union[int, float],
+    dtype: Integer | Number,
+    value: int | float,
 ):
     table = env.get_joined_table(fpr)
     column = table.c[fpr.right.prop.place]

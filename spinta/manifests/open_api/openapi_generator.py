@@ -4,9 +4,10 @@ import copy
 import re
 import uuid
 import warnings
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Callable, Union
+from typing import Any
 
 from spinta.cli.manifest import _read_and_return_manifest
 from spinta.components import Model, Namespace, Property
@@ -79,7 +80,7 @@ DEFAULT_SCOPE_PREFIX = CONFIG["scope_prefix_udts"]
 DEFAULT_SCOPE_MAX_LENGTH = CONFIG["scope_max_length"]
 
 #: Scope a node is authorized against, see `spinta.auth`.
-ScopeNameFunc = Callable[[Union[Model, Property, Namespace], Action], str]
+ScopeNameFunc = Callable[[Model | Property | Namespace, Action], str]
 
 
 #: Visibility of metadata that may be published, see `_published`.

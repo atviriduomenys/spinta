@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Any
 
 from spinta import exceptions
 from spinta.exceptions import InvalidLevel
@@ -184,7 +184,7 @@ def action_from_op(
     scope: Any,
     payload: dict,
     stop_on_error: bool = True,
-) -> Union[Action, exceptions.UserError]:
+) -> Action | exceptions.UserError:
     action = payload.get("_op")
     if not Action.has_value(action):
         error = exceptions.UnknownAction(

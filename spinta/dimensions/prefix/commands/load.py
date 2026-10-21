@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from spinta import commands
 from spinta.components import Context, Node
@@ -10,7 +10,7 @@ from spinta.nodes import load_node
 def load(
     context: Context,
     prefix: UriPrefix,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     *,
     parent: Node,
 ):

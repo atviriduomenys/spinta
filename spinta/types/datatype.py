@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 import uuid
 from datetime import date, datetime, time
-from typing import TYPE_CHECKING, Any, Dict, List, Union
+from typing import TYPE_CHECKING, Any
 
 from spinta import commands, exceptions, spyna
 from spinta.commands import is_object_id, load
@@ -33,7 +33,7 @@ class DataType(Component):
     }
 
     type: str
-    type_args: List[str]
+    type_args: list[str]
     name: str
     unique: bool = False
     nullable: bool = False
@@ -69,7 +69,7 @@ class PrimaryKey(DataType):
 
 class Date(DataType):
     def load(self, value: Any):
-        if value is None or value is NA or isinstance(value, (date, datetime)):
+        if value is None or value is NA or isinstance(value, date | datetime):
             return value
 
         if value == "":
@@ -129,8 +129,8 @@ class Binary(DataType):
 
     def load(
         self,
-        value: Union[bytes, str, NotAvailable, None],
-    ) -> Union[bytes, NotAvailable, None]:
+        value: bytes | str | NotAvailable | None,
+    ) -> bytes | NotAvailable | None:
         if value is None or value is NA:
             return value
         if isinstance(value, str):
@@ -178,11 +178,11 @@ class Ref(DataType):
     # Referenced model
     model: Model
     # Properties from referenced model
-    refprops: List[Property]
+    refprops: list[Property]
     # True if ref column is set explicitly
     explicit: bool = False
     # Denorm properties
-    properties: Dict[str, Property] = {}
+    properties: dict[str, Property] = {}
 
     schema = {
         "model": {
@@ -201,7 +201,7 @@ class BackRef(DataType):
     model: Model
     refprop: Property
     explicit: bool = False
-    properties: Dict[str, Property] = {}
+    properties: dict[str, Property] = {}
 
     schema = {
         "model": {"type": "string"},
@@ -231,7 +231,7 @@ class Array(DataType):
     model: Model = None
 
     # Given intermediate table explicit mapping
-    refprops: List[Property] = None
+    refprops: list[Property] = None
 
     # True if ref column is set explicitly
     explicit: bool = False
@@ -281,7 +281,7 @@ class Partial(DataType):
     schema = {
         "properties": {"type": "object"},
     }
-    properties: Dict[str, Property] = None
+    properties: dict[str, Property] = None
 
 
 class Object(DataType):
@@ -289,7 +289,7 @@ class Object(DataType):
         "properties": {"type": "object"},
     }
 
-    properties: Dict[str, Property] = None
+    properties: dict[str, Property] = None
     requires_source = False
 
     def load(self, value: Any):
@@ -540,7 +540,7 @@ def load(
     context: Context,
     dtype: Array,
     value: object,
-) -> Union[None, list]:
+) -> None | list:
     return _load_array_to_list(context, dtype, value)
 
 
@@ -549,11 +549,11 @@ def load(
     context: Context,
     dtype: ArrayBackRef,
     value: object,
-) -> Union[None, list]:
+) -> None | list:
     return _load_array_to_list(context, dtype, value)
 
 
-def _load_array_to_list(context: Context, dtype: Array | ArrayBackRef, value: object) -> Union[None, list]:
+def _load_array_to_list(context: Context, dtype: Array | ArrayBackRef, value: object) -> None | list:
     # loads value into native python list, including all list items
     value = dtype.load(value)
     if value is None or value is NA:

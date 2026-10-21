@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any
 
 from spinta import commands
 from spinta.components import Context, Model, Property
@@ -53,7 +53,7 @@ def _re_format_expr(env: NameFormatter, expr: Any) -> Any:
 
 def _format_expr(
     context: Context,
-    node: Union[Model, Property],
+    node: Model | Property,
     expr: Expr,
 ) -> Expr:
     env = NameFormatter(context)

@@ -1,5 +1,4 @@
 import itertools
-from typing import List, Tuple, Union
 
 from spinta import commands
 from spinta.backends.constants import TableType
@@ -102,9 +101,9 @@ def _get_list_column_name(place, name):
 
 
 def _get_lists_data(
-    dtype: Union[Model, DataType],
+    dtype: Model | DataType,
     value: object,
-) -> List[dict]:
+) -> list[dict]:
     data, lists = _separate_lists_and_data(dtype, value)
     if isinstance(dtype, DataType) and data is not NA:
         yield dtype.prop, data
@@ -114,10 +113,10 @@ def _get_lists_data(
 
 
 def _separate_lists_and_data(
-    dtype: Union[Model, DataType],
+    dtype: Model | DataType,
     value: object,
-) -> Tuple[dict, List[Tuple[Property, list]]]:
-    if isinstance(dtype, (Model, Object)):
+) -> tuple[dict, list[tuple[Property, list]]]:
+    if isinstance(dtype, Model | Object):
         data = {}
         lists = []
         for k, v in (value or {}).items():

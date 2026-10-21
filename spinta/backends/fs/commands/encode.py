@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 from spinta import commands
 from spinta.components import Context
 from spinta.types.datatype import File
@@ -11,11 +9,11 @@ def build_data_patch_for_write(
     context: Context,
     dtype: File,
     *,
-    given: Optional[dict],
-    saved: Optional[dict],
+    given: dict | None,
+    saved: dict | None,
     insert_action: bool = False,
     update_action: bool = False,
-) -> Union[dict, NotAvailable]:
+) -> dict | NotAvailable:
     if insert_action or update_action:
         given = {
             "_id": given.get("_id", None) if given else None,

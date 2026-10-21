@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import List, Tuple
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -15,8 +14,8 @@ from spinta.utils.schema import NA
 def _excluding(
     name: str,
     value: str,
-    data: List[Tuple[str, str]],
-) -> List[Tuple[str, str]]:
+    data: list[tuple[str, str]],
+) -> list[tuple[str, str]]:
     return [(_type, status) for _type, status in data if not (_type == name and status == value)]
 
 

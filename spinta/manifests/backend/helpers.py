@@ -1,7 +1,8 @@
 import collections
 import datetime
 import itertools
-from typing import AsyncIterator, Iterable, Iterator, Tuple, cast
+from collections.abc import AsyncIterator, Iterable, Iterator
+from typing import cast
 
 from toposort import toposort
 
@@ -66,13 +67,13 @@ async def run_migrations(context: Context, manifest: BackendManifest):
                     {
                         "_op": "patch",
                         "_type": "_schema/Version",
-                        "_where": '_id="%s"' % version["id"],
+                        "_where": f'_id="{version["id"]}"',
                         "applied": datetime.datetime.now(datetime.timezone.utc),
                     },
                     {
                         "_op": "upsert",
                         "_type": "_schema",
-                        "_where": '_id="%s"' % schema["id"],
+                        "_where": f'_id="{schema["id"]}"',
                         "_id": schema["id"],
                         "type": schema["type"],
                         "name": schema["name"],
@@ -105,8 +106,7 @@ def read_sync_versions(context: Context, manifest: Manifest):
     sources = [cast(Manifest, manifest.store.internal)] + manifest.sync
     for source in sources:
         for eid in commands.manifest_list_schemas(context, source):
-            for version in commands.manifest_read_versions(context, source, eid=eid):
-                yield version
+            yield from commands.manifest_read_versions(context, source, eid=eid)
 
 
 async def versions_to_dstream(
@@ -121,7 +121,7 @@ async def versions_to_dstream(
     for version in versions:
         payload = {
             "_op": "upsert",
-            "_where": '_id="%s"' % version["id"],
+            "_where": f'_id="{version["id"]}"',
             "_id": version["id"],
             "type": version["schema"]["type"],
             "name": version["schema"]["name"],
@@ -157,7 +157,7 @@ def read_schema(context: Context, manifest: BackendManifest, eid: str):
 def list_sorted_unapplied_versions(
     context: Context,
     manifest: Manifest,
-) -> Iterator[Tuple[str, str]]:
+) -> Iterator[tuple[str, str]]:
     model = commands.get_model(context, manifest, "_schema/Version")
     query = {
         "select": ["id", "_id", "parents"],
@@ -177,7 +177,7 @@ def list_sorted_unapplied_versions(
 def read_lastest_version_schemas(
     context: Context,
     manifest: Manifest,
-) -> Iterator[Tuple[str, str]]:
+) -> Iterator[tuple[str, str]]:
     model = commands.get_model(context, manifest, "_schema/Version")
     query = Expr(
         "and",
@@ -199,7 +199,7 @@ def get_last_version_eid(
     context: Context,
     manifest: Manifest,
     schema_eid: str,
-) -> Iterator[Tuple[str, str]]:
+) -> Iterator[tuple[str, str]]:
     model = commands.get_model(context, manifest, "_schema/Version")
     query = Expr(
         "and",
@@ -219,7 +219,7 @@ def get_version_schema(
     context: Context,
     manifest: Manifest,
     version_eid: str,
-) -> Iterator[Tuple[str, str]]:
+) -> Iterator[tuple[str, str]]:
     model = commands.get_model(context, manifest, "_schema/Version")
     version = commands.getone(context, model, model.backend, id_=version_eid)
     return version["schema"]
@@ -232,7 +232,7 @@ async def update_schema_version(context: Context, manifest: Manifest, schema: di
         action=Action.UPSERT,
         payload={
             "_op": "upsert",
-            "_where": '_id="%s"' % schema["id"],
+            "_where": f'_id="{schema["id"]}"',
             "_id": schema["id"],
             "type": schema["type"],
             "name": schema["name"],

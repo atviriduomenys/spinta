@@ -2,7 +2,6 @@ import asyncio
 import itertools
 import json
 import pathlib
-from typing import List, Optional
 
 import requests
 from typer import Argument, Option, echo
@@ -40,8 +39,8 @@ from spinta.utils.enums import get_enum_by_name
 def import_(
     ctx: TyperContext,
     source: str,
-    auth: Optional[str] = Option(None, "-a", "--auth", help=("Authorize as a client")),
-    limit: Optional[int] = Option(None, help=("Limit number of rows read from source.")),
+    auth: str | None = Option(None, "-a", "--auth", help=("Authorize as a client")),
+    limit: int | None = Option(None, help=("Limit number of rows read from source.")),
 ):
     """Import data from a file"""
     context = ctx.obj
@@ -62,12 +61,12 @@ def import_(
 
 def export_(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Source manifest files to copy from")),
-    backend: Optional[str] = Option(
+    manifests: list[str] | None = Argument(None, help=("Source manifest files to copy from")),
+    backend: str | None = Option(
         None, "-b", "--backend", help=("Backend format that will import the exported data ('postgresql', 'sql', ...)")
     ),
-    fmt: Optional[str] = Option(None, "-f", "--format", help=("Output format ('csv', 'html, 'json', ...)")),
-    output: Optional[str] = Option(None, "-o", "--output", help=("Output path")),
+    fmt: str | None = Option(None, "-f", "--format", help=("Output format ('csv', 'html, 'json', ...)")),
+    output: str | None = Option(None, "-o", "--output", help=("Output path")),
     mode: Mode = Option("external", help=("Mode of backend operation, default: external")),
     dataset: str = Option(None, "-d", "--dataset", help=("Extract only specified dataset")),
     no_progress_bar: bool = Option(
@@ -178,10 +177,8 @@ def export_(
             dependant_models = extract_dependant_nodes(context, models, True)
             if dependant_models:
                 cli_error(
-                    (
-                        f"Detected some models, that might require synchronization step: {', '.join([model.model_type() for model in dependant_models])}\n"
-                        "Add --input argument to run export with incremental synchronization."
-                    )
+                    f"Detected some models, that might require synchronization step: {', '.join([model.model_type() for model in dependant_models])}\n"
+                    "Add --input argument to run export with incremental synchronization."
                 )
             echo("Input source not given, skipping synchronization step.")
 

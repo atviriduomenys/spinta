@@ -1,6 +1,5 @@
 import os
 import tempfile
-from typing import Tuple
 
 from starlette.datastructures import UploadFile
 from starlette.requests import FormData, Request
@@ -80,7 +79,7 @@ class InspectRequestForm:
             _type = self.manifest_type or ManifestPath.type
             return ManifestPath(type=_type, path=self.manifest_path)
 
-    def get_resource(self) -> Tuple:
+    def get_resource(self) -> tuple:
         if self.resource_path:
             _type = self.resource_type or self.manifest_type or ManifestPath.type
             return _type, self.resource_path

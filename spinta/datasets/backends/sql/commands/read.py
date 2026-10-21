@@ -1,5 +1,5 @@
 import logging
-from typing import Iterator
+from collections.abc import Iterator
 
 from spinta import commands
 from spinta.backends.helpers import (

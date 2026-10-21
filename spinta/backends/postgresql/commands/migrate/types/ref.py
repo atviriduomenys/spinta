@@ -1,5 +1,3 @@
-from typing import List
-
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
 
@@ -138,7 +136,7 @@ def _migrate_scalar_to_ref_4(
     source_table: sa.Table,
     target_table_identifier: TableIdentifier,
     referenced_table_identifier: TableIdentifier,
-    columns: List[sa.Column],
+    columns: list[sa.Column],
     ref: Ref,
     ref_column: sa.Column,
     migration_ctx: PostgresqlMigrationContext,
@@ -216,9 +214,9 @@ def _migrate_scalar_to_ref_3(
     backend: PostgreSQL,
     source_table: sa.Table,
     target_table_identifier: TableIdentifier,
-    columns: List[sa.Column],
+    columns: list[sa.Column],
     ref: ExternalRef,
-    ref_columns: List[sa.Column],
+    ref_columns: list[sa.Column],
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
     handler: MigrationHandler,
@@ -299,7 +297,7 @@ def migrate(
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
-    old: List[sa.Column],
+    old: list[sa.Column],
     new: Ref,
     **kwargs,
 ):
@@ -531,7 +529,7 @@ def migrate(
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
-    old: List[sa.Column],
+    old: list[sa.Column],
     new: ExternalRef,
     **kwargs,
 ):

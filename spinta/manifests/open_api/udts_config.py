@@ -396,10 +396,10 @@ def _check_json_value(value: Any, path: pathlib.Path, what: str, enclosing: froz
         # `NaN` and `Infinity`, which a strict parser does not read.
         raise InvalidUdtsConfig(path=str(path), error=f"{what} holds {value!r}, which JSON has no value for.")
 
-    if isinstance(value, (str, bool, int, float)) or value is None:
+    if isinstance(value, str | bool | int | float) or value is None:
         return
 
-    if isinstance(value, (list, dict)):
+    if isinstance(value, list | dict):
         if id(value) in enclosing:
             raise InvalidUdtsConfig(
                 path=str(path),
@@ -451,7 +451,7 @@ def _unescape_at(text: str) -> str:
 
 def _shown(value: Any) -> str:
     """A configured value as an error quotes it, without a password it may hold."""
-    if isinstance(value, (bool, int, float)) or value is None:
+    if isinstance(value, bool | int | float) or value is None:
         return repr(value)
     if isinstance(value, str):
         if _may_hold_password(value):

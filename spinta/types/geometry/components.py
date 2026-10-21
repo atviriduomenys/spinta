@@ -1,10 +1,8 @@
-from typing import Optional
-
 from spinta.types.datatype import DataType
 
 
 class Geometry(DataType):
-    geometry_type: Optional[str] = None
+    geometry_type: str | None = None
     srid: int = None
 
 

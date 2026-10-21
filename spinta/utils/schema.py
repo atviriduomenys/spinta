@@ -1,5 +1,3 @@
-from typing import List, Union
-
 from spinta import exceptions
 
 
@@ -69,7 +67,7 @@ def _get_value(obj: object, schema: dict, name: str, value: object):
 
 
 def check_unkown_params(
-    schema: Union[List[dict], dict],
+    schema: list[dict] | dict,
     data: dict,
     node,
 ):

@@ -1,7 +1,7 @@
 import re
 import urllib.parse
 from collections import OrderedDict
-from typing import Any, List, Union
+from typing import Any
 
 from starlette.requests import Request
 
@@ -258,7 +258,7 @@ def _prepare_urlparams_from_path(params: UrlParams):
                     except ValueError:
                         raise InvalidPageKey(key=arg)
                     # Spinta writes a value of a column, which JSON holds as a scalar.
-                    if not isinstance(values, list) or any(isinstance(value, (list, dict)) for value in values):
+                    if not isinstance(values, list) or any(isinstance(value, list | dict) for value in values):
                         raise InvalidPageKey(key=arg)
                     params.page.values = values
                     key_given = True
@@ -307,7 +307,7 @@ def _join_path_parts(*parts: str) -> str:
 
 
 def _find_model_name_index(
-    parts: List[str],
+    parts: list[str],
 ) -> int:
     # By default, namespace, properties starts with lower case and Model starts with upper
     for i, part in enumerate(parts):
@@ -434,7 +434,7 @@ def get_model_from_params(
     context: Context,
     manifest: Manifest,
     params: UrlParams,
-) -> Union[Namespace, Model]:
+) -> Namespace | Model:
     name = params.path
     if params.ns:
         if commands.has_namespace(context, manifest, name):
@@ -577,7 +577,7 @@ def get_required_lang(context: Context, params: UrlParams):
 def get_preferred_accept_lang(
     request: Request,
     params: UrlParams = None,
-) -> List[str]:
+) -> list[str]:
     header = "accept-language"
     if params is not None and params.accept_langs:
         return params.accept_langs
@@ -589,7 +589,7 @@ def get_preferred_accept_lang(
 def get_preferred_content_lang(
     request: Request,
     params: UrlParams = None,
-) -> List[str]:
+) -> list[str]:
     header = "content-language"
     if params is not None and params.content_langs:
         return params.content_langs

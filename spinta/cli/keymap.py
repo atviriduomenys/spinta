@@ -1,6 +1,5 @@
 import logging
 import pathlib
-from typing import List, Optional
 
 import requests
 from typer import Argument, Exit, Option, Typer, echo
@@ -29,7 +28,7 @@ keymap = Typer()
 @keymap.command("sync", short_help="Sync keymap from external data source")
 def keymap_sync(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Source manifest files to copy from")),
+    manifests: list[str] | None = Argument(None, help=("Source manifest files to copy from")),
     input_source: str = Option(None, "-i", "--input", help=("Input source file")),
     credentials: str = Option(
         None, "--credentials", help=("Credentials file, defaults to {config_path}/credentials.cfg")

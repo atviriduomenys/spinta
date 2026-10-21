@@ -1,7 +1,7 @@
 import json
+from collections.abc import Iterator
 from http import HTTPStatus
 from pathlib import Path, PosixPath
-from typing import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest

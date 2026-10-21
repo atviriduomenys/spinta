@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any
 
 from spinta import commands
 from spinta.components import Context
@@ -22,14 +22,14 @@ GEOMETRY_TYPES |= {x + d for d in ("z", "m", "zm") for x in GEOMETRY_TYPES}
 def load(
     context: Context,
     dtype: Geometry,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     manifest: Manifest,
 ) -> Geometry:
     _load = commands.load[Context, DataType, dict, Manifest]
     dtype: Geometry = _load(context, dtype, data, manifest)
 
-    srid: Optional[int] = None
-    geometry_type: Optional[str] = None
+    srid: int | None = None
+    geometry_type: str | None = None
     if dtype.type_args:
         if len(dtype.type_args) == 1:
             arg = dtype.type_args[0]

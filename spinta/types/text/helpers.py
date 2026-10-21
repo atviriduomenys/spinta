@@ -1,5 +1,3 @@
-from typing import List
-
 from spinta.types.text.components import Text
 
 
@@ -9,7 +7,7 @@ def determine_language_property_for_text(dtype: Text, prioritized_langs: list, d
     return dtype.langs[selected_lang]
 
 
-def determine_langauge_for_text(existing_langs: List[str], prioritized_langs: List[str], default_langs: List[str]):
+def determine_langauge_for_text(existing_langs: list[str], prioritized_langs: list[str], default_langs: list[str]):
     selected_lang = None
     if prioritized_langs:
         for lang in prioritized_langs:

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import pathlib
-from typing import List, Optional
 
 from typer import Argument, Option
 from typer import Context as TyperContext
@@ -21,7 +20,7 @@ log = logging.getLogger(__name__)
 
 def admin(
     ctx: TyperContext,
-    scripts: Optional[List[str]] = Argument(
+    scripts: list[str] | None = Argument(
         None,
         help=(
             f"""
@@ -30,7 +29,7 @@ def admin(
         """
         ),
     ),
-    manifests: Optional[List[str]] = Option(None, help=("Source manifest files for scripts that need them")),
+    manifests: list[str] | None = Option(None, help=("Source manifest files for scripts that need them")),
     ensure_config_dir: bool = Option(True, "--ensure-config", help=("Ensures that all config files are created.")),
     force: bool = Option(False, "-f", "--force", help=("Skips all checks when running scripts.")),
     destructive: bool = Option(
@@ -50,13 +49,13 @@ def admin(
         "--check",
         help="Only runs script checks, skipping execution part (used to find out what scripts are needed to run).",
     ),
-    input_path: Optional[pathlib.Path] = Option(
+    input_path: pathlib.Path | None = Option(
         None,
         "-i",
         "--input",
         help="Path to input file (some scripts might require extra data). If not given, script will read from stdin.",
     ),
-    output_path: Optional[pathlib.Path] = Option(
+    output_path: pathlib.Path | None = Option(
         None,
         "-o",
         "--output",

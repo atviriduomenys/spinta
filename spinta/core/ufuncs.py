@@ -3,7 +3,8 @@ from __future__ import annotations
 import dataclasses
 import functools
 import importlib
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 from spinta import spyna
 from spinta.dispatcher import Command
@@ -16,8 +17,8 @@ if TYPE_CHECKING:
 
 class Expr:
     name: str
-    args: Tuple[Any]
-    kwargs: Dict[str, Any]
+    args: tuple[Any]
+    kwargs: dict[str, Any]
 
     def __init__(self, *args, **kwargs):
         # Can't use name arguments, because it can be used in kwargs, so
@@ -52,7 +53,7 @@ class Expr:
     def __call__(self, *args, **kwargs) -> Expr:
         return type(self)(self.name, *args, **kwargs)
 
-    def resolve(self, env: Env) -> Tuple[List[Any], Dict[str, Any]]:
+    def resolve(self, env: Env) -> tuple[list[Any], dict[str, Any]]:
         args = []
         kwargs = {}
         for arg in self.args:
@@ -116,8 +117,8 @@ class UFuncRegistry:
     def __call__(
         self,
         *types,
-        name: Optional[str] = None,
-        names: Optional[List[str]] = None,
+        name: str | None = None,
+        names: list[str] | None = None,
     ):
         def decorator(func):
             if names is None:
@@ -130,7 +131,7 @@ class UFuncRegistry:
 
         return decorator
 
-    def collect(self, modules: List[str]):
+    def collect(self, modules: list[str]):
         # Collect all ufuncs from given list of modules.
         for module in modules:
             # It is enough to just import module, ufuncs will be collected
@@ -305,7 +306,7 @@ class Positive(Bind):
 @dataclasses.dataclass
 class GetAttr(Unresolved):
     obj: str
-    name: Union[GetAttr, Bind]
+    name: GetAttr | Bind
 
     def __str__(self):
         return f"{self.obj}.{str(self.name)}"

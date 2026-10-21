@@ -1,5 +1,3 @@
-from typing import List, Union
-
 import sqlalchemy as sa
 from sqlalchemy.sql.type_api import TypeEngine
 
@@ -51,7 +49,7 @@ def get_pg_foreign_key(
     column_type: TypeEngine,
     table_identifier: TableIdentifier,
     referenced_table_identifier: TableIdentifier,
-) -> List[Union[sa.Column, sa.Constraint]]:
+) -> list[sa.Column | sa.Constraint]:
     column_name = "_id" if prop.list and prop.place == prop.list.place else get_column_name(prop) + "._id"
     nullable = not prop.dtype.required
 
