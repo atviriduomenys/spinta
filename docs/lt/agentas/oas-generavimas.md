@@ -80,6 +80,29 @@ nurodomas vienas: kelis vartai naudotų pakaitomis (round-robin).
 - **pilnas adresas su paslaugos keliu** – naudojamas toks, koks yra. Jei jo
   kelias nesutampa su `--path`, parodomas įspėjimas.
 
+(oas-adresai)=
+:::{important}
+**Kokius adresus nurodyti**
+
+`servers[].url` – adresas be kelio tų vartų, į kuriuos bus diegiama paslauga.
+**Vidiniai vartai** skirti KVTC klientėms (institucijoms SVDPT naudotojų sąraše),
+**išoriniai** – visoms kitoms. Žr. {ref}`Vartų tipai <vartu-tipai>`.
+
+| Vartai | Kada | `servers[].url` |
+|---|---|---|
+| Vidiniai, TEST | Testinė agento aplinka su testiniais duomenimis | `https://test-apigw.gov.lt` |
+| Vidiniai, PROD | Produkcinė agento aplinka (testiniai arba produkciniai duomenys); testinė agento aplinka su produkciniais duomenimis | `https://apigw.gov.lt` |
+| Išoriniai, PROD | Produkcinė agento aplinka (testiniai arba produkciniai duomenys); testinė agento aplinka su produkciniais duomenimis | `https://api.gov.lt` |
+
+- Kiekvienai aplinkai generuojamas **atskiras** OAS failas su savo `servers` adresu.
+- Galutinį API context-path vartuose (pvz. `/stage` priešdėlį testiniam agentui su
+  produkciniais duomenimis) nustato VSSA, diegdama paslaugą į vartus. Generuojant OAS
+  jo nurodyti nereikia.
+- **`auth.token_url` nenurodykite** – token'as gaunamas per vartus, o adresas išvedamas
+  automatiškai (vartų adresas + `/token`).
+- **`https://get.data.gov.lt` nenaudokite** – tai atvirų duomenų portalo adresas, ne vartų.
+:::
+
 Pavyzdys su visais palaikomais laukais:
 
 ```yaml
@@ -99,10 +122,10 @@ info:
     url: https://creativecommons.org/licenses/by/4.0/
 
 servers:                                       # privaloma, lygiai vienas įrašas
-  - url: https://get.data.gov.lt
-    description: Vartai
+  - url: https://apigw.gov.lt
+    description: Produkciniai vartai
 
-auth:
+auth:                                          # dažniausiai nenurodoma, žr. žemiau
   token_url: https://am.example.lt/auth/token
 
 limits:
@@ -267,7 +290,8 @@ spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
    ```
 
 3. Paruoškite OAS konfigūracijos failą `vartai.yml` (tai ne agento `config.yml`).
-   Užtenka privalomų laukų ir token'o adreso:
+   Užtenka privalomų laukų. `servers` adresą parinkite pagal
+   {ref}`lentelę <oas-adresai>`, `auth.token_url` nenurodykite:
 
    ```yaml
    info:
@@ -278,10 +302,7 @@ spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
        email: info@registrucentras.lt
 
    servers:
-     - url: https://get.data.gov.lt
-
-   auth:
-     token_url: https://am.example.lt/auth/token
+     - url: https://apigw.gov.lt
    ```
 
    Visi laukai aprašyti skyriuje {ref}`Konfigūracijos failas <oas-config>`.
