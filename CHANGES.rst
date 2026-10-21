@@ -4,6 +4,12 @@ Changes
 1.4.0 (unreleased)
 =====================
 
+Improvements:
+
+- Added `UP` ruff ruleset, which forces new code to utilize modern python syntax (`#2071`_).
+
+.. _#2071: https://github.com/atviriduomenys/spinta/issues/2071
+
 
 1.3.0 (2026-10-19)
 =====================
