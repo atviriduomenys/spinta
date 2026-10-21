@@ -1507,3 +1507,41 @@ def test_xsd_key_not_applied_when_field_not_resolved(rc: RawConfig, tmp_path: Pa
         f.write(xsd)
     manifest = load_manifest(rc, path)
     assert manifest == table
+
+
+def test_xsd_key_on_one_of_root_elements_sharing_complex_type(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:complexType name="Area">
+    <xs:attribute name="ID" type="xs:string" use="required"/>
+    <xs:attribute name="name" type="xs:string"/>
+  </xs:complexType>
+  <xs:element name="CountryA" type="Area">
+    <xs:key name="CountryAKey">
+      <xs:selector xpath="."/>
+      <xs:field xpath="@ID"/>
+    </xs:key>
+  </xs:element>
+  <xs:element name="CountryB" type="Area"/>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type            | ref | source
+    | manifest                 |                 |     |
+    |   | resource1            | dask/xml        |     |
+    |                          |                 |     |
+    |   |   |   | CountryA     |                 | id  | /CountryA
+    |   |   |   |   | id       | string required |     | @ID
+    |   |   |   |   | name     | string          |     | @name
+    |                          |                 |     |
+    |   |   |   | CountryB     |                 |     | /CountryB
+    |   |   |   |   | id       | string required |     | @ID
+    |   |   |   |   | name     | string          |     | @name
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table

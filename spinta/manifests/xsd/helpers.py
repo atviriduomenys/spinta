@@ -132,9 +132,11 @@ class XSDKey:
     name: str
     selector_xpath: str
     field_xpaths: list[str]
-    # models of the element the key is declared in, or its named complexType
+    # element the key is declared in: its inline models, or its named complexType
+    element_name: str = ""
     element_models: list[XSDModel] = field(default_factory=list)
     element_type: str | None = None
+    is_root_element: bool = False
 
 
 """
@@ -499,15 +501,14 @@ class XSDReader:
             logger.warning(f"xs:key '{key.name}' selector '{key.selector_xpath}' is not supported")
             return []
 
-        if key.element_type:
-            models = self.top_level_complex_type_models.get(key.element_type, [])
-        else:
-            models = key.element_models
+        # root element copies have deep-copied ref models, so models are looked up by name
+        models_by_name = {model.name: model for model in self.models}
+        models = self._find_key_element_models(key)
 
         # selector is relative to the element the key is declared in
         for step in steps:
             models = [
-                xsd_property.ref_model
+                models_by_name.get(xsd_property.ref_model.name, xsd_property.ref_model)
                 for model in models
                 for xsd_property in model.properties.values()
                 if xsd_property.ref_model and xsd_property.xsd_name == step
@@ -516,6 +517,14 @@ class XSDReader:
         if not models:
             logger.warning(f"xs:key '{key.name}' selector '{key.selector_xpath}' does not match any model")
         return list(dict.fromkeys(models))
+
+    def _find_key_element_models(self, key: XSDKey) -> list[XSDModel]:
+        if key.element_type is None:
+            return key.element_models
+        if key.is_root_element:
+            # each root element gets its own model of the named complexType
+            return [model for model in self.models if model.is_entry_model and model.source == f"/{key.element_name}"]
+        return self.top_level_complex_type_models.get(key.element_type, [])
 
     def _apply_key_to_model(self, key: XSDKey, model: XSDModel) -> None:
         key_property_names = []
@@ -616,14 +625,15 @@ class XSDReader:
 
         self._post_process_refs()
 
-        self._post_process_keys()
-
         self._add_refs_for_backrefs()
 
         # we need to add this here, because only now we will know if it has properties and if we need to create it
         self._post_process_resource_model()
 
         self.post_process_separate_complex_type_root_elements()
+
+        # after root elements get their own models, so keys don't leak between them
+        self._post_process_keys()
 
         self._sort_alphabetically()
 
@@ -778,8 +788,10 @@ class XSDReader:
             elif QName(child).localname == "key":
                 # keys are applied after all models are created, see _post_process_keys
                 key = self.process_key(child, state)
+                key.element_name = property_name
                 key.element_models = models
                 key.element_type = property_type_to
+                key.is_root_element = is_root
                 self.keys.append(key)
 
             else:
