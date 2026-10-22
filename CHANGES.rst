@@ -17,7 +17,7 @@ Bug fixes:
 .. _#2027: https://github.com/atviriduomenys/spinta/issues/2027
 
 - Hashed requirements files for stable releases again include optional extras
-  (``uvicorn``, ``gunicorn``, ``alembic``); ``spinta-1.3.0.txt`` and ``spinta-latest.txt`` were regenerated.
+  (``uvicorn``, ``gunicorn``, ``alembic``); files for 1.1.0, 1.2.0, 1.3.0 and ``spinta-latest.txt`` were regenerated.
 
 1.3.0 (2026-10-19)
 =====================
