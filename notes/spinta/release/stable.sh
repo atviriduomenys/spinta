@@ -4,14 +4,9 @@
 # =============================================================================
 
 
-export MAJOR=1
-export MINOR=3
-export PATCH=0
-export OLD_MINOR=2
-export FUTURE_MINOR=4
-export RELEASE_VERSION=$MAJOR.$MINOR.$PATCH
-export CURRENT_VERSION=$MAJOR.$OLD_MINOR.$PATCH
-export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR.$PATCH
+export CURRENT_VERSION=1.3.0
+export RELEASE_VERSION=1.3.1
+export FUTURE_VERSION=1.4.0
 export NEW_VERSION=$RELEASE_VERSION
 
 # Host ports for the docker containers (docker-compose.yml reads both variables).

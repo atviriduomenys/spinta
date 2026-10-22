@@ -4,6 +4,10 @@ Changes
 1.4.0 (unreleased)
 =====================
 
+
+1.3.1 (2026-10-22)
+=====================
+
 Improvements:
 
 - Added `UP` ruff ruleset, which forces new code to utilize modern python syntax (`#2071`_).
