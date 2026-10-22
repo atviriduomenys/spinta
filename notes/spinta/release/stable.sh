@@ -635,8 +635,10 @@ if [ "$REPLY" = "y" ]; then
     [ $? -eq 0 ] || { echo "ERROR: poetry publish failed"; exit 1; }
 
     echo "--- Generating hashed requirements file ---"
-    # Export pinned requirements for this release version
+    # Export pinned requirements for this release version, including optional
+    # extras (uvicorn, gunicorn, alembic), otherwise they are left out
     poetry export -f requirements.txt \
+      --all-extras \
       --output requirements/spinta-${NEW_VERSION}.txt
     [ $? -eq 0 ] || { echo "ERROR: poetry export failed"; exit 1; }
 
