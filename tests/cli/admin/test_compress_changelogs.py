@@ -1,7 +1,8 @@
+from collections.abc import Iterator
 from copy import deepcopy
 from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 from uuid import UUID
 
 import pytest
