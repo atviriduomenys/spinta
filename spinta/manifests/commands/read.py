@@ -1,4 +1,5 @@
-from typing import Any, Dict, Iterable, NamedTuple, Optional, Union
+from collections.abc import Iterable
+from typing import Any, NamedTuple
 
 from starlette.requests import Request
 from starlette.responses import Response
@@ -21,8 +22,8 @@ def traverse_ns_models(
     ns: Namespace,
     manifest: Manifest,
     action: Action,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
+    dataset_: str | None = None,
+    resource: str | None = None,
     internal: bool = False,
     source_check: bool = False,
     **kwargs,
@@ -103,8 +104,8 @@ def _get_ns_content(
     action: Action,
     *,
     recursive: bool = False,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
+    dataset_: str | None = None,
+    resource: str | None = None,
 ) -> Response:
     if recursive:
         data = _get_ns_content_data_recursive(context, ns, action, dataset_, resource)
@@ -143,16 +144,16 @@ def _get_ns_content(
 
 
 class _NodeAndData(NamedTuple):
-    node: Union[Namespace, Model]
-    data: Dict[str, Any]
+    node: Namespace | Model
+    data: dict[str, Any]
 
 
 def _get_ns_content_data_recursive(
     context: Context,
     ns: Namespace,
     action: Action,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
+    dataset_: str | None = None,
+    resource: str | None = None,
 ) -> Iterable[_NodeAndData]:
     yield from _get_ns_content_data(context, ns, action, dataset_, resource)
     for name in ns.names.values():
@@ -163,10 +164,10 @@ def _get_ns_content_data(
     context: Context,
     ns: Namespace,
     action: Action,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
+    dataset_: str | None = None,
+    resource: str | None = None,
 ) -> Iterable[_NodeAndData]:
-    items: Iterable[Union[Namespace, Model]] = itertools.chain(
+    items: Iterable[Namespace | Model] = itertools.chain(
         ns.names.values(),
         ns.models.values(),
     )

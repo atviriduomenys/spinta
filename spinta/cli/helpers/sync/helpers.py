@@ -3,7 +3,6 @@ from __future__ import annotations
 import configparser
 from io import StringIO
 from pathlib import Path
-from typing import Optional, Union
 
 from typer import Context as TyperContext
 from typer import echo
@@ -51,10 +50,10 @@ def load_configuration_values(context: Context) -> tuple[str, str]:
 def get_context_and_manifest(
     ctx: TyperContext,
     manifest: ManifestPath,
-    resource: Optional[tuple[str, str]],
+    resource: tuple[str, str] | None,
     formula: str,
-    backend: Optional[str],
-    auth: Optional[str],
+    backend: str | None,
+    auth: str | None,
     priority: str,
 ) -> tuple[Context, Manifest]:
     """Create a context and manifest for synchronization.
@@ -163,7 +162,7 @@ def read_and_get_manifest(
     context: Context,
     manifest_type: str = "tabular",
     path: str | None = None,
-    contents: Union[str, list[str]] | None = None,
+    contents: str | list[str] | None = None,
 ):
     manifest_paths = []
 
@@ -218,7 +217,7 @@ def get_nested_attribute(entity: MetaData, attribute_path: str) -> str | None:
 
 def find_existing_entity(
     entity: MetaData, candidates: dict[str, MetaData], keys: tuple[str, str, str] = ("id", "name", "source")
-) -> Union[tuple[MetaData, str], tuple[None, None]]:
+) -> tuple[MetaData, str] | tuple[None, None]:
     for candidate_name, candidate in candidates.items():
         for key in keys:
             entity_value = get_nested_attribute(entity, key)

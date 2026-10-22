@@ -1,6 +1,6 @@
 import importlib
 import inspect
-from typing import Any, Type
+from typing import Any
 
 
 def importstr(path):
@@ -13,7 +13,7 @@ def importstr(path):
 
 
 def full_class_name(obj: Any) -> str:
-    klass: Type
+    klass: type
     if not inspect.isclass(obj):
         klass = type(obj)
     else:

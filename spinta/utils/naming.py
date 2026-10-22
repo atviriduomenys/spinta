@@ -1,5 +1,4 @@
 import re
-from typing import Set
 
 from unidecode import unidecode
 
@@ -67,7 +66,7 @@ def to_code_name(name: str) -> str:
 
 
 class Deduplicator:
-    _names: Set[str]
+    _names: set[str]
 
     def __init__(self, template: str = "{}"):
         self._names = set()

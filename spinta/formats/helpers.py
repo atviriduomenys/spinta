@@ -1,5 +1,5 @@
 import uuid
-from typing import Iterator, List, Optional
+from collections.abc import Iterator
 
 from spinta import commands
 from spinta.backends import SelectTree, get_model_reserved_props, get_property_base_model
@@ -14,7 +14,7 @@ from spinta.utils.data import take
 from spinta.utils.nestedstruct import get_separated_name
 
 
-def _get_dtype_header(dtype: DataType, select: SelectTree, name: str, langs: List = None) -> Iterator[str]:
+def _get_dtype_header(dtype: DataType, select: SelectTree, name: str, langs: list = None) -> Iterator[str]:
     if isinstance(dtype, Object):
         for prop, sel in select_only_props(
             dtype.prop,
@@ -134,8 +134,8 @@ def _get_dtype_header(dtype: DataType, select: SelectTree, name: str, langs: Lis
 
 
 def _get_model_header(
-    model: Model, names: List[str], select: SelectTree, reserved: List[str], langs: List
-) -> List[str]:
+    model: Model, names: list[str], select: SelectTree, reserved: list[str], langs: list
+) -> list[str]:
     if select is None or select == {"*": {}}:
         keys = reserved + names
     else:
@@ -158,8 +158,8 @@ def get_model_tabular_header(
     action: Action,
     params: UrlParams,
     *,
-    reserved: Optional[List[str]] = None,
-) -> List[str]:
+    reserved: list[str] | None = None,
+) -> list[str]:
     if reserved is None:
         if model.name == "_ns":
             reserved = get_ns_reserved_props(action)

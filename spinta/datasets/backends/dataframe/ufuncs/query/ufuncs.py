@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from functools import reduce
-from typing import Any, Dict, Iterator, List, Tuple
+from typing import Any
 
 from dask.dataframe import Series
 
@@ -484,8 +485,8 @@ def select(
 def select(
     env: DaskDataFrameQueryBuilder,
     fpr: ForeignProperty,
-    prep: Tuple[Any],
-) -> Tuple[Any]:
+    prep: tuple[Any],
+) -> tuple[Any]:
     return tuple(env.call("select", fpr, v) for v in prep)
 
 
@@ -522,24 +523,24 @@ def select(
 @ufunc.resolver(DaskDataFrameQueryBuilder, list)
 def select(
     env: DaskDataFrameQueryBuilder,
-    prep: List[Any],
-) -> List[Any]:
+    prep: list[Any],
+) -> list[Any]:
     return [env.call("select", v) for v in prep]
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, tuple)
 def select(
     env: DaskDataFrameQueryBuilder,
-    prep: Tuple[Any],
-) -> Tuple[Any]:
+    prep: tuple[Any],
+) -> tuple[Any]:
     return tuple(env.call("select", v) for v in prep)
 
 
 @ufunc.resolver(DaskDataFrameQueryBuilder, dict)
 def select(
     env: DaskDataFrameQueryBuilder,
-    prep: Dict[str, Any],
-) -> Dict[str, Any]:
+    prep: dict[str, Any],
+) -> dict[str, Any]:
     return {k: env.call("select", v) for k, v in prep.items()}
 
 

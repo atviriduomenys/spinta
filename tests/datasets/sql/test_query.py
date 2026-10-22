@@ -1,5 +1,4 @@
 import textwrap
-from typing import Type
 
 import pytest
 import sqlalchemy as sa
@@ -41,7 +40,7 @@ def _qry(qry: Select, indent: int = 4) -> str:
     return ln + textwrap.indent(qry, indent_) + ln + indent_
 
 
-def _get_sql_type(dtype: DataType) -> Type[TypeEngine]:
+def _get_sql_type(dtype: DataType) -> type[TypeEngine]:
     if isinstance(dtype, Ref):
         return _get_sql_type(dtype.refprops[0].dtype)
     if isinstance(dtype, Integer):

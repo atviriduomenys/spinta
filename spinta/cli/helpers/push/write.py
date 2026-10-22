@@ -2,8 +2,9 @@ import itertools
 import json
 import time
 import uuid
+from collections.abc import Iterable, Iterator
 from copy import copy
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Any
 
 import pprintpp
 import requests
@@ -52,7 +53,7 @@ def prepare_rows_with_errors(
     rows,
     model: Model,
     table: sa.Table,
-    timeout: Tuple[float, float],
+    timeout: tuple[float, float],
     error_counter: ErrorCounter = None,
 ) -> Iterable[ModelRow]:
     conn = context.get("push.state.conn")
@@ -76,7 +77,7 @@ def prepare_rows_with_errors(
         if result.status_code == 404:
             # Was deleted on both - local and target servers
             if not data:
-                conn.execute(table.delete().where((table.c.id == _id)))
+                conn.execute(table.delete().where(table.c.id == _id))
                 yield PushRow(model, {"_type": type}, send=False)
             # Need to push again
             else:
@@ -91,7 +92,7 @@ def prepare_rows_with_errors(
             # Was inserted or updated without errors
             elif checksum == get_data_checksum(resp, model):
                 conn.execute(
-                    table.update().where((table.c.id == _id)).values(revision=resp["_revision"], error=False, data=None)
+                    table.update().where(table.c.id == _id).values(revision=resp["_revision"], error=False, data=None)
                 )
                 yield PushRow(model, {"_type": type}, send=False)
                 # Need to push again
@@ -112,8 +113,8 @@ def prepare_rows_for_deletion(model: Model, _id: str, error: bool = False):
 
 
 def get_row_for_error(
-    rows: List[PushRow],
-    errors: Optional[List[Error]] = None,
+    rows: list[PushRow],
+    errors: list[Error] | None = None,
 ) -> str:
     message = []
     size = len(rows)
@@ -142,7 +143,7 @@ def _push_to_remote_spinta(
     server: str,
     rows: Iterable[PushRow],
     chunk_size: int,
-    timeout: Tuple[float, float],
+    timeout: tuple[float, float],
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
@@ -152,7 +153,7 @@ def _push_to_remote_spinta(
     suffix = "]}"
     slen = len(suffix)
     chunk = prefix
-    ready: List[PushRow] = []
+    ready: list[PushRow] = []
 
     for row in rows:
         if error_counter:
@@ -212,9 +213,9 @@ def _push_to_remote_spinta(
 def _send_and_receive(
     client: requests.Session,
     server: str,
-    rows: List[PushRow],
+    rows: list[PushRow],
     data: str,
-    timeout: Tuple[float, float],
+    timeout: tuple[float, float],
     *,
     dry_run: bool = False,
     stop_on_error: bool = False,
@@ -241,7 +242,7 @@ def _send_and_receive(
 
 def _send_data_dry_run(
     data: str,
-) -> Optional[List[Dict[str, Any]]]:
+) -> list[dict[str, Any]] | None:
     """Pretend data has been sent to a target location."""
     recv = json.loads(data)["_data"]
     for row in recv:
@@ -258,8 +259,8 @@ def _send_data_dry_run(
 
 
 def _map_sent_and_recv(
-    sent: List[PushRow],
-    recv: Optional[List[Dict[str, Any]]],
+    sent: list[PushRow],
+    recv: list[dict[str, Any]] | None,
 ) -> Iterator[PushRow]:
     if recv is None:
         # We don't have a response, because there was an error while
@@ -344,14 +345,14 @@ def push(
     context: Context,
     client: requests.Session,
     server: str,  # https://example.com/
-    models: List[Model],
+    models: list[Model],
     rows: Iterable[PushRow],
-    timeout: Tuple[float, float],
+    timeout: tuple[float, float],
     *,
-    state: Optional[State] = None,
-    stop_time: Optional[int] = None,  # seconds
-    stop_row: Optional[int] = None,  # stop aftern given number of rows
-    chunk_size: Optional[int] = None,  # split into chunks of given size in bytes
+    state: State | None = None,
+    stop_time: int | None = None,  # seconds
+    stop_row: int | None = None,  # stop aftern given number of rows
+    chunk_size: int | None = None,  # split into chunks of given size in bytes
     dry_run: bool = False,  # do not send or write anything
     stop_on_error: bool = False,  # raise error immediately
     error_counter: ErrorCounter = None,

@@ -96,10 +96,10 @@ class SASCompiler(SQLCompiler):
             # Convert operator: == to IS NULL, != to IS NOT NULL
             if binary.operator == operators.eq:
                 logger.debug("Converting '= NULL' to 'IS NULL' for SAS compatibility")
-                return "%s IS NULL" % self.process(non_none_operand, **kw)
+                return f"{self.process(non_none_operand, **kw)} IS NULL"
             elif binary.operator == operators.ne:
                 logger.debug("Converting '!= NULL' to 'IS NOT NULL' for SAS compatibility")
-                return "%s IS NOT NULL" % self.process(non_none_operand, **kw)
+                return f"{self.process(non_none_operand, **kw)} IS NOT NULL"
 
         # For non-NULL comparisons, use parent's implementation
         return super().visit_binary(binary, override_operator, **kw)
@@ -307,8 +307,8 @@ class SASDialect(SASIntrospectionMixin, BaseDialect, DefaultDialect):
         """
         try:
             # Call parent initialize if it exists
-            if hasattr(super(SASDialect, self), "initialize"):
-                super(SASDialect, self).initialize(connection)
+            if hasattr(super(), "initialize"):
+                super().initialize(connection)
 
             # Extract schema from URL query parameters
             schema = None

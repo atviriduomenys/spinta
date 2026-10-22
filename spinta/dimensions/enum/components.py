@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Dict
-
 from spinta.components import ExtraMetaData, Model
 from spinta.core.enums import Access, Status, Visibility
 from spinta.core.ufuncs import Env, Expr
@@ -59,5 +57,5 @@ class EnumItem(ExtraMetaData):
         self.given = EnumValueGiven()
 
 
-EnumValue = Dict[str, EnumItem]
-Enums = Dict[str, EnumValue]
+EnumValue = dict[str, EnumItem]
+Enums = dict[str, EnumValue]

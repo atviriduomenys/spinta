@@ -3,7 +3,7 @@ from __future__ import annotations
 import dataclasses
 import re
 from collections import defaultdict
-from typing import Callable, Dict, List, Tuple, Union
+from collections.abc import Callable
 
 import geoalchemy2.types
 import sqlalchemy as sa
@@ -85,7 +85,7 @@ class PostgresqlMigrationContext(MigrationContext):
     ) -> TableIdentifier:
         key = item
         table_type_allowed = False
-        if isinstance(item, (Model, Property)):
+        if isinstance(item, Model | Property):
             if isinstance(item, Property) and item.list:
                 table_type = TableType.LIST
 
@@ -114,10 +114,10 @@ class JSONMigrationContext:
     prop: Property
 
     # Currently defined keys
-    keys: List[str] = dataclasses.field(default_factory=list)
+    keys: list[str] = dataclasses.field(default_factory=list)
     # Added new keys
-    new_keys: Dict[str, str] = dataclasses.field(default_factory=dict)
-    cast_to: Tuple[sa.Column, str] = dataclasses.field(default=None)
+    new_keys: dict[str, str] = dataclasses.field(default_factory=dict)
+    cast_to: tuple[sa.Column, str] = dataclasses.field(default=None)
     new_name: str = dataclasses.field(default=None)
     comment: str | bool | None = dataclasses.field(default=False)
     empty: bool = False
@@ -148,8 +148,8 @@ class ModelMigrationContext:
     model: Model
     model_tables: ModelTables
 
-    constraint_states: Dict[str, TableConstraintStates] = dataclasses.field(default_factory=dict)
-    json_columns: Dict[str, JSONMigrationContext] = dataclasses.field(default_factory=dict)
+    constraint_states: dict[str, TableConstraintStates] = dataclasses.field(default_factory=dict)
+    json_columns: dict[str, JSONMigrationContext] = dataclasses.field(default_factory=dict)
 
     def initialize(self, inspector: Inspector):
         main_table = self.model_tables.main_table
@@ -244,9 +244,9 @@ class TableConstraintStates:
     table_type: TableType
     prop: str = dataclasses.field(default=None)
 
-    unique_constraint: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
-    foreign_constraint: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
-    index: Dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
+    unique_constraint: dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
+    foreign_constraint: dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
+    index: dict[str, bool] = dataclasses.field(default_factory=lambda: defaultdict(lambda: False))
 
 
 @dataclasses.dataclass
@@ -370,7 +370,7 @@ def is_name_complex(name: str):
 
 
 def is_prop_complex(prop: Property):
-    return isinstance(prop.dtype, (Text, File, Ref, Array))
+    return isinstance(prop.dtype, Text | File | Ref | Array)
 
 
 def is_name_or_property_complex(name: str, prop: Property):
@@ -388,11 +388,11 @@ def is_name_or_column_complex(name: str, col: sa.Column):
 
 
 def is_column_complex(col: sa.Column):
-    return isinstance(col.type, (JSONB, JSON))
+    return isinstance(col.type, JSONB | JSON)
 
 
 def property_and_column_name_key(
-    item: Union[sa.Column, Property], rename, table: sa.Table, model: Model, root_name: str = ""
+    item: sa.Column | Property, rename, table: sa.Table, model: Model, root_name: str = ""
 ) -> str:
     # Mapping concept is to prioritize complex types over simple
     # new types take priority over old
@@ -464,7 +464,7 @@ def handle_internal_ref_to_scalar_conversion(
     migration_context: PostgresqlMigrationContext,
     model_context: ModelMigrationContext,
     table: sa.Table,
-    old_columns: List[sa.Column],
+    old_columns: list[sa.Column],
     new_property: Property,
     **kwargs,
 ) -> bool:
@@ -844,16 +844,16 @@ def handle_index_migration(
     )
 
 
-def extract_sqlalchemy_columns(data: list) -> List[sa.Column]:
+def extract_sqlalchemy_columns(data: list) -> list[sa.Column]:
     return [item for item in data if isinstance(item, sa.Column)]
 
 
-def reduce_columns(data: list) -> Union[sa.Column, list[sa.Column]]:
+def reduce_columns(data: list) -> sa.Column | list[sa.Column]:
     return data[0] if len(data) == 1 else data
 
 
 def is_internal(
-    columns: List[sa.Column],
+    columns: list[sa.Column],
     base_name: str,
     table_identifier: TableIdentifier,
     referenced_table_identifier: TableIdentifier,
@@ -870,7 +870,7 @@ def is_internal(
 
 
 def _split_columns_by_reserved_internal_column(
-    columns: List[sa.Column],
+    columns: list[sa.Column],
     old_base_name: str,
 ):
     primary_columns = []
@@ -888,8 +888,8 @@ def _split_columns_by_reserved_internal_column(
 
 
 def _split_columns_by_primary_columns(
-    columns: List[sa.Column], old_base_name: str, new_base_name: str, primary_column_names: List[str]
-) -> (List[str], List[str]):
+    columns: list[sa.Column], old_base_name: str, new_base_name: str, primary_column_names: list[str]
+) -> (list[str], list[str]):
     # Primary keys are priority so if they all match we assume:
     # primary_columns = all target_primary_columns
     # children_columns = everything else
@@ -906,12 +906,12 @@ def _split_columns_by_primary_columns(
 
 
 def _split_columns_by_children_columns(
-    columns: List[sa.Column],
+    columns: list[sa.Column],
     old_base_name: str,
     new_base_name: str,
-    children_column_names: List[str],
-    ref_table_primary_column_names: List[str],
-) -> (List[str], List[str]):
+    children_column_names: list[str],
+    ref_table_primary_column_names: list[str],
+) -> (list[str], list[str]):
     # If all primary keys do not match, but children do, we need to figure out what is the foreign key
     primary_columns = []
     children_columns = []
@@ -954,12 +954,12 @@ def _split_columns_by_children_columns(
 
 
 def _split_columns_by_inference(
-    columns: List[sa.Column],
+    columns: list[sa.Column],
     old_base_name: str,
-    all_column_names: List[str],
-    ref_table_column_names: List[str],
-    ref_table_explicit_column_names: List[str],
-    ref_table_primary_column_names: List[str],
+    all_column_names: list[str],
+    ref_table_column_names: list[str],
+    ref_table_explicit_column_names: list[str],
+    ref_table_primary_column_names: list[str],
 ):
     # Nothing matches we can only try to guess
     primary_columns = []
@@ -1023,15 +1023,15 @@ def _split_columns_by_inference(
 
 
 def split_columns(
-    old_columns: List[sa.Column],
+    old_columns: list[sa.Column],
     old_base_name: str,
     new_base_name: str,
     internal: bool,
-    new_primary_column_names: List[str],
-    new_children_column_names: List[str],
-    ref_table_column_names: List[str],
-    ref_table_primary_column_names: List[str],
-    ref_explicit_primary_column_names: List[str],
+    new_primary_column_names: list[str],
+    new_children_column_names: list[str],
+    ref_table_column_names: list[str],
+    ref_table_primary_column_names: list[str],
+    ref_explicit_primary_column_names: list[str],
 ):
     # If we know that old columns contain internal ref key, that means we can extract it and everything else are children
     if internal:
@@ -1095,7 +1095,7 @@ def _format_multiple_unique_constraints_error_msg(constraints: list[dict]) -> st
     return result
 
 
-def get_explicit_primary_keys(ref: Ref, rename: RenameMap, inspector: Inspector) -> List[str]:
+def get_explicit_primary_keys(ref: Ref, rename: RenameMap, inspector: Inspector) -> list[str]:
     if not ref.explicit:
         return []
 
@@ -1109,7 +1109,7 @@ def get_explicit_primary_keys(ref: Ref, rename: RenameMap, inspector: Inspector)
 
 def get_spinta_primary_keys(
     table_identifier: TableIdentifier, model: Model, inspector: Inspector, error: bool = False
-) -> List[str]:
+) -> list[str]:
     """Extracts `manifest` declared primary keys (from internal PostgresSql)
 
     Args:
@@ -1182,7 +1182,7 @@ def nested_column_rename(column_name: str, table_name: str, rename: RenameMap) -
 
 
 def remap_and_rename_columns(
-    base_name: str, columns: List[sa.Column], table_name: str, ref_table_name: str, rename: RenameMap
+    base_name: str, columns: list[sa.Column], table_name: str, ref_table_name: str, rename: RenameMap
 ) -> dict:
     result = {}
     for column in columns:
@@ -1212,8 +1212,8 @@ def zip_and_migrate_properties(
     backend: PostgreSQL,
     source_table: sa.Table,
     model: Model,
-    old_columns: List[sa.Column],
-    new_properties: List[Property],
+    old_columns: list[sa.Column],
+    new_properties: list[Property],
     migration_context: PostgresqlMigrationContext,
     model_context: ModelMigrationContext,
     root_name: str = "",

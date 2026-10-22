@@ -1,6 +1,5 @@
 import json
 import pathlib
-from typing import Type
 
 from ruamel.yaml import YAML
 
@@ -58,7 +57,7 @@ def load(context: Context, config: Config) -> Config:
     # Load exporters.
     config.exporters = {}
     for name in rc.keys("exporters"):
-        exporter: Type[Format] = rc.get("exporters", name, cast=importstr)
+        exporter: type[Format] = rc.get("exporters", name, cast=importstr)
         config.exporters[name] = exporter()
 
     # Load accesslog

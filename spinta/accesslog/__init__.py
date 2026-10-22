@@ -1,7 +1,8 @@
 import datetime
 import os
 import time
-from typing import Any, AsyncIterator, Dict, Iterable, Iterator, List, TypeVar, overload
+from collections.abc import AsyncIterator, Iterable, Iterator
+from typing import Any, TypeVar, overload
 
 import psutil
 from starlette.requests import Request
@@ -23,7 +24,7 @@ class AccessLog:
     txn: str = None  # request transaction id
     start: float = None  # request start time in seconds
     memory: int = None  # memory used in bytes at the start of request
-    scopes: List[str] = None  # list of scopes
+    scopes: list[str] = None  # list of scopes
     token: str = None  # token used for request
 
     def __enter__(self):
@@ -32,7 +33,7 @@ class AccessLog:
     def __exit__(self, *exc):
         return None
 
-    def log(self, message: Dict[str, Any]) -> None:
+    def log(self, message: dict[str, Any]) -> None:
         raise NotImplementedError
 
     def request(
@@ -47,7 +48,7 @@ class AccessLog:
         reason: str = None,
         id_: str = None,
         rev: str = None,
-        scopes: List[str] = None,
+        scopes: list[str] = None,
     ):
         self.txn = txn
         self.start = self._get_time()
@@ -165,7 +166,7 @@ def create_accesslog(
     context: Context,
     *,
     method: str = None,
-    loaders: List[Any],
+    loaders: list[Any],
 ) -> AccessLog:
     config: Config = context.get("config")
     # XXX: Probably we should clone store.accesslog here, instead of creating

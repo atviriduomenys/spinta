@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pathlib
 import uuid
-from typing import Any, Dict, List, Tuple, cast
+from typing import Any, cast
 from unittest.mock import ANY
 
 import pytest
@@ -51,7 +51,7 @@ def create_client(
     }
 
 
-def _cleaned_context(resp: TestClientResponse, *, data: bool = True, remove_page: bool = True) -> Dict[str, Any]:
+def _cleaned_context(resp: TestClientResponse, *, data: bool = True, remove_page: bool = True) -> dict[str, Any]:
     context = resp.context.copy()
     page_index = None
     if remove_page:
@@ -62,19 +62,19 @@ def _cleaned_context(resp: TestClientResponse, *, data: bool = True, remove_page
     if "data" in context:
         context["data"] = [
             [cell.as_dict() for i, cell in enumerate(row) if not remove_page or page_index is None or i != page_index]
-            for row in cast(List[List[Cell]], resp.context["data"])
+            for row in cast(list[list[Cell]], resp.context["data"])
         ]
     if "row" in context:
         context["row"] = [
             (name, cell.as_dict())
-            for name, cell in cast(Tuple[str, Cell], context["row"])
+            for name, cell in cast(tuple[str, Cell], context["row"])
             if not remove_page or name != "_page"
         ]
 
     if data:
         header = context["header"]
         context["data"] = [
-            {k: v["value"] for k, v in zip(header, d)} for d in cast(List[List[Dict[str, Any]]], context["data"])
+            {k: v["value"] for k, v in zip(header, d)} for d in cast(list[list[dict[str, Any]]], context["data"])
         ]
     del context["params"]
     del context["zip"]
@@ -85,7 +85,7 @@ def _cleaned_context(resp: TestClientResponse, *, data: bool = True, remove_page
     return context
 
 
-def ensure_temp_context_and_app(rc: RawConfig, tmp_path: pathlib.Path) -> Tuple[Context, TestClient]:
+def ensure_temp_context_and_app(rc: RawConfig, tmp_path: pathlib.Path) -> tuple[Context, TestClient]:
     temp_rc = configure_rc(
         rc.fork(
             {
@@ -1675,26 +1675,26 @@ def test_get_gt_ge_lt_le_ne(app):
     assert resp.status_code == 200, resp.json()
 
     eq_id_for_gt_ge = resp.json()["_data"][0]["_id"]
-    request_line = '/datasets/json/Rinkimai?_id>"{0}"'.format(eq_id_for_gt_ge)
+    request_line = f'/datasets/json/Rinkimai?_id>"{eq_id_for_gt_ge}"'
     resp = app.get(request_line)
     assert len(resp.json()["_data"]) == 2
 
-    request_line = '/datasets/json/Rinkimai?_id>="{0}"'.format(eq_id_for_gt_ge)
+    request_line = f'/datasets/json/Rinkimai?_id>="{eq_id_for_gt_ge}"'
     resp = app.get(request_line)
 
     assert len(resp.json()["_data"]) == 3
 
     eq_id_for_gt_ge = resp.json()["_data"][1]["_id"]
-    request_line = '/datasets/json/Rinkimai?_id<="{0}"'.format(eq_id_for_gt_ge)
+    request_line = f'/datasets/json/Rinkimai?_id<="{eq_id_for_gt_ge}"'
     resp = app.get(request_line)
 
     assert len(resp.json()["_data"]) == 4
 
-    request_line = '/datasets/json/Rinkimai?_id<"{0}"'.format(eq_id_for_gt_ge)
+    request_line = f'/datasets/json/Rinkimai?_id<"{eq_id_for_gt_ge}"'
     resp = app.get(request_line)
     assert len(resp.json()["_data"]) == 3
 
-    request_line = '/datasets/json/Rinkimai?_id!="{0}"'.format(eq_id_for_gt_ge)
+    request_line = f'/datasets/json/Rinkimai?_id!="{eq_id_for_gt_ge}"'
     resp = app.get(request_line)
     assert len(resp.json()["_data"]) == 4
 

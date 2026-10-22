@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import IO, Any, Dict, Final, List, Literal, Optional, TypedDict
+from typing import IO, Any, Final, Literal, TypedDict
 
 from spinta.components import PrepareGiven
 from spinta.dimensions.lang.components import LangData
@@ -103,7 +103,7 @@ ManifestColumn = Literal[
     "title",
     "description",
 ]
-MANIFEST_COLUMNS: List[ManifestColumn] = [
+MANIFEST_COLUMNS: list[ManifestColumn] = [
     ID,
     DATASET,
     RESOURCE,
@@ -127,12 +127,12 @@ MANIFEST_COLUMNS: List[ManifestColumn] = [
     DESCRIPTION,
 ]
 
-ManifestRow = Dict[ManifestColumn, str]
+ManifestRow = dict[ManifestColumn, str]
 
 
 class ManifestTableRow(TypedDict, total=False):
     type: str
-    backends: Dict[str, BackendRow]
+    backends: dict[str, BackendRow]
 
 
 class DatasetRow(TypedDict, total=False):
@@ -143,7 +143,7 @@ class DatasetRow(TypedDict, total=False):
     access: str
     title: str
     description: str
-    resources: Dict[str, ResourceRow]
+    resources: dict[str, ResourceRow]
     lang: LangData
     source: str
     given_name: str
@@ -172,7 +172,7 @@ class BaseRow(TypedDict, total=False):
     id: str
     name: str
     model: str
-    pk: List[str]
+    pk: list[str]
     lang: LangData
     level: str
 
@@ -180,27 +180,27 @@ class BaseRow(TypedDict, total=False):
 class ParamRow(TypedDict):
     id: str
     name: str  # param name
-    source: List[str]  # list of `self` for prepare formulas
-    prepare: List[Any]  # list of formulas
+    source: list[str]  # list of `self` for prepare formulas
+    prepare: list[Any]  # list of formulas
     title: str
     description: str
 
 
 class ModelExtraData(TypedDict):
-    params: List[ParamRow]
+    params: list[ParamRow]
 
 
 class ModelRow(TypedDict, total=False):
     type: str
     id: str
     name: str
-    base: Optional[dict]
+    base: dict | None
     level: str
     access: str
     title: str
     description: str
-    properties: Dict[str, PropertyRow]
-    scopes: Dict[str, ScopeRow]
+    properties: dict[str, PropertyRow]
+    scopes: dict[str, ScopeRow]
     external: ModelExternalRow
     backend: str
     lang: LangData
@@ -216,9 +216,9 @@ class ModelRow(TypedDict, total=False):
 class ModelExternalRow(TypedDict, total=False):
     dataset: str
     resource: str
-    pk: List[str]
+    pk: list[str]
     name: str
-    prepare: Dict[str, Any]
+    prepare: dict[str, Any]
     type: str
 
 
@@ -226,7 +226,7 @@ class EnumRow(TypedDict, total=False):
     id: str
     name: str
     source: str
-    prepare: Optional[Dict[str, Any]]
+    prepare: dict[str, Any] | None
     access: str
     title: str
     description: str
@@ -241,24 +241,24 @@ class EnumRow(TypedDict, total=False):
 class PropertyRow(TypedDict, total=False):
     id: str
     type: str
-    type_args: List[str]
-    prepare: Optional[Dict[str, Any]]
+    type_args: list[str]
+    prepare: dict[str, Any] | None
     level: str
     access: str
     uri: str
     title: str
     description: str
     model: str
-    refprops: List[str]
+    refprops: list[str]
     external: PropertyExternalRow
     enum: str
-    enums: Dict[str, Dict[str, EnumRow]]
+    enums: dict[str, dict[str, EnumRow]]
     lang: LangData
     units: str
     required: bool
     unique: bool
     given_name: str
-    prepare_given: List[PrepareGiven]
+    prepare_given: list[PrepareGiven]
     explicitly_given: bool
     status: str
     visibility: str
@@ -269,7 +269,7 @@ class PropertyRow(TypedDict, total=False):
 
 class PropertyExternalRow(TypedDict, total=False):
     name: str
-    prepare: Optional[Dict[str, Any]]
+    prepare: dict[str, Any] | None
     type: str
 
 
@@ -297,13 +297,13 @@ class CommentRow(TypedDict, total=False):
 
 
 class CommentData(TypedDict, total=False):
-    comments: Optional[List[CommentRow]]
+    comments: list[CommentRow] | None
 
 
 class ScopeRow(TypedDict, total=False):
     id: str
     name: str
-    prepare: Dict[str, Any]  # formula
+    prepare: dict[str, Any]  # formula
     access: str
     level: str
     status: str

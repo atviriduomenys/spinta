@@ -1,5 +1,3 @@
-from typing import Union
-
 from spinta.components import FuncProperty, Property
 from spinta.core.ufuncs import Bind, Expr, GetAttr, ufunc
 from spinta.types.datatype import DataType, Denorm, Integer, String
@@ -91,7 +89,7 @@ def select(env: RequestParamsBuilder, select_name: str, func_prop: FuncProperty,
 
 
 @ufunc.resolver(RequestParamsBuilder, str, (GetAttr, Bind, Expr))
-def select(env: RequestParamsBuilder, select_name: str, other: Union[Bind, Expr], **kwargs):
+def select(env: RequestParamsBuilder, select_name: str, other: Bind | Expr, **kwargs):
     params = env.params
     if params.select_props is None:
         params.select_props = {}

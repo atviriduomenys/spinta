@@ -1,7 +1,7 @@
 import urllib
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Optional, cast
+from typing import cast
 
 import pytest
 import shapely.wkt
@@ -263,8 +263,8 @@ def test_geometry_coordinate_transformation(
     rc: RawConfig,
     postgresql: str,
     wkt: str,
-    srid: Optional[int],
-    link: Optional[str],
+    srid: int | None,
+    link: str | None,
 ):
     if srid:
         dtype = f"geometry(point, {srid})"

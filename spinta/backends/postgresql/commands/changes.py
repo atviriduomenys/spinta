@@ -1,5 +1,4 @@
 from types import AsyncGeneratorType
-from typing import Optional
 
 import sqlalchemy as sa
 
@@ -58,7 +57,7 @@ def changes(
     *,
     id_: str = None,
     limit: int = 100,
-    offset: Optional[int] = -100,
+    offset: int | None = -100,
 ):
     connection = context.get("transaction").connection
     table = backend.get_table(model, TableType.CHANGELOG)

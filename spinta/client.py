@@ -3,7 +3,6 @@ import dataclasses
 import os
 import pathlib
 import urllib.parse
-from typing import List, Optional
 
 import requests
 
@@ -23,13 +22,13 @@ class RemoteClientCredentials:
     secret: str  # client secret
     server: str  # authorization server URL (`auth_server_url`, old name `server`)
     remote: str  # remote name given in credentials.cfg section
-    scopes: List[str]  # allowed scopes given in credentials.cfg section
+    scopes: list[str]  # allowed scopes given in credentials.cfg section
     # resource server URL if separate from auth server (old name in credentials.cfg `resource_server`)
-    resource_server_url: Optional[str] = None
-    resource_server_id: Optional[str] = None  # resource server identifier, sent as the `resource` of token requests
-    client_id: Optional[str] = None  # identification of client, could be same as client (username)
-    organization: Optional[str] = None  # name of the clients organization
-    organization_type: Optional[str] = None  # type of the clients organization
+    resource_server_url: str | None = None
+    resource_server_id: str | None = None  # resource server identifier, sent as the `resource` of token requests
+    client_id: str | None = None  # identification of client, could be same as client (username)
+    organization: str | None = None  # name of the clients organization
+    organization_type: str | None = None  # type of the clients organization
 
 
 def _parse_client_handle(
@@ -67,7 +66,7 @@ def _parse_client_handle(
 
 
 def get_client_credentials(
-    credsfile: Optional[pathlib.Path],  # path to credentials.cfg
+    credsfile: pathlib.Path | None,  # path to credentials.cfg
     name: str,  # section name from credentials.cfg or a server
     # URL
     *,
@@ -148,7 +147,7 @@ def add_client_credentials(
     *,
     client: str = None,
     secret: str = None,
-    scopes: List[str] = None,
+    scopes: list[str] = None,
     section: str = None,
 ) -> None:
     creds = get_client_credentials(credsfile, server, check=False)

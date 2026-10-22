@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from typer import Argument, Option, echo
 from typer import Context as TyperContext
 
@@ -12,7 +10,7 @@ from spinta.manifests.tabular.helpers import render_tabular_manifest
 
 def show(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    manifests: list[str] | None = Argument(None, help=("Manifest files to load")),
     mode: Mode = Option("internal", help="Mode of backend operation"),
 ):
     """Show manifest as ascii table"""

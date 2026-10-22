@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from spinta.components import Component
 from spinta.core.enums import Access
 from spinta.dimensions.comments.components import Comment, CommentGiven
@@ -9,8 +7,8 @@ from spinta.utils.enums import enum_by_name
 
 def load_comments(
     parent: Component,
-    data: Optional[List[CommentRow]],
-) -> List[Comment]:
+    data: list[CommentRow] | None,
+) -> list[Comment]:
     comments = []
     if data:
         for comment_data in data:

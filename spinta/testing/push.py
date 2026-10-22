@@ -1,9 +1,7 @@
-from typing import List
-
 import sqlalchemy as sa
 
 
-def compare_push_state_rows(engine: sa.engine.Engine, table_name: str, rows: List[dict], order_by=None):
+def compare_push_state_rows(engine: sa.engine.Engine, table_name: str, rows: list[dict], order_by=None):
     if order_by is None:
         order_by = ["id"]
 

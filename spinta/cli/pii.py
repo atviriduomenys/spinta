@@ -1,7 +1,8 @@
 import pathlib
 import re
 import uuid
-from typing import Any, Dict, Iterable, Optional, TypedDict
+from collections.abc import Iterable
+from typing import Any, TypedDict
 
 import phonenumbers
 import tqdm
@@ -58,11 +59,11 @@ class PiiMatch(TypedDict):
     total: int  # Total number of rows checked
 
 
-PiiMatches = Dict[
+PiiMatches = dict[
     str,  # model.name
-    Dict[
+    dict[
         str,  # property.place
-        Dict[
+        dict[
             str,  # PII URI in `prefix:suffix` form.
             PiiMatch,
         ],
@@ -161,11 +162,11 @@ def _detect_pii(context: Context, manifest: Manifest, rows: Iterable[ModelRow]) 
 @app.command()
 def detect(
     ctx: TyperContext,
-    manifest: Optional[pathlib.Path] = Argument(None, help="Path to manifest."),
-    output: Optional[str] = Option(None, "-o", "--output", help=("Path to manifest with detected PII.")),
-    auth: Optional[str] = Option(None, "-a", "--auth", help=("Authorize as a client")),
+    manifest: pathlib.Path | None = Argument(None, help="Path to manifest."),
+    output: str | None = Option(None, "-o", "--output", help=("Path to manifest with detected PII.")),
+    auth: str | None = Option(None, "-a", "--auth", help=("Authorize as a client")),
     stop_on_error: bool = Option(False, help="Stop on first error"),
-    limit: Optional[int] = Option(1000, help="Limit number of rows to check"),
+    limit: int | None = Option(1000, help="Limit number of rows to check"),
 ):
     """Detect Person Identifying Information
 

@@ -5,11 +5,12 @@ import itertools
 import json
 import textwrap
 import time
+from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass, field
 from datetime import timezone
 from email.utils import format_datetime, parsedate_to_datetime
 from io import TextIOWrapper
-from typing import Any, AsyncIterator, Iterable, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 import pprintpp
 import requests
@@ -300,8 +301,7 @@ def peek_and_stream(stream):
     peek = list(itertools.islice(stream, 2))
 
     def _iter():
-        for data in itertools.chain(peek, stream):
-            yield data
+        yield from itertools.chain(peek, stream)
 
     return _iter()
 

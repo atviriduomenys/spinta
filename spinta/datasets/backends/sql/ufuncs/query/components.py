@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 class SqlFrom:
     backend: Sql
-    joins: Dict[str, sa.Table]
+    joins: dict[str, sa.Table]
     from_: sa.Table
 
     def __init__(self, backend: Sql, table: sa.Table):
@@ -37,7 +37,7 @@ class SqlFrom:
         env: SqlQueryBuilder,
         prop: ForeignProperty,
     ) -> sa.Table:
-        fpr: Optional[ForeignProperty] = None
+        fpr: ForeignProperty | None = None
         for fpr in prop.chain:
             if fpr.name in self.joins:
                 continue
@@ -129,7 +129,7 @@ class SqlQueryBuilder(QueryBuilder):
     model: Model
     table: sa.Table
     joins: SqlFrom
-    columns: List[sa.Column]
+    columns: list[sa.Column]
 
     def init(self, backend: Sql, table: sa.Table, params: QueryParams = None):
         result = self(
@@ -185,16 +185,16 @@ class SqlQueryBuilder(QueryBuilder):
     def default_resolver(self, expr, *args, **kwargs):
         raise UnknownMethod(name=expr.name, expr=str(expr(*args, **kwargs)))
 
-    def add_column(self, column: Union[sa.Column, Function]) -> int:
+    def add_column(self, column: sa.Column | Function) -> int:
         """Returns position in select column list, which is stored in
         Selected.item.
         """
-        assert isinstance(column, (sa.Column, Function)), column
+        assert isinstance(column, sa.Column | Function), column
         if column not in self.columns:
             self.columns.append(column)
         return self.columns.index(column)
 
-    def add_to_group_by(self, columns: [List[sa.Column], sa.Column]):
+    def add_to_group_by(self, columns: list[sa.Column] | sa.Column):
         columns = ensure_list(columns)
 
         if self.group_by is None:

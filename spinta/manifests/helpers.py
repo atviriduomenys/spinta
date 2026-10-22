@@ -1,7 +1,8 @@
 import pathlib
 import re
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Type
+from typing import Any
 
 from spinta import HTTP_URL_PREFIXES, commands
 from spinta.backends.constants import BackendOrigin
@@ -50,7 +51,7 @@ def create_manifest(
     context: Context,
     store: Store,
     name: str,
-    seen: List[str] = None,
+    seen: list[str] = None,
 ) -> Manifest:
     rc: RawConfig = context.get("rc")
     config = context.get("config")
@@ -83,7 +84,7 @@ def _configure_manifest(
     rc: RawConfig,
     store: Store,
     manifest: Manifest,
-    seen: List[str] = None,
+    seen: list[str] = None,
     *,
     backend: str = "default",
 ):
@@ -140,7 +141,7 @@ def load_manifest_nodes(
 
 
 def _load_manifest_backends(
-    context: Context, manifest: Manifest, backends: Dict[str, Dict[str, str]], reset: bool = True
+    context: Context, manifest: Manifest, backends: dict[str, dict[str, str]], reset: bool = True
 ) -> None:
     if reset:
         manifest.backends = {}
@@ -157,7 +158,7 @@ def _load_manifest_backends(
 
 
 def _load_manifest(
-    context: Context, manifest: Manifest, data: Dict[str, Any], eid: EntryId, reset: bool = True
+    context: Context, manifest: Manifest, data: dict[str, Any], eid: EntryId, reset: bool = True
 ) -> None:
     if "backends" in data:
         _load_manifest_backends(context, manifest, data["backends"], reset=reset)
@@ -174,7 +175,7 @@ def _load_manifest_node(
     context: Context,
     config: Config,
     manifest: Manifest,
-    source: Optional[Manifest],
+    source: Manifest | None,
     eid: EntryId,
     data: dict,
 ) -> MetaData:
@@ -187,7 +188,7 @@ def _load_manifest_node(
     return node
 
 
-def entity_to_schema(entity: Optional[Entity]) -> ManifestSchema:
+def entity_to_schema(entity: Entity | None) -> ManifestSchema:
     if entity is None:
         return None, {
             "dataset": None,
@@ -209,7 +210,7 @@ def entity_to_schema(entity: Optional[Entity]) -> ManifestSchema:
         }
 
 
-def model_to_schema(model: Optional[Model]) -> ManifestSchema:
+def model_to_schema(model: Model | None) -> ManifestSchema:
     if model is None:
         return None, {
             "type": "model",
@@ -276,9 +277,9 @@ def dataset_to_schema(dataset: Dataset) -> ManifestSchema:
     }
 
 
-def detect_manifest_from_path(rc: RawConfig, path: str) -> Type[Manifest]:
+def detect_manifest_from_path(rc: RawConfig, path: str) -> type[Manifest]:
     for name in rc.keys("components", "manifests"):
-        Manifest_: Type[Manifest] = rc.get(
+        Manifest_: type[Manifest] = rc.get(
             "components",
             "manifests",
             name,
@@ -289,9 +290,9 @@ def detect_manifest_from_path(rc: RawConfig, path: str) -> Type[Manifest]:
     raise UnknownManifestTypeFromPath(path=path)
 
 
-def get_manifest_from_type(rc: RawConfig, type_: str) -> Type[Manifest]:
+def get_manifest_from_type(rc: RawConfig, type_: str) -> type[Manifest]:
     for name in rc.keys("components", "manifests"):
-        Manifest_: Type[Manifest] = rc.get(
+        Manifest_: type[Manifest] = rc.get(
             "components",
             "manifests",
             name,
@@ -328,7 +329,7 @@ class TypeDetector:
         self._process_for_required(value)
 
         if value is not None and value != "":
-            if not isinstance(value, (list, tuple)):
+            if not isinstance(value, list | tuple):
                 value = [value]
             for item in value:
                 str_value = str(item)

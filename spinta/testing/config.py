@@ -1,5 +1,4 @@
 import pathlib
-from typing import Optional
 
 from spinta.auth import gen_auth_server_keys, get_clients_path
 from spinta.components import Context
@@ -36,7 +35,7 @@ def create_config_path(path: pathlib.Path) -> pathlib.Path:
 def configure(
     context: Context,
     rc: RawConfig,
-    db: Optional[Sqlite],  # TODO: move backend configuration to manifest
+    db: Sqlite | None,  # TODO: move backend configuration to manifest
     path: pathlib.Path,  # manifest file path
     manifest: str,  # manifest as ascii table string
 ) -> RawConfig:

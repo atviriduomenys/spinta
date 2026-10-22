@@ -4,6 +4,12 @@ Changes
 1.4.0 (unreleased)
 =====================
 
+Improvements:
+
+- Added `UP` ruff ruleset, which forces new code to utilize modern python syntax (`#2071`_).
+
+.. _#2071: https://github.com/atviriduomenys/spinta/issues/2071
+
 Bug fixes:
 
 - Fixed PostgreSQL column type and geometry migrations failing on Citus distributed tables due to table-qualified column references (`#2027`_).

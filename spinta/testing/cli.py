@@ -1,7 +1,7 @@
 import os
 import sys
 import traceback
-from typing import Any, List
+from typing import Any
 
 import pytest
 from click.testing import Result
@@ -12,7 +12,7 @@ from spinta.core.config import RawConfig
 from spinta.testing.context import close_context_engines, create_test_context
 
 
-def _prepare_args(args: List[Any]) -> List[str]:
+def _prepare_args(args: list[Any]) -> list[str]:
     """Prepare args
 
     This does following conversions:
@@ -49,7 +49,7 @@ class SpintaCliRunner(CliRunner):
     def invoke(
         self,
         rc: RawConfig,
-        args: List[Any] = None,
+        args: list[Any] = None,
         fail: bool = True,
         **kwargs,
     ):
