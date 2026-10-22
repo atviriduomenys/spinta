@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, List, Optional, TypeVar, Union, cast
+from typing import TypeVar, cast
 
 from spinta.components import Context, Model, Namespace, Property
 from spinta.core.access import link_access_param, load_access_param
@@ -17,7 +17,7 @@ from spinta.utils.schema import NA
 
 def _load_enum_item(
     context: Context,
-    parents: List[Union[Property, Model, Namespace, Manifest]],
+    parents: list[Property | Model | Namespace | Manifest],
     data: EnumRow,
 ) -> EnumItem:
     item = EnumItem()
@@ -49,9 +49,9 @@ def _load_enum_item(
 
 def load_enums(
     context: Context,
-    parents: List[Union[Property, Model, Namespace, Manifest]],
-    enums: Optional[Dict[str, Dict[str, EnumRow]]],
-) -> Optional[Enums]:
+    parents: list[Property | Model | Namespace | Manifest],
+    enums: dict[str, dict[str, EnumRow]] | None,
+) -> Enums | None:
     if enums is None:
         return
     return {
@@ -61,8 +61,8 @@ def load_enums(
 
 
 def link_enums(
-    parents: List[Union[Property, Model, Namespace]],
-    enums: Optional[Enums],
+    parents: list[Property | Model | Namespace],
+    enums: Enums | None,
 ) -> None:
     if enums is None:
         return
@@ -71,7 +71,7 @@ def link_enums(
             link_access_param(item, parents)
 
 
-def get_prop_enum(prop: Optional[Property]) -> EnumValue:
+def get_prop_enum(prop: Property | None) -> EnumValue:
     if prop and prop.enum:
         return prop.enum
 
@@ -79,7 +79,7 @@ def get_prop_enum(prop: Optional[Property]) -> EnumValue:
 T = TypeVar("T")
 
 
-def prepare_enum_value(prop: Property, value: T) -> Union[T, List[T]]:
+def prepare_enum_value(prop: Property, value: T) -> T | list[T]:
     if enum := get_prop_enum(prop):
         source = [
             item.source for item in enum.values() if ((item.prepare is None and value is None) or item.prepare == value)

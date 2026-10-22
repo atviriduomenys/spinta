@@ -1,4 +1,4 @@
-from typing import Any, Dict, Union
+from typing import Any
 
 from spinta import commands
 from spinta.components import Context
@@ -11,9 +11,9 @@ from spinta.nodes import get_node
 def load_prefixes(
     context: Context,
     manifest: Manifest,
-    node: Union[Manifest, Dataset],
-    prefixes: Dict[str, Dict[str, Any]],
-) -> Dict[str, UriPrefix]:
+    node: Manifest | Dataset,
+    prefixes: dict[str, dict[str, Any]],
+) -> dict[str, UriPrefix]:
     config = context.get("config")
     loaded = {}
     for name, data in prefixes.items():

@@ -1,4 +1,5 @@
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy import Column
@@ -16,7 +17,7 @@ class SDO_GEOMETRY(UserDefinedType):
     cache_ok = True
     __visit_name__ = "SDO_GEOMETRY"
 
-    def __init__(self, geometry_type: Optional[str] = None, srid: Optional[int] = None):
+    def __init__(self, geometry_type: str | None = None, srid: int | None = None):
         self.geometry_type = geometry_type
         self.srid = srid
 
@@ -27,8 +28,8 @@ class SDO_GEOMETRY(UserDefinedType):
         wkt_expr = sa.func.SDO_UTIL.TO_WKTGEOMETRY(col)
         return sa.func.NVL(wkt_expr, None)
 
-    def result_processor(self, dialect: Any, coltype: Any) -> Optional[Callable]:
-        def process(value: Optional[Any]) -> Optional[Any]:
+    def result_processor(self, dialect: Any, coltype: Any) -> Callable | None:
+        def process(value: Any | None) -> Any | None:
             if value is None:
                 return None
 

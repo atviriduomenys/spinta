@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Iterable, Iterator, TypeVar
+from collections.abc import Iterable, Iterator
+from typing import Any, TypeVar
 
 import sqlalchemy as sa
 from multipledispatch import dispatch
@@ -426,10 +427,10 @@ class TableIdentifier:
         object.__setattr__(self, "pg_qualified_name", pg_qualified_name)
         object.__setattr__(self, "pg_escaped_qualified_name", pg_escaped_qualified_name)
 
-    def change_table_type(self, new_type: TableType, table_arg: str | None = None) -> "TableIdentifier":
+    def change_table_type(self, new_type: TableType, table_arg: str | None = None) -> TableIdentifier:
         return dataclasses.replace(self, table_type=new_type, table_arg=table_arg)
 
-    def apply_removed_prefix(self, remove_model_only: bool = False) -> "TableIdentifier":
+    def apply_removed_prefix(self, remove_model_only: bool = False) -> TableIdentifier:
         if remove_model_only or not self.table_arg:
             if not self.base_name.startswith("__"):
                 return dataclasses.replace(self, base_name=f"__{self.base_name}")
@@ -439,7 +440,7 @@ class TableIdentifier:
             return dataclasses.replace(self, table_arg=f"__{self.table_arg}")
         return self
 
-    def __lt__(self, other: "TableIdentifier") -> bool:
+    def __lt__(self, other: TableIdentifier) -> bool:
         return self.logical_qualified_name < other.logical_qualified_name
 
 

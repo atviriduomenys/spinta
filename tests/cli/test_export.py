@@ -3,7 +3,6 @@ from __future__ import annotations
 import csv
 import datetime
 import pathlib
-from typing import Union
 
 import pytest
 import sqlalchemy as sa
@@ -85,7 +84,7 @@ def _assert_meta_keys_exists(data: list[dict], keys: list, nullable: list = None
     assert all(all(value or key in nullable for key, value in row.items() if key in keys) for row in data)
 
 
-def _extract_postgresql_data_from_file(dir_path: pathlib.Path, file_path: Union[pathlib.Path, str]) -> list[dict]:
+def _extract_postgresql_data_from_file(dir_path: pathlib.Path, file_path: pathlib.Path | str) -> list[dict]:
     with (dir_path / file_path).open("r") as f:
         csv_reader = csv.DictReader(f)
         data = [row for row in csv_reader]

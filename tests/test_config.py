@@ -1,7 +1,9 @@
 import pytest
 from ruamel.yaml import YAML
 
+from spinta import commands
 from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
+from spinta.testing.context import create_test_context
 
 yaml = YAML(typ="safe")
 
@@ -729,3 +731,48 @@ def test_to_dict():
         "type": "internal",
         "backend": "default",
     }
+
+
+@pytest.mark.parametrize(
+    "overrides, expected",
+    [
+        ({"server_url": "https://old.example.com/"}, "https://old.example.com"),
+        (
+            {"server_url": "https://old.example.com", "resource_server_url": "https://new.example.com/"},
+            "https://new.example.com",
+        ),
+    ],
+)
+def test_resource_server_url_falls_back_to_server_url(rc, overrides, expected):
+    context = create_test_context(rc.fork(overrides))
+    config = context.get("config")
+    commands.load(context, config)
+    assert config.resource_server_url == expected
+    assert config.server_url == expected
+
+
+@pytest.mark.parametrize(
+    "overrides, expected",
+    [
+        (
+            {"token_issuer": "https://old.example.com/", "resource_server": "https://old-rs.example.com"},
+            ("https://old.example.com/", "https://old.example.com", "https://old-rs.example.com"),
+        ),
+        (
+            {
+                "token_issuer": "https://old.example.com",
+                "resource_server": "https://old-rs.example.com",
+                "auth_server_id": "https://id.example.com",
+                "auth_server_url": "https://url.example.com",
+                "resource_server_id": "https://rs.example.com",
+            },
+            ("https://id.example.com", "https://url.example.com", "https://rs.example.com"),
+        ),
+    ],
+)
+def test_auth_settings_fall_back_to_old_names(rc, overrides, expected):
+    rc = rc.fork({"auth_server_id": None, "auth_server_url": None, "resource_server_id": None, **overrides})
+    context = create_test_context(rc)
+    config = context.get("config")
+    commands.load(context, config)
+    assert (config.auth_server_id, config.auth_server_url, config.resource_server_id) == expected

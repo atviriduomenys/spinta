@@ -1,5 +1,3 @@
-from typing import List
-
 from spinta import commands
 from spinta.components import Context, Model
 from spinta.exceptions import MissingRefModel, ModelReferenceKeyNotFound
@@ -35,7 +33,7 @@ def link(context: Context, dtype: Ref) -> None:
     if dtype.refprops:
         refprops = []
         # XXX: https://github.com/atviriduomenys/spinta/issues/44
-        raw_refprops: List[str] = dtype.refprops
+        raw_refprops: list[str] = dtype.refprops
         for rprop in raw_refprops:
             if rprop not in dtype.model.flatprops:
                 raise ModelReferenceKeyNotFound(dtype, ref=rprop, model=dtype.model)

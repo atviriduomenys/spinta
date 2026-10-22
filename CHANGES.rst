@@ -1,79 +1,104 @@
 Changes
 #######
 
-1.2.0 (unreleased)
+1.4.0 (unreleased)
 =====================
 
-Bug fixes:
 
-- Fixed ``spinta_*`` scope prefix deprecation notice spamming the log once per
-  request or per written row (`#2046`_): deprecation notices are now emitted
-  via the `warnings` module (`warnings.warn`) instead of ``log.warning``, so
-  they are shown at most once per call site and can be controlled via the
-  ``PYTHONWARNINGS`` environment variable or the ``-W`` option, for example::
-
-    # Silence all Spinta deprecation warnings:
-    PYTHONWARNINGS="ignore::DeprecationWarning" spinta run
-
-    # Turn all deprecation warnings into errors (useful in CI):
-    PYTHONWARNINGS="error::DeprecationWarning" pytest
-
-  All Spinta deprecation notices now use ``SpintaDeprecationWarning`` (or a
-  subclass of it) from the new ``spinta.warnings`` module: the ``spinta_*``
-  scope prefix deprecation (``ScopeFormatDeprecationWarning``), the deprecated
-  ``--log-file`` / ``--log-level`` CLI options and the deprecated ``csv`` /
-  ``json`` / ``xml`` backend classes (previously plain ``FutureWarning``,
-  which, unlike ``DeprecationWarning``, was shown by default).
-  Note that, like all ``DeprecationWarning`` subclasses, these are hidden by
-  default (shown only in ``__main__`` or with ``PYTHONDEVMODE=1``); in dev use
-  ``-W default::DeprecationWarning`` to make them visible. Unfiltered
-  warnings are routed into the file log under the ``py.warnings`` logger via
-  ``logging.captureWarnings``. Also note that ``PYTHONWARNINGS`` and the
-  ``-W`` interpreter option only work with the stdlib
-  ``DeprecationWarning`` category, not with the dotted
-  ``spinta.warnings.SpintaDeprecationWarning`` path, because Python applies
-  warning filters before third-party packages are importable (use
-  ``pytest -W "error::spinta.warnings.SpintaDeprecationWarning"`` or the
-  ``filterwarnings`` pytest setting for Spinta-specific filtering in CI).
-  See :ref:`deprecation-warnings` for the permanent documentation.
-- Fixed token validation when ``token_validation_keys_download_url`` was
-  configured (needed when tokens are issued by an external authorization
-  server): the ``downloaded_public_keys_file`` configuration value is a
-  string, but it was stored as-is and later used as a ``pathlib.Path``
-  (``load_downloaded_public_keys`` calls ``.exists()`` on it), so every
-  request failed with ``AttributeError: 'str' object has no attribute
-  'exists'``. The value is now wrapped with ``pathlib.Path``.
-- Fixed incorrect citus distribution script generation when using `spinta migrate`
-  on fresh database, when manifest contains models with cross schema references (`#2008`_).
-- Fixed push cli request system crashing when receiving non-json response (`#2020`_).
-- Added cancellation checkpoints between streamed response chunks to prevent
-  repeated socket warnings after a client disconnects (`#2047`_).
-
-.. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
-.. _#2046: https://github.com/atviriduomenys/spinta/issues/2046
-.. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
-.. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
+1.3.1 (2026-10-22)
+=====================
 
 Improvements:
 
-- Added hyperlinks to `URL` datatype response fields inside html output (`#1058`_).
-- Improved push cli error handling, now `GET` requests inform user on what kind of error has occurred (`#2020`_).
+- Added `UP` ruff ruleset, which forces new code to utilize modern python syntax (`#2071`_).
 
-.. _#1058: https://github.com/atviriduomenys/spinta/issues/1058
+.. _#2071: https://github.com/atviriduomenys/spinta/issues/2071
 
-New Features:
+Bug fixes:
 
-- Added `citus_reference_config` admin script that is capable of generating new configuration file, which
-  contains all models that fit under citus reference sharding optimization criteria (`#1989`_).
+- Fixed PostgreSQL column type and geometry migrations failing on Citus distributed tables due to table-qualified column references (`#2027`_).
 
-.. _#1989: https://github.com/atviriduomenys/spinta/issues/1989
+.. _#2027: https://github.com/atviriduomenys/spinta/issues/2027
 
+- Hashed requirements files for stable releases again include optional extras
+  (``uvicorn``, ``gunicorn``, ``alembic``); files for 1.1.0, 1.2.0, 1.3.0 and ``spinta-latest.txt`` were regenerated.
 
-1.1.0 (2026-08-19)
+1.3.0 (2026-10-19)
 =====================
 
 Backwards incompatible:
 
+- Tokens Spinta issues now carry ``aud`` as a list, ``[resource_server_id]``:
+  Spinta issues tokens only for itself (`katalogas#2799`_).
+
+New features:
+
+- Renamed the authorization configuration parameters added in 1.2.0, to keep
+  identifiers apart from URLs (`katalogas#2799`_):
+
+  - ``token_issuer`` is now ``auth_server_id`` (the ``iss`` claim) and
+    ``auth_server_url`` (the base of the endpoints advertised in the
+    authorization server metadata).
+  - ``resource_server`` is now ``resource_server_id`` (the ``aud`` claim).
+
+  The old names are still read when the new ones are not set.
+- Added ``resource_server_url``, the public URL of this resource server.
+  ``server_url`` is its old name and is still read (`katalogas#2799`_).
+- ``credentials.cfg``: ``spinta sync`` reads the ``[katalogas]`` section, or
+  the old ``[default]`` one. ``auth_server_url`` and ``resource_server_url``
+  replace ``server`` and ``resource_server``, which are still read.
+  ``resource_server_id`` is sent as the ``resource`` of the token request.
+  ``organization`` and ``organization_type`` are no longer required
+  (`katalogas#2799`_).
+
+.. _katalogas#2799: https://github.com/atviriduomenys/katalogas/issues/2799
+
+Bug fixes:
+
+- Generated OpenAPI specifications describe ``_base``, which a search answers
+  with, so a gateway refusing undescribed properties accepts the answer
+  (`#2063`_).
+
+.. _#2063: https://github.com/atviriduomenys/spinta/issues/2063
+
+
+1.2.0 (2026-10-14)
+=====================
+
+Backwards incompatible:
+
+- Generated OpenAPI specifications changed, so that one file can be imported
+  into an API gateway and used to validate requests and responses against it
+  (`#2004`_). What the specification holds is described in
+  ``docs/en/contrib/udts-oas.md``. Changes a user of the files will
+  notice:
+
+  - The specification is OpenAPI ``3.0.3`` instead of ``3.1.0``.
+  - ``servers`` are no longer hardcoded to ``get.data.gov.lt``; a data service
+    takes them from ``--udts-cfg`` and paths are relative to them. Dataset and
+    whole manifest exports have no ``servers`` (`#1526`_).
+  - Only metadata whose ``visibility`` is ``protected``, ``package`` or
+    ``public`` is published; ``private`` and an empty ``visibility`` are left
+    out, with a warning saying how much. Access to data is still governed by
+    ``access``.
+  - Properties that are not ``required`` accept ``null``, and model schemas
+    list no required properties.
+  - Every ``integer`` schema is ``format: int64``, with no ``minimum`` or
+    ``maximum`` on model properties.
+  - ``url`` and ``uri`` properties are ``format: uri``, and a ``string``
+    property is ``format: email`` or ``uri`` when its ``uri`` names an e-mail
+    or web address term, ``vcard:hasEmail`` or ``foaf:homepage`` for example.
+  - ``_select``, ``_limit``, ``_sort`` and ``_page`` are separate query
+    parameters instead of one ``query`` object. ``_limit`` is bounded by
+    ``limits.max_limit`` of the configuration (default ``100000``).
+  - Schema names, tags and operation ids of a data service keep the dataset
+    path (``at280_israsas_DalyvioAsmensIsrasas``); a whole manifest export uses
+    the full model name.
+  - Agent endpoints are described as ``/version``, ``/health`` and
+    ``/token``, the paths the API gateway routes inside a data service; the
+    ``x-spinta-context`` extension and the agent's own ``/auth/token`` path
+    are gone.
+  - ``traceparent`` and ``tracestate`` headers are no longer required.
 - Access tokens are now validated against their ``iss`` (issuer), ``aud``
   (audience), ``client_id``, ``exp`` (expiration) and ``iat`` (issued-at) claims
   at decode time: a token is rejected unless its ``iss`` equals the
@@ -128,6 +153,135 @@ Backwards incompatible:
   any token minted there failed validation against the external key. Agent-mode
   deployments must obtain tokens from the external authorization server instead
   (`#631`_).
+
+Bug fixes:
+
+- A model's or property's ``visibility`` recorded as given is the one the
+  manifest gave, not the default ``private`` (`#2004`_).
+- A page token that Spinta did not write, ``page(123)`` or Base64 that holds no
+  list of values for example, is refused with ``InvalidPageKey`` instead of a
+  server error (`#2004`_).
+- A CSV manifest written on Windows no longer has an empty line after every
+  row and is written as UTF-8, the encoding it is read back in.
+- Fixed ``spinta_*`` scope prefix deprecation notice spamming the log once per
+  request or per written row (`#2046`_): deprecation notices are now emitted
+  via the `warnings` module (`warnings.warn`) instead of ``log.warning``, so
+  they are shown at most once per call site and can be controlled via the
+  ``PYTHONWARNINGS`` environment variable or the ``-W`` option, for example::
+
+    # Silence all Spinta deprecation warnings:
+    PYTHONWARNINGS="ignore::DeprecationWarning" spinta run
+
+    # Turn all deprecation warnings into errors (useful in CI):
+    PYTHONWARNINGS="error::DeprecationWarning" pytest
+
+  All Spinta deprecation notices now use ``SpintaDeprecationWarning`` (or a
+  subclass of it) from the new ``spinta.warnings`` module: the ``spinta_*``
+  scope prefix deprecation (``ScopeFormatDeprecationWarning``), the deprecated
+  ``--log-file`` / ``--log-level`` CLI options and the deprecated ``csv`` /
+  ``json`` / ``xml`` backend classes (previously plain ``FutureWarning``,
+  which, unlike ``DeprecationWarning``, was shown by default).
+  Note that, like all ``DeprecationWarning`` subclasses, these are hidden by
+  default (shown only in ``__main__`` or with ``PYTHONDEVMODE=1``); in dev use
+  ``-W default::DeprecationWarning`` to make them visible. Unfiltered
+  warnings are routed into the file log under the ``py.warnings`` logger via
+  ``logging.captureWarnings``. Also note that ``PYTHONWARNINGS`` and the
+  ``-W`` interpreter option only work with the stdlib
+  ``DeprecationWarning`` category, not with the dotted
+  ``spinta.warnings.SpintaDeprecationWarning`` path, because Python applies
+  warning filters before third-party packages are importable (use
+  ``pytest -W "error::spinta.warnings.SpintaDeprecationWarning"`` or the
+  ``filterwarnings`` pytest setting for Spinta-specific filtering in CI).
+  See :ref:`deprecation-warnings` for the permanent documentation.
+- Fixed token validation when ``token_validation_keys_download_url`` was
+  configured (needed when tokens are issued by an external authorization
+  server): the ``downloaded_public_keys_file`` configuration value is a
+  string, but it was stored as-is and later used as a ``pathlib.Path``
+  (``load_downloaded_public_keys`` calls ``.exists()`` on it), so every
+  request failed with ``AttributeError: 'str' object has no attribute
+  'exists'``. The value is now wrapped with ``pathlib.Path``.
+- Fixed incorrect citus distribution script generation when using `spinta migrate`
+  on fresh database, when manifest contains models with cross schema references (`#2008`_).
+- Fixed push cli request system crashing when receiving non-json response (`#2020`_).
+- Added cancellation checkpoints between streamed response chunks to prevent
+  repeated socket warnings after a client disconnects (`#2047`_).
+- Fixed ``header()`` prepare function not working in ``dask/json`` and ``dask/xml``
+  backends (`#2055`_). Previously, HTTP headers defined via ``param.header()``
+  were only sent with requests in the ``dask/soap`` backend. Now all three
+  external backends (``dask/soap``, ``dask/json``, ``dask/xml``) correctly
+  pass resolved header parameters to their HTTP requests, enabling API
+  authentication scenarios that require header-based auth.
+
+.. _#1526: https://github.com/atviriduomenys/spinta/issues/1526
+.. _#2004: https://github.com/atviriduomenys/spinta/issues/2004
+.. _#2008: https://github.com/atviriduomenys/spinta/issues/2008
+.. _#2046: https://github.com/atviriduomenys/spinta/issues/2046
+.. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
+.. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
+.. _#2055: https://github.com/atviriduomenys/spinta/issues/2055
+
+Improvements:
+
+- New ``spinta udts oas`` command exports the OpenAPI specification of one UDTS
+  data service, covering all datasets under ``--path``. Environments, service
+  ``info`` and its contact (``name``, ``url`` and ``email`` are required) come
+  from a ``--udts-cfg`` YAML file; an example is shipped as
+  ``spinta/manifests/open_api/udts_cfg.example.yml``. ``--list`` lists the data
+  services of a manifest (`#2004`_).
+- A listing can be continued with ``?_page=<token>``, as well as with
+  ``page('<token>')`` (`#2004`_, `#2023`_).
+- Added hyperlinks to `URL` datatype response fields inside html output (`#1058`_).
+- Improved push cli error handling, now `GET` requests inform user on what kind of error has occurred (`#2020`_).
+- Added an OAuth2 token introspection endpoint at ``POST /auth/introspect``
+  (`RFC 7662`). Clients authenticate with ``client_secret_basic`` and must have
+  the ``auth_introspect`` scope; the response reports ``active``, ``client_id``,
+  ``scope``, ``sub``, ``aud``, ``iss``, ``exp``, ``iat`` and ``jti`` for a valid
+  access token, and ``{"active": false}`` otherwise (`#631`_).
+- Added an authorization server metadata endpoint at
+  ``GET /.well-known/oauth-authorization-server`` (`RFC 8414`), advertising the
+  issuer, token, introspection and JWKS endpoint URLs, the supported
+  ``client_credentials`` grant and the supported client authentication methods
+  (`#631`_).
+- Added the ``auth_introspect`` scope, which grants a client permission to
+  introspect access tokens issued to any client (`#631`_).
+- Added a ``/health`` probe endpoint, following the UAPI ``health`` schema: a
+  ``healthy`` flag for the whole service and a ``dependencies`` list, where each
+  item has a ``name`` and its own ``healthy`` flag. The reported dependencies
+  are ``spinta`` itself, ``disk`` (enough free disk space on ``data_path``) and
+  ``memory`` (enough available RAM). Only these flags are reported: since the
+  probe is not authenticated, paths, free space and errors are written to the
+  log instead of to the response. Available memory is measured against the
+  limit of the control group the process belongs to, falling back to the memory
+  of the host when it is not limited, so that a container is not reported as
+  healthy right before being killed for using up the memory it was given. Note
+  that an unhealthy service is reported in the body, not in the status code: the
+  endpoint answers ``200`` with ``healthy: false``, because UAPI declares
+  ``503`` to be the ``ServiceNotAvailable`` error object. Consumers, including
+  container and load balancer probes, must therefore inspect ``healthy`` rather
+  than the status code. Thresholds are configurable via
+  ``health.min_free_disk_space`` (MB, defaults to ``2048``) and
+  ``health.min_free_memory`` (MB, defaults to ``256``). Like the other utility
+  routes, ``/health`` is matched before the catch-all route, so it shadows a
+  root level namespace or model named ``health``, if there is one (`#1873`_).
+
+.. _#1058: https://github.com/atviriduomenys/spinta/issues/1058
+.. _#2023: https://github.com/atviriduomenys/spinta/issues/2023
+.. _#631: https://github.com/atviriduomenys/dvms/issues/631
+.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
+
+New Features:
+
+- Added `citus_reference_config` admin script that is capable of generating new configuration file, which
+  contains all models that fit under citus reference sharding optimization criteria (`#1989`_).
+
+.. _#1989: https://github.com/atviriduomenys/spinta/issues/1989
+
+
+1.1.0 (2026-08-19)
+=====================
+
+Backwards incompatible:
+
 - Removed the internal ``mongo`` backend. It was intended as an internal
   storage for schemaless data sets, but that use case never materialized and
   the backend was unused. The ``mongo`` backend type, its ``pymongo``
@@ -164,18 +318,6 @@ Bug fixes:
 
 Improvements:
 
-- Added an OAuth2 token introspection endpoint at ``POST /auth/introspect``
-  (`RFC 7662`). Clients authenticate with ``client_secret_basic`` and must have
-  the ``auth_introspect`` scope; the response reports ``active``, ``client_id``,
-  ``scope``, ``sub``, ``aud``, ``iss``, ``exp``, ``iat`` and ``jti`` for a valid
-  access token, and ``{"active": false}`` otherwise (`#631`_).
-- Added an authorization server metadata endpoint at
-  ``GET /.well-known/oauth-authorization-server`` (`RFC 8414`), advertising the
-  issuer, token, introspection and JWKS endpoint URLs, the supported
-  ``client_credentials`` grant and the supported client authentication methods
-  (`#631`_).
-- Added the ``auth_introspect`` scope, which grants a client permission to
-  introspect access tokens issued to any client (`#631`_).
 - Added support for Python ``3.14``. Bumped ``sqlean-py`` to ``>=3.50.4.5``, which
   is the first release providing prebuilt wheels for CPython ``3.14`` (older
   releases failed to build from source on ``3.14``), and added ``3.14`` to the CI
@@ -186,29 +328,8 @@ Improvements:
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
 - Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
-- Added a ``/health`` probe endpoint, following the UAPI ``health`` schema: a
-  ``healthy`` flag for the whole service and a ``dependencies`` list, where each
-  item has a ``name`` and its own ``healthy`` flag. The reported dependencies
-  are ``spinta`` itself, ``disk`` (enough free disk space on ``data_path``) and
-  ``memory`` (enough available RAM). Only these flags are reported: since the
-  probe is not authenticated, paths, free space and errors are written to the
-  log instead of to the response. Available memory is measured against the
-  limit of the control group the process belongs to, falling back to the memory
-  of the host when it is not limited, so that a container is not reported as
-  healthy right before being killed for using up the memory it was given. Note
-  that an unhealthy service is reported in the body, not in the status code: the
-  endpoint answers ``200`` with ``healthy: false``, because UAPI declares
-  ``503`` to be the ``ServiceNotAvailable`` error object. Consumers, including
-  container and load balancer probes, must therefore inspect ``healthy`` rather
-  than the status code. Thresholds are configurable via
-  ``health.min_free_disk_space`` (MB, defaults to ``2048``) and
-  ``health.min_free_memory`` (MB, defaults to ``256``). Like the other utility
-  routes, ``/health`` is matched before the catch-all route, so it shadows a
-  root level namespace or model named ``health``, if there is one (`#1873`_).
 
-.. _#631: https://github.com/atviriduomenys/dvms/issues/631
 .. _#513: https://github.com/atviriduomenys/dvms/issues/513
-.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 .. _#1915: https://github.com/atviriduomenys/spinta/issues/1915

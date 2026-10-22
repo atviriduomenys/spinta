@@ -1,6 +1,6 @@
 import importlib
 import pathlib
-from typing import Type, TypeVar
+from typing import TypeVar
 
 from spinta.components import Context
 from spinta.core.config import RawConfig, configure_rc, read_config
@@ -23,7 +23,7 @@ def create_context(
     load_commands(rc.get("commands", "modules", cast=list, default=[]))
 
     if context is None:
-        Context_: Type[Context] = rc.get("components", "core", "context", cast=importstr, required=True)
+        Context_: type[Context] = rc.get("components", "core", "context", cast=importstr, required=True)
         context = Context_(name)
 
     context.set("rc", rc)

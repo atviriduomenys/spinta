@@ -1,9 +1,7 @@
-from typing import Dict, Union
-
 from spinta.components import Model, Property, UrlParams
 
 
-def extract_params_sort_values(model: Model, params: UrlParams) -> Union[type(None), Dict[str, Property]]:
+def extract_params_sort_values(model: Model, params: UrlParams) -> type(None) | dict[str, Property]:
     """
     A hack to iterate through sort expression without using resolvers
 

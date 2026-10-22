@@ -1,5 +1,3 @@
-from typing import Dict, Optional
-
 from spinta.components import Property
 from spinta.types.datatype import DataType
 
@@ -7,4 +5,4 @@ from spinta.types.datatype import DataType
 class Text(DataType):
     schema = {"langs": {"type": "object"}, "hidden": {"type": "bool", "default": True}}
     requires_source = False
-    langs: Optional[Dict[str, Property]]
+    langs: dict[str, Property] | None

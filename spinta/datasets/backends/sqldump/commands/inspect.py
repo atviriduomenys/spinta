@@ -1,5 +1,6 @@
+from collections.abc import Iterable, Iterator
 from io import TextIOBase
-from typing import Any, Dict, Iterable, Iterator, Literal, Optional, Tuple
+from typing import Any, Literal
 
 import sqlparse
 from sqlparse.sql import Identifier, Statement, Token, TokenList
@@ -20,7 +21,7 @@ class ReadTokens:
         self.token_list = token_list
         self.idx = idx
 
-    def find(self, **kwargs) -> Optional[Token]:
+    def find(self, **kwargs) -> Token | None:
         idx, token = self.token_list.token_next_by(idx=self.idx, **kwargs)
         if idx is not None:
             self.idx = idx
@@ -28,12 +29,12 @@ class ReadTokens:
 
 
 def _read_sql_statement(
-    resource: Optional[Resource],
+    resource: Resource | None,
     statement: Statement,
-) -> Iterator[Tuple[int, Dict[str, Any]]]:
+) -> Iterator[tuple[int, dict[str, Any]]]:
     tokens = ReadTokens(statement)
     if tokens.find(m=(DDL, "CREATE")) and tokens.find(m=(Keyword, "TABLE")):
-        identifier: Optional[Identifier] = tokens.find(i=Identifier)
+        identifier: Identifier | None = tokens.find(i=Identifier)
         if identifier is None:
             return
         real_name = identifier.get_real_name()
@@ -59,7 +60,7 @@ def _read_sql_statement(
 def _read_sql_ast(
     resource: Resource,
     ast: Iterable[Statement],
-) -> Iterator[Tuple[int, Dict[str, Any]]]:
+) -> Iterator[tuple[int, dict[str, Any]]]:
     for statement in ast:
         yield from _read_sql_statement(resource, statement)
 

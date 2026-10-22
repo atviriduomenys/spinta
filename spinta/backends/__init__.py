@@ -6,11 +6,11 @@ import decimal
 import json
 import pathlib
 import uuid
-from typing import Any, AsyncIterator, Dict, Iterable, List, Optional
+from collections.abc import AsyncIterator, Iterable
+from typing import Any
 
 import dateutil
 import shapely.geometry.base
-from cbor2 import dumps as cbor_dumps
 from geoalchemy2.elements import WKBElement, WKTElement
 from geoalchemy2.shape import to_shape
 from shapely import wkt
@@ -77,14 +77,14 @@ from spinta.types.geometry.components import Geometry
 from spinta.types.geometry.helpers import get_crs_bounding_area
 from spinta.types.text.components import Text
 from spinta.utils.config import asbool
-from spinta.utils.encoding import encode_page_values
+from spinta.utils.encoding import encode_base32, encode_page_values
 from spinta.utils.schema import NA, NotAvailable
 from spinta.utils.types import is_nan
 
 
 @commands.prepare_for_write.register(Context, Model, Backend, dict)
 def prepare_for_write(
-    context: Context, model: Model, backend: Backend, patch: Dict[str, Any], *, action: Action, params: UrlParams = None
+    context: Context, model: Model, backend: Backend, patch: dict[str, Any], *, action: Action, params: UrlParams = None
 ) -> dict:
     # prepares model's data for storing in a backend
     backend = model.backend
@@ -134,8 +134,8 @@ def prepare_for_write(
     context: Context,
     dtype: Array,
     backend: Backend,
-    value: List[Any],
-) -> List[Any]:
+    value: list[Any],
+) -> list[Any]:
     # prepare array and it's items for datastore
     return [commands.prepare_for_write(context, dtype.items.dtype, backend, v) for v in value]
 
@@ -145,8 +145,8 @@ def prepare_for_write(
     context: Context,
     dtype: ArrayBackRef,
     backend: Backend,
-    value: List[Any],
-) -> List[Any]:
+    value: list[Any],
+) -> list[Any]:
     return [commands.prepare_for_write(context, dtype.items.dtype, backend, v) for v in value]
 
 
@@ -155,8 +155,8 @@ def prepare_for_write(
     context: Context,
     dtype: Object,
     backend: Backend,
-    value: Dict[str, Any],
-) -> Dict[str, Any]:
+    value: dict[str, Any],
+) -> dict[str, Any]:
     # prepare objects and it's properties for datastore
     prepped = {}
     for k, v in value.items():
@@ -300,7 +300,7 @@ def simple_data_check(
     dtype: Object,
     prop: Property,
     backend: Backend,
-    value: Dict[str, Any],
+    value: dict[str, Any],
 ) -> None:
     for prop in dtype.properties.values():
         v = value.get(prop.name, NA)
@@ -314,7 +314,7 @@ def simple_data_check(
     dtype: Object,
     prop: Property,
     backend: Backend,
-    value: Dict[str, Any],
+    value: dict[str, Any],
 ) -> None:
     for prop in dtype.properties.values():
         v = value.get(prop.name, NA)
@@ -642,7 +642,7 @@ def prepare_data_for_response(
     *,
     action: Action,
     select: SelectTree,
-    prop_names: List[str],
+    prop_names: list[str],
 ) -> dict:
     return {
         prop.name: commands.prepare_dtype_for_response(
@@ -673,7 +673,7 @@ def prepare_data_for_response(
     *,
     action: Action,
     select: SelectTree,
-    prop_names: List[str],
+    prop_names: list[str],
 ) -> dict:
     return {
         prop.name: commands.prepare_dtype_for_response(
@@ -703,7 +703,7 @@ def prepare_data_for_response(
     value: dict,
     *,
     action: Action,
-    select: List[str] = None,
+    select: list[str] = None,
 ) -> dict:
     select = flat_select_to_nested(select)
     return {
@@ -799,7 +799,7 @@ def prepare_data_for_response(
     value: dict,
     *,
     action: Action,
-    select: List[str] = None,
+    select: list[str] = None,
     property_: Property = None,
 ) -> dict:
     prop = dtype.prop
@@ -833,7 +833,7 @@ def _select_prop_props(
     dtype: Object,
     value: dict,
     select: SelectTree,
-    reserved: List[str],
+    reserved: list[str],
 ):
     prop = dtype.prop
     if prop.name in value:
@@ -864,7 +864,7 @@ def prepare_dtype_for_response(
     prop: Property,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -878,11 +878,11 @@ def prepare_dtype_for_response(
     dtype: DataType,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
-    assert isinstance(value, (str, int, float, bool, type(None), list, dict)), (
+    assert isinstance(value, str | int | float | bool | type(None) | list | dict), (
         f"prepare_dtype_for_response must return only primitive, json "
         f"serializable types, {type(value)} is not a primitive data type, "
         f"model={dtype.prop.model!r}, dtype={dtype!r}"
@@ -897,7 +897,7 @@ def prepare_dtype_for_response(
     dtype: DataType,
     value: NotAvailable,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -911,7 +911,7 @@ def prepare_dtype_for_response(
     dtype: UUID,
     value: object,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -925,7 +925,7 @@ def prepare_dtype_for_response(
     dtype: File,
     value: NotAvailable,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -942,7 +942,7 @@ def prepare_dtype_for_response(
     dtype: File,
     value: dict,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -982,7 +982,7 @@ def prepare_dtype_for_response(
     dtype: DateTime,
     value: datetime.datetime,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -996,7 +996,7 @@ def prepare_dtype_for_response(
     dtype: Date,
     value: datetime.date,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1013,7 +1013,7 @@ def prepare_dtype_for_response(
     dtype: Time,
     value: datetime.time,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1026,7 +1026,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     dtype: Binary,
     value: bytes,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     *,
     action: Action,
     select: dict = None,
@@ -1040,7 +1040,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     dtype: Geometry,
     value: shapely.geometry.base.BaseGeometry,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     *,
     action: Action,
     select: dict = None,
@@ -1054,7 +1054,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     dtype: PageType,
     value: list,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     *,
     action: Action,
     select: dict = None,
@@ -1067,9 +1067,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Format,
     dtype: Ref,
-    value: Optional[Dict[str, Any]],
+    value: dict[str, Any] | None,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1129,7 +1129,7 @@ def prepare_dtype_for_response(
     dtype: Ref,
     value: str,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1149,9 +1149,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Format,
     dtype: ExternalRef,
-    value: Optional[Dict[str, Any]],
+    value: dict[str, Any] | None,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1206,7 +1206,7 @@ def prepare_dtype_for_response(
     dtype: Object,
     value: dict,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1247,7 +1247,7 @@ def prepare_dtype_for_response(
     dtype: Array,
     value: list,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ) -> list:
@@ -1269,7 +1269,7 @@ def prepare_dtype_for_response(
     dtype: Array,
     value: tuple,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ) -> list:
@@ -1291,7 +1291,7 @@ def prepare_dtype_for_response(
     dtype: DateTime,
     value: datetime.datetime,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1303,7 +1303,7 @@ def _prepare_array_for_response(
     dtype: Array,
     fmt: Format,
     value: Iterable,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ) -> list:
@@ -1331,7 +1331,7 @@ def prepare_dtype_for_response(
     dtype: Array,
     value: type(None),
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1345,7 +1345,7 @@ def prepare_dtype_for_response(
     dtype: JSON,
     value: object,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1359,7 +1359,7 @@ def prepare_dtype_for_response(
     dtype: JSON,
     value: NotAvailable,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1373,7 +1373,7 @@ def prepare_dtype_for_response(
     dtype: Number,
     value: decimal.Decimal,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1387,7 +1387,7 @@ def prepare_dtype_for_response(
     dtype: DataType,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1407,7 +1407,7 @@ def prepare_dtype_for_response(
     dtype: DataType,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1447,7 +1447,7 @@ def prepare_dtype_for_response(
     dtype: Inherit,
     value: NotAvailable,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1461,7 +1461,7 @@ def prepare_dtype_for_response(
     dtype: Denorm,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1476,7 +1476,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     dtype: ArrayBackRef,
     value: (list, tuple),
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ) -> list:
@@ -1497,7 +1497,7 @@ def prepare_dtype_for_response(
     fmt: Format,
     dtype: ArrayBackRef,
     value: type(None),
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ) -> list:
@@ -1509,9 +1509,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Format,
     dtype: BackRef,
-    value: Optional[Dict[str, Any]],
+    value: dict[str, Any] | None,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1559,7 +1559,7 @@ def prepare_dtype_for_response(
     dtype: BackRef,
     value: str,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1573,7 +1573,7 @@ def prepare_dtype_for_response(
     dtype: Text,
     value: dict,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -1613,7 +1613,7 @@ def load_operator_value(
     # XXX: That is probably not a very reliable way of getting original operator
     #      name. Maybe at least this should be documented some how.
     operator_name = query_params.get("origin", operator)
-    if operator in ("startswith", "contains") and not isinstance(dtype, (String, PrimaryKey)):
+    if operator in ("startswith", "contains") and not isinstance(dtype, String | PrimaryKey):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
     if operator in ("gt", "ge", "lt", "le") and isinstance(dtype, String):
         raise exceptions.InvalidOperandValue(dtype, operator=operator_name)
@@ -1911,7 +1911,7 @@ def cast_backend_to_python(context: Context, dtype: Geometry, backend: Backend, 
 
 
 @commands.cast_backend_to_python.register(Context, Ref, Backend, dict)
-def cast_backend_to_python(context: Context, dtype: Ref, backend: Backend, data: Dict[str, Any], **kwargs) -> Any:
+def cast_backend_to_python(context: Context, dtype: Ref, backend: Backend, data: dict[str, Any], **kwargs) -> Any:
     if not data:
         return data
 
@@ -1942,7 +1942,7 @@ def cast_backend_to_python(context: Context, dtype: Ref, backend: Backend, data:
 
 @commands.cast_backend_to_python.register(Context, ExternalRef, Backend, dict)
 def cast_backend_to_python(
-    context: Context, dtype: ExternalRef, backend: Backend, data: Dict[str, Any], **kwargs
+    context: Context, dtype: ExternalRef, backend: Backend, data: dict[str, Any], **kwargs
 ) -> Any:
     if not data:
         return data
@@ -1967,8 +1967,8 @@ def cast_backend_to_python(
 
 @commands.cast_backend_to_python.register(Context, Object, Backend, dict)
 def cast_backend_to_python(
-    context: Context, dtype: Object, backend: Backend, data: Dict[str, Any], **kwargs
-) -> Dict[str, Any]:
+    context: Context, dtype: Object, backend: Backend, data: dict[str, Any], **kwargs
+) -> dict[str, Any]:
     if data:
         return {
             k: commands.cast_backend_to_python(context, dtype.properties[k].dtype, backend, v, **kwargs)
@@ -1980,7 +1980,7 @@ def cast_backend_to_python(
 
 
 @commands.cast_backend_to_python.register(Context, Array, Backend, list)
-def cast_backend_to_python(context: Context, dtype: Array, backend: Backend, data: List[Any], **kwargs) -> List[Any]:
+def cast_backend_to_python(context: Context, dtype: Array, backend: Backend, data: list[Any], **kwargs) -> list[Any]:
     if data and dtype:
         return [commands.cast_backend_to_python(context, dtype.items.dtype, backend, v, **kwargs) for v in data]
     return data
@@ -2001,12 +2001,7 @@ def cast_backend_to_python(context: Context, dtype: Denorm, backend: Backend, da
 def cast_backend_to_python(context: Context, dtype: Base32, backend: Backend, data: Any, **kwargs) -> Any:
     if is_nan(data):
         return None
-    if isinstance(data, (list, tuple)):
-        data = cbor_dumps(list(data))
-    else:
-        data = str(data).encode("utf-8")
-    encoded = base64.b32encode(data)
-    return encoded.rstrip(b"=").decode("utf-8")
+    return encode_base32(data)
 
 
 @commands.reload_backend_metadata.register(Context, Manifest, Backend)
@@ -2020,7 +2015,7 @@ def reload_backend_metadata(context, manifest, backend):
 
 
 @commands.get_error_context.register(Backend)
-def get_error_context(backend: Backend, *, prefix="this") -> Dict[str, str]:
+def get_error_context(backend: Backend, *, prefix="this") -> dict[str, str]:
     return {
         "type": f"{prefix}.type",
         "name": f"{prefix}.name",
@@ -2030,7 +2025,7 @@ def get_error_context(backend: Backend, *, prefix="this") -> Dict[str, str]:
 
 
 @commands.get_error_context.register(str)
-def get_error_context(message: str, *, prefix="this") -> Dict[str, str]:
+def get_error_context(message: str, *, prefix="this") -> dict[str, str]:
     return {}
 
 

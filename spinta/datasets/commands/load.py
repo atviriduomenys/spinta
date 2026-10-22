@@ -1,5 +1,5 @@
 from string import Formatter
-from typing import Any, Dict, List, overload
+from typing import Any, overload
 
 from spinta import commands, spyna
 from spinta.components import Context, Model
@@ -119,8 +119,8 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
 
 def _check_unknown_keys(
     model: Model,
-    keys: List[str],
-    data: Dict[str, Any],
+    keys: list[str],
+    data: dict[str, Any],
 ) -> None:
     # XXX: Similar to spinta.types.helpers.check_no_extra_keys.
     unknown = set(keys) - set(data)
@@ -132,7 +132,7 @@ def _check_unknown_keys(
 @commands.load.register(Context, Entity, dict, Manifest)
 def load(context: Context, entity: Entity, data: dict, manifest: Manifest):
     # XXX: https://gitlab.com/atviriduomenys/spinta/-/issues/44
-    pkeys: List[str] = entity.pkeys or []
+    pkeys: list[str] = entity.pkeys or []
     if pkeys:
         _check_unknown_keys(entity.model, pkeys, entity.model.flatprops)
         entity.pkeys = [entity.model.flatprops[k] for k in pkeys]

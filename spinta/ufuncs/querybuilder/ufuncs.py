@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from spinta.components import Page, Property
 from spinta.core.ufuncs import Bind, Expr, GetAttr, Negative, ufunc
@@ -180,8 +180,8 @@ def select(
 def select(
     env: QueryBuilder,
     fpr: ForeignProperty,
-    prep: Tuple[Any],
-) -> Tuple[Any]:
+    prep: tuple[Any],
+) -> tuple[Any]:
     return tuple(env.call("select", fpr, v) for v in prep)
 
 
@@ -208,24 +208,24 @@ def select(
 @ufunc.resolver(QueryBuilder, list)
 def select(
     env: QueryBuilder,
-    prep: List[Any],
-) -> List[Any]:
+    prep: list[Any],
+) -> list[Any]:
     return [env.call("select", v) for v in prep]
 
 
 @ufunc.resolver(QueryBuilder, tuple)
 def select(
     env: QueryBuilder,
-    prep: Tuple[Any],
-) -> Tuple[Any]:
+    prep: tuple[Any],
+) -> tuple[Any]:
     return tuple(env.call("select", v) for v in prep)
 
 
 @ufunc.resolver(QueryBuilder, dict)
 def select(
     env: QueryBuilder,
-    prep: Dict[str, Any],
-) -> Dict[str, Any]:
+    prep: dict[str, Any],
+) -> dict[str, Any]:
     # TODO: Add tests.
     return {k: env.call("select", v) for k, v in prep.items()}
 
@@ -324,7 +324,7 @@ def paginate(env, expr):
                         "sort", Negative(page_by.prop.name) if by.startswith("-") else Bind(page_by.prop.name)
                     )
                     if sorted_ is not None:
-                        if isinstance(sorted_, (list, set, tuple)):
+                        if isinstance(sorted_, list | set | tuple):
                             env.page.sort += sorted_
                         else:
                             env.page.sort.append(sorted_)
@@ -362,19 +362,19 @@ def page_(env, expr):
 
 
 @ufunc.resolver(QueryBuilder, DataType, list)
-def validate_dtype_for_select(env, dtype: DataType, selected_props: List[Property]):
+def validate_dtype_for_select(env, dtype: DataType, selected_props: list[Property]):
     raise NotImplementedError(f"validate_dtype_for_select with {dtype.name} is not implemented")
 
 
 @ufunc.resolver(QueryBuilder, Text, list)
-def validate_dtype_for_select(env, dtype: Text, selected_props: List[Property]):
+def validate_dtype_for_select(env, dtype: Text, selected_props: list[Property]):
     for prop in selected_props:
         if dtype.prop.name == prop.name or prop.parent == dtype.prop:
             raise CannotSelectTextAndSpecifiedLang(dtype)
 
 
 @ufunc.resolver(QueryBuilder, String, list)
-def validate_dtype_for_select(env, dtype: String, selected_props: List[Property]):
+def validate_dtype_for_select(env, dtype: String, selected_props: list[Property]):
     if dtype.prop.parent and isinstance(dtype.prop.parent.dtype, Text):
         parent = dtype.prop.parent
         for prop in selected_props:

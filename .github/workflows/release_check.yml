@@ -1,0 +1,336 @@
+name: Release smoke test
+
+# Runs the smoke test from notes/spinta/release/stable.sh, so a release can be
+# checked without a local Linux machine. Building and publishing stay manual.
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: ["release_*"]
+  workflow_dispatch:
+
+env:
+  SPINTA_DB_PORT: 54321
+  PGPASSWORD: admin123
+  BASEDIR: ${{ github.workspace }}/var/instances/release
+  SPINTA_CONFIG: ${{ github.workspace }}/var/instances/release/config.yml
+  SCOPES: >-
+    spinta_set_meta_fields spinta_getone spinta_getall spinta_search
+    spinta_changes spinta_insert spinta_upsert spinta_update spinta_patch
+    spinta_delete spinta_wipe
+    uapi:/:set_meta_fields uapi:/:getone uapi:/:getall uapi:/:search
+    uapi:/:changes uapi:/:create uapi:/:upsert uapi:/:update uapi:/:patch
+    uapi:/:delete uapi:/:wipe
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check out manifest repo
+        uses: actions/checkout@v4
+        with:
+          repository: atviriduomenys/manifest
+          ref: get.data.gov.lt
+          path: manifest
+
+      - name: Start PostgreSQL (Citus + PostGIS)
+        run: |
+          docker build -t citus-postgis:ci .docker/citus-postgis
+          docker run -d \
+            --name postgres \
+            -p $SPINTA_DB_PORT:5432 \
+            -e POSTGRES_DB=spinta \
+            -e POSTGRES_USER=admin \
+            -e POSTGRES_PASSWORD=admin123 \
+            -v "$PWD/.docker/citus-postgis/init:/docker-entrypoint-initdb.d" \
+            citus-postgis:ci
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install poetry
+          poetry install --all-extras
+          pipx install httpie
+          echo "$(poetry env info --path)/bin" >> "$GITHUB_PATH"
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 60); do
+            pg_isready -h localhost -p $SPINTA_DB_PORT -U admin -q && exit 0
+            sleep 1
+          done
+          docker logs postgres --tail 30
+          exit 1
+
+      - name: Create databases
+        run: |
+          psql() { command psql -v ON_ERROR_STOP=1 -h localhost -p $SPINTA_DB_PORT -U admin "$@"; }
+          extensions="
+            CREATE EXTENSION IF NOT EXISTS citus;
+            CREATE EXTENSION IF NOT EXISTS postgis;
+            CREATE EXTENSION IF NOT EXISTS postgis_topology;
+            CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;
+            CREATE EXTENSION IF NOT EXISTS postgis_tiger_geocoder;
+          "
+          psql postgres -c 'DROP DATABASE IF EXISTS spinta WITH (FORCE)'
+          psql postgres -c 'CREATE DATABASE spinta'
+          psql spinta -c "$extensions"
+          psql postgres -c 'CREATE DATABASE spinta_external'
+          psql spinta_external <<EOF
+          CREATE TABLE formos (
+              id integer primary key,
+              kodas integer,
+              pavadinimas text,
+              pav_ilgas text,
+              name varchar(255),
+              tipas varchar(255),
+              type varchar(255)
+          );
+          INSERT INTO formos
+              (id, kodas, pavadinimas, pav_ilgas, name, tipas, type)
+              VALUES
+              (1, 950, 'Biudžetinė įstaiga', 'Biudžetinė įstaiga', 'Budget Institution', 'Viešasis', 'Public');
+
+          CREATE TABLE statusai (
+              kodas integer primary key,
+              pavadinimas text,
+              name varchar(255)
+          );
+          INSERT INTO statusai
+              (kodas, pavadinimas, name)
+              VALUES
+              (0, 'Biudžetinė įstaiga', 'No legal proceedings');
+
+          CREATE TABLE iregistruoti (
+              ja_kodas integer primary key,
+              ja_pavadinimas text,
+              pilnas_adresas text,
+              reg_data varchar(10),
+              stat_data varchar(10),
+              forma_id integer,
+              statusas_id integer,
+              adreso_kodas integer
+          );
+          INSERT INTO iregistruoti
+              (ja_kodas, ja_pavadinimas, pilnas_adresas, reg_data, stat_data, forma_id, statusas_id, adreso_kodas)
+              VALUES
+              (188772433, 'Informacinės visuomenės plėtros komitetas', 'Vilnius, Konstitucijos pr. 15-89', '2001-08-01', '2001-08-01', 1, 0, 190557457);
+          EOF
+
+      - name: Write instance config
+        run: |
+          mkdir -p "$BASEDIR"
+          cat > "$SPINTA_CONFIG" <<EOF
+          env: production
+          data_path: $BASEDIR
+          default_auth_client: default
+          token_issuer: http://localhost:8000
+          resource_server: http://localhost:8000
+
+          # TEMPORARY-CITUS-WORKAROUND, same as in notes/spinta/release/stable.sh
+          default_distribution_strategy: undistributed
+
+          keymaps:
+            default:
+              type: sqlalchemy
+              dsn: sqlite:///$BASEDIR/keymap.db
+
+          backends:
+            default:
+              type: postgresql
+              dsn: postgresql://admin:admin123@localhost:$SPINTA_DB_PORT/spinta
+            external:
+              type: sql
+              dsn: postgresql://admin:admin123@localhost:$SPINTA_DB_PORT/spinta_external
+
+          manifest: default
+          manifests:
+            default:
+              type: csv
+              path: $BASEDIR/manifest.csv
+              backend: default
+              keymap: default
+              mode: internal
+
+          accesslog:
+            type: file
+            file: $BASEDIR/accesslog.json
+          EOF
+
+      - name: Check manifest repo and copy datasets
+        working-directory: manifest
+        run: |
+          find datasets -iname "*.csv" | xargs spinta check
+          cat get_data_gov_lt.in | xargs spinta copy -o "$BASEDIR"/manifest.csv
+          spinta show \
+            datasets/gov/rc/ar/adresai.csv \
+            datasets/gov/rc/jar/formos_statusai.csv \
+            datasets/gov/rc/jar/iregistruoti.csv
+          spinta check
+
+      - name: Write smoke test manifest
+        run: |
+          cat > "$BASEDIR"/sdsa.txt <<EOF
+          d | r | b | m | property            | type    | ref                                           | source         | prepare | level | access
+          datasets/gov/rc/ar/adresai          |         |                                               |                |         |       |
+            |   |   | Adresas                 |         | aob_kodas                                     |                |         | 4     |
+            |   |   |   | tipas               | integer |                                               |                |         | 4     | open
+            |   |   |   | aob_kodas           | integer |                                               |                |         | 4     | open
+            |   |   |   | aob_data_nuo        | date    | D                                             |                |         | 4     | open
+            |   |   |   | aob_data_iki        | date    | D                                             |                |         | 4     | open
+                                              |         |                                               |                |         |       |
+          datasets/gov/rc/jar/formos_statusai |         |                                               |                |         |       |
+            | db                              | sql     | external                                      |                |         |       |
+            |   |   | Forma                   |         | id                                            | formos         |         | 4     |
+            |   |   |   | id                  | integer |                                               | id             |         | 4     | protected
+            |   |   |   | kodas               | integer |                                               | kodas          |         | 4     | open
+            |   |   |   | pavadinimas         | string  |                                               | pavadinimas    |         | 3     | open
+            |   |   |   | pav_ilgas           | string  |                                               | pav_ilgas      |         | 3     | open
+            |   |   |   | name                | string  |                                               | name           |         | 3     | open
+            |   |   |   | tipas               | string  |                                               | tipas          |         | 4     | open
+                                              | enum    |                                               | Privatus       |         |       |
+                                              |         |                                               | Viešasis       |         |       |
+            |   |   |   | type                | string  |                                               | type           |         | 4     | open
+                                              | enum    |                                               | Private        |         |       |
+                                              |         |                                               | Public         |         |       |
+                                              |         |                                               |                |         |       |
+            |   |   | Statusas                |         | kodas                                         | statusai       |         | 4     |
+            |   |   |   | kodas               | integer |                                               | kodas          |         | 4     | open
+            |   |   |   | pavadinimas         | string  |                                               | pavadinimas    |         | 3     | open
+            |   |   |   | name                | string  |                                               | name           |         | 3     | open
+                                              |         |                                               |                |         |       |
+          datasets/gov/rc/jar/iregistruoti    |         |                                               |                |         |       |
+            | db                              | sql     | external                                      |                |         |       |
+            |   |   | JuridinisAsmuo          |         | ja_kodas                                      | iregistruoti   |         | 4     |
+            |   |   |   | ja_kodas            | integer |                                               | ja_kodas       |         | 4     | open
+            |   |   |   | ja_pavadinimas      | string  |                                               | ja_pavadinimas |         | 4     | open
+            |   |   |   | pilnas_adresas      | string  |                                               | pilnas_adresas |         | 1     | open
+            |   |   |   | adresas             | ref     | /datasets/gov/rc/ar/adresai/Adresas           | adreso_kodas   |         | 4     | open
+            |   |   |   | reg_data            | date    | D                                             | reg_data       |         | 4     | open
+            |   |   |   | forma               | ref     | /datasets/gov/rc/jar/formos_statusai/Forma    | forma_id       |         | 4     | open
+            |   |   |   | statusas            | ref     | /datasets/gov/rc/jar/formos_statusai/Statusas | statusas_id    |         | 4     | open
+          EOF
+          spinta check "$BASEDIR"/sdsa.txt
+
+      - name: Migrate and bootstrap
+        run: |
+          spinta --tb native migrate --autocommit
+          spinta --tb native bootstrap
+          psql -h localhost -p $SPINTA_DB_PORT -U admin spinta -c '\dt public.*'
+
+      # stable.sh relies on a client and credentials.cfg already set up by hand
+      - name: Add auth client and credentials
+        run: |
+          spinta client add -n test -s secret --add-secret --scope "$SCOPES"
+          cat > ~/.config/spinta/credentials.cfg <<EOF
+          [test@localhost]
+          server = http://localhost:8000
+          client = test
+          secret = secret
+          scopes = $SCOPES
+          EOF
+
+      - name: Start internal server
+        run: |
+          nohup spinta run >> "$BASEDIR"/spinta.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf localhost:8000/version > /dev/null && break
+            sleep 1
+          done
+          http --ignore-stdin --check-status :8000
+          http --ignore-stdin --check-status :8000/version
+          http --ignore-stdin --check-status :8000/datasets/gov | jq -c '._data[]'
+
+      - name: Insert test Adresas record
+        run: |
+          TOKEN=$(
+            http --ignore-stdin --check-status \
+              -a test:secret \
+              -f :8000/auth/token \
+              grant_type=client_credentials \
+              scope="$SCOPES" \
+            | jq -r .access_token
+          )
+          [ -n "$TOKEN" ] && [ "$TOKEN" != null ] || { echo "ERROR: Failed to obtain auth token"; exit 1; }
+          http --check-status POST :8000/datasets/gov/rc/ar/adresai/Adresas "Authorization: Bearer $TOKEN" <<EOF
+          {
+              "_id": "264ae0f9-53eb-496b-a07c-ce1b9cbe510c",
+              "tipas": 2,
+              "aob_kodas": 190557457,
+              "aob_data_nuo": "2018-12-07"
+          }
+          EOF
+
+      - name: Check external server and keymap sync
+        run: |
+          nohup spinta run --port 7000 --mode external "$BASEDIR"/sdsa.txt >> "$BASEDIR"/spinta.log 2>&1 &
+          EXTERNAL_PID=$!
+          for i in $(seq 1 60); do
+            curl -sf localhost:7000/version > /dev/null && break
+            sleep 1
+          done
+
+          formos=$(http --ignore-stdin :7000/datasets/gov/rc/jar/formos_statusai/Forma)
+          echo "$formos" | grep -q "errors\|error" && { echo "ERROR: Forma returned unexpected error: $formos"; exit 1; }
+
+          statusas=$(http --ignore-stdin :7000/datasets/gov/rc/jar/formos_statusai/Statusas)
+          echo "$statusas" | grep -q "errors\|error" && { echo "ERROR: Statusas returned unexpected error: $statusas"; exit 1; }
+
+          # Adresas is in internal mode, so an error is expected before keymap sync
+          juridinis=$(http --ignore-stdin :7000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo)
+          echo "$juridinis" | grep -q "errors\|error" && echo "OK: JuridinisAsmuo returned expected error" || echo "::warning::JuridinisAsmuo did not return expected error"
+
+          spinta keymap sync "$BASEDIR"/sdsa.txt -i test@localhost
+
+          juridinis_synced=$(http --ignore-stdin :7000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo)
+          echo "$juridinis_synced" | grep -q "264ae0f9-53eb-496b-a07c-ce1b9cbe510c" || { echo "ERROR: adresas._id not found after keymap sync: $juridinis_synced"; exit 1; }
+
+          kill $EXTERNAL_PID
+
+      - name: Push data from external to internal
+        run: |
+          rm -f "$BASEDIR"/keymap.db "$BASEDIR"/push/localhost.db
+          spinta push "$BASEDIR"/sdsa.txt -o test@localhost
+
+      - name: Check response formats
+        run: |
+          url=':8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo?select(_id,ja_kodas,ja_pavadinimas,reg_data,forma.pavadinimas,statusas.pavadinimas)'
+          http --ignore-stdin --check-status GET "$url&format(json)" | tee /dev/stderr | grep -q 188772433 || { echo "ERROR: JSON response missing ja_kodas"; exit 1; }
+          http --ignore-stdin --check-status GET "$url&format(csv)" | tee /dev/stderr | grep -q 188772433 || { echo "ERROR: CSV response missing ja_kodas"; exit 1; }
+          http --ignore-stdin --check-status GET "$url&format(ascii)"
+          http --ignore-stdin --check-status GET "$url&format(rdf)"
+          http --ignore-stdin --check-status GET ":8000/datasets/gov/rc/jar/:all?format(rdf)"
+          http --ignore-stdin --check-status GET ":8000/datasets/gov/rc/jar/iregistruoti/JuridinisAsmuo/:changes"
+
+      - name: Show server log
+        if: always()
+        run: cat "$BASEDIR"/spinta.log || true
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build documentation
+        run: |
+          pip install -r docs/requirements.txt
+          sphinx-build -b html docs/en var/docs-html

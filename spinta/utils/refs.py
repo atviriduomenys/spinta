@@ -15,7 +15,7 @@ def get_ref_id(value):
         return
 
     for i, v in enumerate(value):
-        if isinstance(v, (datetime.datetime, datetime.date)):
+        if isinstance(v, datetime.datetime | datetime.date):
             value[i] = v.isoformat()
 
     key = msgpack.dumps(value, use_bin_type=True)

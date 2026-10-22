@@ -1,7 +1,8 @@
 import uuid
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Iterator, List, Tuple, overload
+from typing import overload
 
 from starlette.requests import Request
 from starlette.responses import FileResponse, RedirectResponse, Response
@@ -131,7 +132,7 @@ def prepare_data_for_response(
     action: Action,
     params: UrlParams,
     rows,
-    reserved: List[str] = None,
+    reserved: list[str] = None,
 ):
     if isinstance(rows, dict):
         rows = [rows]
@@ -272,7 +273,7 @@ def get_paginated_values(model_page: Page, meta: PaginationMetaData, rows, extra
         yield row
 
 
-def _update_expr_args(expr: Expr, name: str, args: List, override: bool = False) -> Tuple[bool, Expr]:
+def _update_expr_args(expr: Expr, name: str, args: list, override: bool = False) -> tuple[bool, Expr]:
     updated = False
     expr.args = list(expr.args)
     if expr.name == name:

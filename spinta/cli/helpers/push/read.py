@@ -1,5 +1,6 @@
+from collections.abc import Iterator
 from copy import deepcopy
-from typing import Any, Dict, Iterator, List
+from typing import Any
 
 import requests
 import sqlalchemy as sa
@@ -24,8 +25,8 @@ from spinta.ufuncs.querybuilder.components import QueryParams
 
 def _iter_model_rows(
     context: Context,
-    models: List[Model],
-    counts: Dict[str, int],
+    models: list[Model],
+    counts: dict[str, int],
     metadata: sa.MetaData,
     limit: int = None,
     *,
@@ -50,8 +51,7 @@ def _iter_model_rows(
             rows = _read_rows_by_pages(
                 context, model, page, metadata, limit, stop_on_error, push_counter, model_push_counter, params=params
             )
-            for row in rows:
-                yield row
+            yield from rows
         else:
             stream = read_model_data(context, model, limit, stop_on_error, params=params)
             for item in stream:
@@ -67,7 +67,7 @@ def _iter_model_rows(
 
 def _get_model_rows(
     context: Context,
-    models: List[Model],
+    models: list[Model],
     metadata: sa.MetaData,
     limit: int = None,
     *,
@@ -102,8 +102,7 @@ def _get_model_rows(
         no_progress_bar=no_progress_bar,
         push_counter=push_counter,
     )
-    for row in rows:
-        yield row
+    yield from rows
 
     if push_counter is not None:
         push_counter.close()
@@ -113,7 +112,7 @@ def read_rows(
     context: Context,
     client: requests.Session,
     server: str,
-    models: List[Model],
+    models: list[Model],
     state: State,
     limit: int = None,
     *,

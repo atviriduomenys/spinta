@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from spinta.manifests.components import Manifest
 
@@ -9,7 +9,7 @@ class YamlManifest(Manifest):
     path: Path = None
 
 
-InlineManifestData = List[Dict[str, Any]]
+InlineManifestData = list[dict[str, Any]]
 
 
 class InlineManifest(YamlManifest):

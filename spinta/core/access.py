@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Union
+from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from spinta.core.enums import Access
 from spinta.utils.enums import enum_by_name, get_enum_by_name
@@ -14,25 +15,9 @@ if TYPE_CHECKING:
 
 
 def load_access_param(
-    component: Union[
-        Dataset,
-        Resource,
-        Namespace,
-        Model,
-        Property,
-        EnumItem,
-        Scope,
-    ],
-    given_access: Union[str, Access],
-    parents: Iterable[
-        Union[
-            Manifest,
-            Dataset,
-            Namespace,
-            Model,
-            Property,
-        ]
-    ] = (),
+    component: Dataset | Resource | Namespace | Model | Property | EnumItem | Scope,
+    given_access: str | Access,
+    parents: Iterable[Manifest | Dataset | Namespace | Model | Property] = (),
 ) -> None:
     access = (
         enum_by_name(component, "access", Access, given_access)
@@ -51,23 +36,8 @@ def load_access_param(
 
 
 def link_access_param(
-    component: Union[
-        Dataset,
-        Resource,
-        Namespace,
-        Model,
-        Property,
-        EnumItem,
-    ],
-    parents: Iterable[
-        Union[
-            Manifest,
-            Dataset,
-            Namespace,
-            Model,
-            Property,
-        ]
-    ] = (),
+    component: Dataset | Resource | Namespace | Model | Property | EnumItem,
+    parents: Iterable[Manifest | Dataset | Namespace | Model | Property] = (),
     *,
     use_given: bool = True,
     default_access: Access = Access.private,

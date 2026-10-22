@@ -4,14 +4,9 @@
 # =============================================================================
 
 
-export MAJOR=1
-export MINOR=1
-export PATCH=0
-export OLD_MINOR=1
-export FUTURE_MINOR=2
-export RELEASE_VERSION=$MAJOR.$MINOR.$PATCH
-export CURRENT_VERSION=$MAJOR.$OLD_MINOR.$PATCH
-export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR.$PATCH
+export CURRENT_VERSION=1.3.0
+export RELEASE_VERSION=1.3.1
+export FUTURE_VERSION=1.4.0
 export NEW_VERSION=$RELEASE_VERSION
 
 # Host ports for the docker containers (docker-compose.yml reads both variables).
@@ -303,6 +298,8 @@ cat > "$BASEDIR"/config.yml <<EOF
 env: production
 data_path: $BASEDIR
 default_auth_client: default
+token_issuer: http://localhost:8000
+resource_server: http://localhost:8000
 
 # vvv TEMPORARY-CITUS-WORKAROUND vvv  (grep this tag to find every piece to revert)
 # Disables citus sharding for the release smoke test. Without it `spinta migrate`
@@ -633,18 +630,21 @@ if [ "$REPLY" = "y" ]; then
     [ $? -eq 0 ] || { echo "ERROR: poetry publish failed"; exit 1; }
 
     echo "--- Generating hashed requirements file ---"
-    # Export pinned requirements for this release version
+    # Export pinned requirements for this release version, including optional
+    # extras (uvicorn, gunicorn, alembic), otherwise they are left out
     poetry export -f requirements.txt \
+      --all-extras \
       --output requirements/spinta-${NEW_VERSION}.txt
     [ $? -eq 0 ] || { echo "ERROR: poetry export failed"; exit 1; }
 
     # Build the header line for spinta itself with its PyPI hashes
     echo "spinta==${NEW_VERSION}; python_version >= \"3.10\" and python_version < \"4.0\" \\" > spinta-header.txt
 
-    # Fetch sha256 hashes for the published release from PyPI and append to header
+    # Fetch sha256 hashes for the published release from PyPI and append to header.
+    # Every hash line but the last needs a trailing backslash, or pip stops reading the requirement.
     curl -s https://pypi.org/pypi/spinta/${NEW_VERSION}/json | \
       jq -r '.urls[] | "--hash=sha256:\(.digests.sha256)"' \
-      | sed 's/^/    /' >> spinta-header.txt
+      | sed -e 's/^/    /' -e '$!s/$/ \\/' >> spinta-header.txt
     [ $? -eq 0 ] || { echo "ERROR: Failed to fetch spinta hashes from PyPI"; exit 1; }
 
     # Prepend the spinta hash header to the exported requirements file

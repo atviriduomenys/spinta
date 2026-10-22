@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import pathlib
 import warnings
-from typing import List, Optional
 
 from typer import Context as TyperContext
 from typer import Option, Typer, echo
@@ -15,6 +14,7 @@ from spinta.cli.helpers.typer import add
 from spinta.cli.init import init
 from spinta.cli.keymap import keymap
 from spinta.cli.show import show
+from spinta.cli.udts import app as udts
 from spinta.cli.uncomment import uncomment
 from spinta.cli.upgrade import upgrade
 from spinta.core.context import create_context
@@ -58,22 +58,24 @@ add(app, "keymap", keymap, short_help="Manage keymap database")
 add(app, "getall", get.getall, short_help="Show data from yaml dsn as json")
 add(app, "sync", sync.sync, short_help="Initiate DSA sync with Catalog")
 
+add(app, "udts", udts, short_help="UDTS data service agent operations")
+
 
 @app.callback(invoke_without_command=True)
 def main(
     ctx: TyperContext,
-    option: Optional[List[str]] = Option(
+    option: list[str] | None = Option(
         None, "-o", "--option", help=("Set configuration option, example: `-o option.name=value`.")
     ),
-    env_file: Optional[pathlib.Path] = Option(None, "--env-file", help=("Load configuration from a given .env file.")),
+    env_file: pathlib.Path | None = Option(None, "--env-file", help=("Load configuration from a given .env file.")),
     version: bool = Option(False, help="Show version number."),
-    tb: Optional[str] = Option("pretty", "--tb", help=("Exception style: pretty, native.")),
+    tb: str | None = Option("pretty", "--tb", help=("Exception style: pretty, native.")),
     # Deprecated. Use env file instead
-    log_file: Optional[pathlib.Path] = Option(
+    log_file: pathlib.Path | None = Option(
         None, "--log-file", help=("Write log messages to a specified file, if not given, writes logs to STDERR.")
     ),
     # Deprecated. Use env file instead
-    log_level: Optional[str] = Option(
+    log_level: str | None = Option(
         None,
         "--log-level",
         help=("Log level. Possible levels: fatal, error, warning, info, debug. Default: warning."),

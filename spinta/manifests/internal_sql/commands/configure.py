@@ -1,5 +1,3 @@
-from typing import Optional
-
 import sqlalchemy as sa
 
 from spinta import commands
@@ -12,7 +10,7 @@ from spinta.manifests.internal_sql.helpers import get_table_structure
 @commands.configure.register(Context, InternalSQLManifest)
 def configure(context: Context, manifest: InternalSQLManifest):
     rc: RawConfig = context.get("rc")
-    path: Optional[str] = rc.get("manifests", manifest.name, "path")
+    path: str | None = rc.get("manifests", manifest.name, "path")
     manifest.path = path
     url = sa.engine.make_url(manifest.path)
     engine = sa.create_engine(url)

@@ -999,7 +999,7 @@ def test_migrate_ref_nested_update(migration_db: Engine, rc: RawConfig, cli: Spi
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."City" ALTER COLUMN "country.ctr.id" TYPE TEXT '
-        'USING CAST("migrate/example"."City"."country.ctr.id" AS TEXT);\n'
+        'USING CAST("country.ctr.id" AS TEXT);\n'
         "\n"
         "COMMIT;\n"
         "\n"

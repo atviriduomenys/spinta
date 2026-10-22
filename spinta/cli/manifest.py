@@ -1,4 +1,4 @@
-from typing import Iterator, List, Union
+from collections.abc import Iterator
 
 from typer import Argument, Option, Typer, echo
 from typer import Context as TyperContext
@@ -39,7 +39,7 @@ def copy(
         None, help=("Order by a specified column (currently only access column is supported)")
     ),
     rename_duplicates: bool = Option(False, help=("Rename duplicate model names by adding number suffix")),
-    manifests: List[str] = Argument(None, help=("Source manifest files to copy from")),
+    manifests: list[str] = Argument(None, help=("Source manifest files to copy from")),
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
     context: Context = ctx.obj
@@ -67,7 +67,7 @@ def copy_manifest(
     columns: str | None = None,
     order_by: str | None = None,
     rename_duplicates: bool = False,
-    manifests: List[str] = None,
+    manifests: list[str] = None,
     output_type: str | None = None,
     dataset: str | None = None,
 ):
@@ -131,7 +131,7 @@ def copy_manifest(
 
 def _read_and_return_manifest(
     context: Context,
-    manifests: List[Union[str, ManifestPath]],
+    manifests: list[str | ManifestPath],
     *,
     external: bool = True,
     access: Access = Access.private,
@@ -160,7 +160,7 @@ def _read_and_return_manifest(
 
 def _read_and_return_rows(
     context: Context,
-    manifests: List[str],
+    manifests: list[str],
     *,
     external: bool = True,
     access: Access = Access.private,
