@@ -1,5 +1,5 @@
 from copy import deepcopy
-from datetime import datetime, timedelta, tzinfo
+from datetime import datetime, timedelta, timezone, tzinfo
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import UUID
@@ -7,6 +7,7 @@ from uuid import UUID
 import pytest
 import sqlalchemy as sa
 from _pytest.fixtures import FixtureRequest
+from ruamel.yaml import YAML
 from sqlalchemy.engine import Connection
 from tqdm import tqdm
 
@@ -21,6 +22,8 @@ from spinta.cli.helpers.upgrade.components import Script as UpgradeScript
 from spinta.components import Context, Model
 from spinta.core.config import RawConfig
 from spinta.testing.cli import SpintaCliRunner, result_contains
+from spinta.testing.client import create_test_client
+from spinta.testing.data import send
 from spinta.testing.manifest import bootstrap_manifest
 from spinta.testing.tabular import create_tabular_manifest
 
@@ -96,6 +99,99 @@ def compressed_row(row: dict[str, Any], data: dict[str, Any] | None = None) -> d
     return {**row, "data": row["data"] if data is None else data, "_compressed": COMPRESSED_AT}
 
 
+@pytest.mark.parametrize(
+    "manifest_options, overrides, expected_period, enabled",
+    [
+        ({}, {}, timedelta(days=10), True),
+        ({"enable_retention_policy": False}, {}, timedelta(days=10), False),
+        ({}, {"enable_retention_policy": "false"}, timedelta(days=10), False),
+        ({"enable_retention_policy": False}, {"enable_retention_policy": "true"}, timedelta(days=10), True),
+        ({"accrual_periodicity": "1d"}, {}, timedelta(days=30), True),
+        ({"accrual_periodicity": "20d"}, {}, timedelta(days=60), True),
+        ({"accrual_periodicity": "1d"}, {"accrual_periodicity": "20d"}, timedelta(days=60), True),
+        ({"accrual_periodicity": "20d"}, {"accrual_periodicity": None}, timedelta(days=10), True),
+    ],
+)
+def test_admin_compress_changelogs_respects_dataset_retention_settings(
+    rc: RawConfig,
+    cli: SpintaCliRunner,
+    postgresql: str,
+    tmp_path: Path,
+    request: FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+    manifest_options: dict[str, Any],
+    overrides: dict[str, Any],
+    expected_period: timedelta,
+    enabled: bool,
+) -> None:
+    dataset_name = "datasets/compression/policy"
+    manifest_path = tmp_path / "manifest"
+    manifest_path.mkdir()
+    schemas = {
+        "dataset.yml": {"type": "dataset", "name": dataset_name, **manifest_options},
+        "item.yml": {
+            "type": "model",
+            "name": f"{dataset_name}/Item",
+            "access": "open",
+            "external": {"dataset": dataset_name},
+            "properties": {"name": {"type": "string"}},
+        },
+    }
+    yaml = YAML(typ="safe")
+    for filename, schema in schemas.items():
+        with (manifest_path / filename).open("w", encoding="utf-8") as file:
+            yaml.dump(schema, file)
+    context = bootstrap_manifest(
+        rc.fork(
+            {
+                "default_retention_periodicity": "10d",
+                "datasets": {dataset_name: overrides},
+                "manifests.default": {"type": "yaml", "path": manifest_path, "backend": "default", "keymap": "default"},
+            }
+        ),
+        None,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        request=request,
+        full_load=True,
+    )
+    model = commands.get_model(context, context.get("store").manifest, f"{dataset_name}/Item")
+    assert model.external.dataset.retention_periodicity == expected_period
+    assert model.external.dataset.enable_retention_policy is enabled
+
+    now = datetime(2020, 3, 1, 0, 5)
+
+    class FixedDatetime(datetime):
+        @classmethod
+        def now(cls, tz: tzinfo | None = None) -> datetime:
+            if tz is None:
+                return now + timedelta(hours=2)
+            return now.replace(tzinfo=timezone.utc).astimezone(tz)
+
+    monkeypatch.setattr(compression, "datetime", FixedDatetime)
+    cutoff = now - expected_period
+    rows = [
+        changelog_row(1, "insert"),
+        changelog_row(2, "patch", {"old": 1}),
+        changelog_row(3, "delete"),
+        changelog_row(4, "upsert"),
+        changelog_row(5, "patch", {"a": 1}),
+        changelog_row(6, "patch", {"b": 2}),
+    ]
+    for row in rows:
+        row["datetime"] = cutoff + timedelta(minutes=row["_id"] - 5)
+    backend = model.backend
+    table = backend.get_table(model, TableType.CHANGELOG)
+    with backend.begin() as conn:
+        conn.execute(table.insert(), rows)
+
+    result = cli.invoke(context.get("rc"), ["admin", Script.COMPRESS_CHANGELOGS.value])
+    status = ScriptStatus.REQUIRED if enabled else ScriptStatus.PASSED
+    assert result_contains(result, script_check_status_message(Script.COMPRESS_CHANGELOGS.value, status))
+    expected = [rows[3], {**rows[4], "_compressed": now}, rows[5]] if enabled else rows
+    assert read_changelog(backend, table) == expected
+
+
 @pytest.mark.parametrize("batch_size", [0, -1, "invalid"])
 def test_admin_compress_changelogs_rejects_invalid_batch_size(
     rc: RawConfig, cli: SpintaCliRunner, batch_size: int | str
@@ -134,9 +230,9 @@ def test_admin_compress_changelogs_requires_changelog_upgrade(
     )
     assert "_compressed" in sa.Table(table.name, sa.MetaData(), schema=table.schema, autoload_with=backend.engine).c
 
-    started_at = datetime.now()
+    started_at = datetime.now(timezone.utc).replace(tzinfo=None)
     result = cli.invoke(rc, ["admin", Script.COMPRESS_CHANGELOGS.value])
-    finished_at = datetime.now()
+    finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
     assert result_contains(result, script_check_status_message(Script.COMPRESS_CHANGELOGS.value, ScriptStatus.REQUIRED))
     actual = read_changelog(backend, table)
     compressed_at = actual[1]["_compressed"]
@@ -218,7 +314,7 @@ def test_compress_already_processed_target_leaves_history_unchanged(changelog: C
     assert read_changelog(backend, table) == rows
 
 
-@pytest.mark.parametrize("target_action", ["patch", "upsert"])
+@pytest.mark.parametrize("target_action", ["patch", "upsert", "update"])
 def test_compress_incrementally_includes_previously_compressed_base(
     changelog: ChangelogFixture, target_action: str
 ) -> None:
@@ -247,7 +343,7 @@ def test_compress_incrementally_includes_previously_compressed_base(
 
 
 @pytest.mark.parametrize("target_action", ["patch", "upsert", "update"])
-def test_compress_update_replaces_accumulated_payload(changelog: ChangelogFixture, target_action: str) -> None:
+def test_compress_update_preserves_accumulated_payload(changelog: ChangelogFixture, target_action: str) -> None:
     context, backend, _, table = changelog
     rows = [
         changelog_row(1, "insert"),
@@ -258,11 +354,68 @@ def test_compress_update_replaces_accumulated_payload(changelog: ChangelogFixtur
     with backend.begin() as conn:
         conn.execute(table.insert(), rows)
     compression.compress_changelogs(context, cutoff=COMPRESSED_AT, compressed_at=COMPRESSED_AT)
-    expected_data = {"c": 3} if target_action == "update" else {"b": 2, "c": 3}
+    expected_data = {"a": 1, "x": 1, "b": 2, "c": 3}
     assert read_changelog(backend, table) == [rows[0], compressed_row(rows[3], expected_data)]
 
 
-@pytest.mark.parametrize("target_action", ["patch", "upsert"])
+@pytest.mark.parametrize(
+    "update_data, expected_change, expected_data",
+    [
+        ({"a": 1, "b": 2}, {"b": 2}, {"a": 1, "b": 2}),
+        ({"b": 2}, {"a": None, "b": 2}, {"a": None, "b": 2}),
+        ({"a": None, "b": 2}, {"a": None, "b": 2}, {"a": None, "b": 2}),
+    ],
+)
+def test_compress_update_deltas_from_api(
+    rc: RawConfig,
+    postgresql: str,
+    tmp_path: Path,
+    request: FixtureRequest,
+    update_data: dict[str, int | None],
+    expected_change: dict[str, int | None],
+    expected_data: dict[str, int | None],
+) -> None:
+    context = bootstrap_manifest(
+        rc.fork({"default_retention_periodicity": "1d"}),
+        """
+        d | r | b | m | property | type    | access
+        datasets/compression/update |     |
+          |   |   | Item        |         | open
+          |   |   |   | a       | integer |
+          |   |   |   | b       | integer |
+        """,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        request=request,
+        full_load=True,
+    )
+    app = create_test_client(context)
+    model_name = "datasets/compression/update/Item"
+    app.authmodel(model_name, ["insert", "patch", "update"])
+    obj = send(app, model_name, "insert", {"a": 0, "b": 0})
+    obj = send(app, model_name, "patch", obj, {"a": 1})
+    response = app.put(f"/{model_name}/{obj.id}", json={"_revision": obj.rev, **update_data})
+    assert response.status_code == 200, response.json()
+
+    model = commands.get_model(context, context.get("store").manifest, model_name)
+    backend = model.backend
+    table = backend.get_table(model, TableType.CHANGELOG)
+    rows = read_changelog(backend, table)
+    assert [(row["action"], row["data"]) for row in rows] == [
+        ("insert", {"a": 0, "b": 0}),
+        ("patch", {"a": 1}),
+        ("update", expected_change),
+    ]
+
+    compressed_at = datetime(2035, 1, 1)
+    compression.compress_changelogs(context, cutoff=compressed_at, compressed_at=compressed_at)
+    assert read_changelog(backend, table) == [
+        rows[0],
+        {**rows[2], "data": expected_data, "_compressed": compressed_at},
+    ]
+
+
+@pytest.mark.parametrize("target_action", ["patch", "upsert", "update"])
 def test_compress_nested_payloads_merge_recursively(changelog: ChangelogFixture, target_action: str) -> None:
     context, backend, _, table = changelog
     rows = [
@@ -279,7 +432,7 @@ def test_compress_nested_payloads_merge_recursively(changelog: ChangelogFixture,
     ]
 
 
-@pytest.mark.parametrize("target_action", ["patch", "upsert"])
+@pytest.mark.parametrize("target_action", ["patch", "upsert", "update"])
 @pytest.mark.parametrize(
     "previous, replacement, expected",
     [
@@ -312,22 +465,22 @@ def test_compress_nested_value_replacements(
 
 
 @pytest.mark.parametrize("target_action", ["patch", "upsert", "update"])
-def test_compress_update_resets_nested_state(changelog: ChangelogFixture, target_action: str) -> None:
+def test_compress_update_applies_explicit_nested_resets(changelog: ChangelogFixture, target_action: str) -> None:
     context, backend, _, table = changelog
     rows = [
         changelog_row(1, "insert"),
         changelog_row(2, "patch", {"nested": {"discard": 1}, "discard": True}),
-        changelog_row(3, "update", {"nested": {"keep": 2}}),
+        changelog_row(3, "update", {"nested": {"discard": None, "keep": 2}, "discard": None}),
         changelog_row(4, target_action, {"nested": {"new": 3}}),
     ]
     with backend.begin() as conn:
         conn.execute(table.insert(), rows)
     compression.compress_changelogs(context, cutoff=COMPRESSED_AT, compressed_at=COMPRESSED_AT)
-    expected_data = {"nested": {"new": 3}} if target_action == "update" else {"nested": {"keep": 2, "new": 3}}
+    expected_data = {"nested": {"discard": None, "keep": 2, "new": 3}, "discard": None}
     assert read_changelog(backend, table) == [rows[0], compressed_row(rows[3], expected_data)]
 
 
-@pytest.mark.parametrize("target_action", ["patch", "upsert"])
+@pytest.mark.parametrize("target_action", ["patch", "upsert", "update"])
 def test_compress_incremental_nested_patches_preserve_previously_compressed_keys(
     changelog: ChangelogFixture, target_action: str
 ) -> None:
@@ -350,7 +503,7 @@ def test_compress_incremental_nested_patches_preserve_previously_compressed_keys
 def test_merge_nested_compression_payloads_does_not_mutate_source_rows(first_action: str) -> None:
     rows = [
         compression.CompressionRow(1, first_action, {"nested": {"a": 1}}, False),
-        compression.CompressionRow(2, "patch", {"nested": {"b": 2}}, False),
+        compression.CompressionRow(2, "update", {"nested": {"b": 2}}, False),
         compression.CompressionRow(3, "upsert", {"nested": {"c": 3}}, False),
     ]
     original = deepcopy(rows)
@@ -539,9 +692,9 @@ def test_retention_and_compression_keep_resources_independent_across_batches(
     with backend.begin() as conn:
         conn.execute(table.insert(), rows)
     rc = context.get("rc").fork({"changelog_compression_batch_size": batch_size})
-    started_at = datetime.now()
+    started_at = datetime.now(timezone.utc).replace(tzinfo=None)
     result = cli.invoke(rc, ["admin", Script.COMPRESS_CHANGELOGS.value])
-    finished_at = datetime.now()
+    finished_at = datetime.now(timezone.utc).replace(tzinfo=None)
     assert result_contains(result, script_check_status_message(Script.COMPRESS_CHANGELOGS.value, ScriptStatus.REQUIRED))
     actual = read_changelog(backend, table)
     compressed_at = actual[1]["_compressed"]
@@ -648,7 +801,9 @@ def test_compress_changelogs_uses_retention_policy_and_clock_when_timestamps_omi
     class FixedDatetime(datetime):
         @classmethod
         def now(cls, tz: tzinfo | None = None) -> datetime:
-            return now
+            if tz is None:
+                return now + timedelta(hours=2)
+            return now.replace(tzinfo=timezone.utc).astimezone(tz)
 
     monkeypatch.setattr(compression, "datetime", FixedDatetime)
     assert model.external.dataset.retention_periodicity == timedelta(days=1)

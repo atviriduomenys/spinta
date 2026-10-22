@@ -141,7 +141,6 @@ datasets:
         type: string
       enable_retention_policy:
         type: bool
-        default: true
 
 models:
   type: object

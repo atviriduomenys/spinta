@@ -1,7 +1,7 @@
 import pathlib
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from time import perf_counter
 from typing import Any, Iterator
 
@@ -99,7 +99,7 @@ def _compress_model_changelog(
     with backend.begin() as conn:
         # retention_policy cannot be None at this point, since _compress_model_changelog can only be called on valid models
         if cutoff is None:
-            cutoff = datetime.now() - model.external.dataset.retention_periodicity
+            cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - model.external.dataset.retention_periodicity
         changelog_table = backend.get_table(model, TableType.CHANGELOG)
 
         cli_message(f"{model.model_type()}: preprocessing started", progress_bar=progress_bar)
@@ -208,7 +208,7 @@ def compress_lifecycles(
     progress_bar: tqdm | None = None,
 ) -> int:
     if compressed_at is None:
-        compressed_at = datetime.now()
+        compressed_at = datetime.now(timezone.utc).replace(tzinfo=None)
 
     batch: list[CompressionGroup] = []
     processed_count = 0
@@ -340,12 +340,10 @@ def merge_compression_rows(
 
     data: dict[str, Any] = {}
     for row in rows:
-        if row.op == Action.UPDATE.value:
-            data = deepcopy(row.data)
-        elif row.op in (Action.PATCH.value, Action.UPSERT.value):
-            _merge_compression_patch(data, row.data)
-        else:
+        if row.op not in UPDATE_OPS:
             raise ValueError(f"Unexpected compression operation: {row.op!r}")
+        # All three operations store deltas, including explicit values for resets.
+        _merge_compression_patch(data, row.data)
 
     return data
 
