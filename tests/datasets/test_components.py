@@ -6,7 +6,7 @@ from spinta.spyna import parse
 from spinta.testing.manifest import prepare_manifest
 
 
-def test_get_param_http_headers(rc: RawConfig) -> None:
+def test_resource_http_headers_are_loaded_from_header_params(rc: RawConfig) -> None:
     context, manifest = prepare_manifest(
         rc,
         """
@@ -24,7 +24,7 @@ def test_get_param_http_headers(rc: RawConfig) -> None:
     )
 
     resource = commands.get_dataset(context, manifest, "example").resources["resource"]
-    assert resource.get_param_http_headers() == {
+    assert resource.http.headers == {
         "header_name": "header_value",
         "foo": "bar",
         "foo2": asttoexpr(parse('creds("bar2")')),

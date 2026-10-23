@@ -4,7 +4,14 @@ import pytest
 
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.exceptions import InvalidManifestFile, InvalidName, InvalidValue, NoModelDefined
+from spinta.exceptions import (
+    InvalidManifestFile,
+    InvalidName,
+    InvalidValue,
+    NoModelDefined,
+    ResourceSourceQueryConflict,
+    UnlinkedQueryParam,
+)
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.tabular import create_tabular_manifest
@@ -919,3 +926,78 @@ def test_check_undeclared_base_does_not_fail(context: Context, rc, cli: SpintaCl
         ],
     )
     assert result.exit_code == 0
+
+
+QUERY_CONFLICT_MANIFEST = """
+    d | r | b | m | property | type     | ref    | source                                       | prepare       | access
+    datasets/gov/example     |          |        |                                              |               |
+      | resource             | dask/xml |        | http://example.com/addresses/Street?{source} |               |
+      |   |   |              | param    | client | CLIENT_NAME                                  | query('TEST') |
+      |   |   | Street       |          | id     | /GATVES/GATVE                                |               |
+      |   |   |   | id       | string   |        | GAT_ID                                       |               | open
+      |   |   |   | client   | string   |        |                                              | param()       | open
+    """
+
+
+def test_check_query_conflicts_is_opt_in(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # Without `--check-query-conflicts` the clash is not checked, existing `spinta check` behaviour is kept.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(QUERY_CONFLICT_MANIFEST.format(source="CLIENT_NAME=ABC")),
+    )
+
+    cli.invoke(rc, ["check", tmp_path / "manifest.csv"])
+
+
+def test_check_query_conflicts_error(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(QUERY_CONFLICT_MANIFEST.format(source="CLIENT_NAME=ABC")),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", "--check-query-conflicts", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is ResourceSourceQueryConflict
+    assert "CLIENT_NAME" in str(result.exception)
+
+
+def test_check_query_conflicts_no_clash_ok(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(QUERY_CONFLICT_MANIFEST.format(source="CODE=ABC")),
+    )
+
+    cli.invoke(rc, ["check", "--check-query-conflicts", tmp_path / "manifest.csv"])
+
+
+QUERY_WITHOUT_DEFAULT_MANIFEST = """
+    d | r | b | m | property | type     | ref    | source                                 | prepare | access
+    datasets/gov/example     |          |        |                                        |         |
+      | resource             | dask/xml |        | http://example.com/addresses/Street    |         |
+      |   |   |              | param    | type   | DATA_TYPE                              | query() |
+      |   |   | Street       |          | id     | /GATVES/GATVE                          |         |
+      |   |   |   | id       | string   |        | GAT_ID                                 |         | open
+    """
+
+
+def test_check_query_without_default_requires_linked_property(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # `query()` without default and without a `param()` linked property can never get a value.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(QUERY_WITHOUT_DEFAULT_MANIFEST),
+    )
+
+    result = cli.invoke(rc, ["check", tmp_path / "manifest.csv"], fail=False)
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is UnlinkedQueryParam
+    assert "DATA_TYPE" in str(result.exception)

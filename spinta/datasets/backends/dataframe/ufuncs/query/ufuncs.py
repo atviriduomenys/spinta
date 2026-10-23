@@ -26,6 +26,7 @@ from spinta.datasets.components import Param
 from spinta.datasets.enums import ExternalIdPattern
 from spinta.datasets.helpers import authorized_or_system_request
 from spinta.datasets.utils import iterparams
+from spinta.dimensions.param.components import ParamProperty
 from spinta.exceptions import (
     InvalidArgumentInExpression,
     PropertyNotFound,
@@ -52,7 +53,8 @@ def testlist(env: DaskDataFrameQueryBuilder, expr: Expr) -> tuple:
 @ufunc.resolver(DaskDataFrameQueryBuilder, Expr, name="and")
 def and_(env, expr):
     args, kwargs = expr.resolve(env)
-    args = [a for a in args if a is not None]
+    # `ParamProperty` is a request-time value sent to the data source as a query param, not a row filter.
+    args = [a for a in args if a is not None and not isinstance(a, ParamProperty)]
     return env.call("and", args)
 
 
@@ -215,7 +217,12 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)
-        if prop.external and prop.external.prepare is not NA:
+        if prop.param is not None and not prop.external.name:
+            # Source-less property linked to a resource param (`param()`) has no dataframe column. Its value
+            # was already resolved by the query builder (URL value or `input()` default) and is passed in
+            # `env.params` by param name.
+            result = Selected(prop=prop, prep=env.params.get(prop.param.name))
+        elif prop.external and prop.external.prepare is not NA:
             # If property doesn't have external name - it describes query parameter
             # If `prepare` formula is given, evaluate formula.
             if isinstance(prop.external.prepare, Expr):
@@ -574,6 +581,10 @@ COMPARE = [
 def compare(env: DaskDataFrameQueryBuilder, op: Bind, field: object, value: Any):
     prop = env.call("_resolve_property", field)
     if prop:
+        if prop.param is not None and not prop.external.name:
+            # Source-less property linked to a resource param (`param()`): the value is sent to the data source
+            # as a query parameter and there is no dataframe column to filter by.
+            return None
         return env.call(op, prop.dtype, value)
     return None
 
@@ -606,7 +617,7 @@ def eq_(env: DaskDataFrameQueryBuilder, dtype: Boolean, obj: object) -> Series:
 def eval_(env: DaskDataFrameQueryBuilder, param: Param) -> Iterator[str]:
     resolved_values = (
         param_values.get(param.name)
-        for param_values in iterparams(env.context, env.model, env.model.manifest, [param], env.url_query_params)
+        for param_values in iterparams(env.context, env.model, env.model.manifest, [param], env.query)
         if param_values.get(param.name)
     )
 

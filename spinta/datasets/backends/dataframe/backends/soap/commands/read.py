@@ -16,6 +16,7 @@ from spinta.datasets.backends.dataframe.commands.read import dask_get_all, get_d
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.components import Resource
 from spinta.dimensions.param.components import ResolvedParams
+from spinta.dimensions.param.helpers import get_param_props
 from spinta.exceptions import SoapRequestBodyParseError, UnexpectedErrorReadingData
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
@@ -56,11 +57,7 @@ def _get_data_soap(
 
 
 def _get_soap_http_headers(resource: Resource, builder: SoapQueryBuilder) -> dict:
-    http_headers = resource.get_param_http_headers()
-    for header_name, header_value in http_headers.items():
-        http_headers[header_name] = builder.resolve(header_value)
-
-    return http_headers
+    return {name: builder.resolve(value) for name, value in resource.http.headers.items()}
 
 
 def _check_empty_key(key: str) -> None:
@@ -130,7 +127,8 @@ def getall(
     **kwargs,
 ) -> Iterator[ObjectData]:
     resource = model.external.resource
-    bases = parametrize_bases(context, model, resource, resolved_params)
+    param_props = get_param_props(params)
+    bases = parametrize_bases(context, model, resource, resolved_params, query=query, param_props=param_props)
     bases = list(bases)
 
     builder = backend.query_builder_class(context)
@@ -158,5 +156,13 @@ def getall(
     dask_dataframe_query_builder.update(model=model)
 
     yield from dask_get_all(
-        context, query, df, backend, model, dask_dataframe_query_builder, extra_properties, builder.property_values
+        context,
+        query,
+        df,
+        backend,
+        model,
+        dask_dataframe_query_builder,
+        extra_properties,
+        builder.property_values,
+        param_props=param_props,
     )

@@ -315,6 +315,47 @@ def test_soap_read_with_soap_request_params_from_url(rc: RawConfig, responses: R
     ]
 
 
+def test_soap_read_url_param_overrides_only_its_own_default(rc: RawConfig, responses: RequestsMock) -> None:
+    endpoint_url = "http://example.com/city"
+    soap_response = """
+        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+            <ns0:Body>
+                <ns1:CityOutputResponse>
+                    <ns1:CityOutput>
+                        <ns1:id>100</ns1:id>
+                    </ns1:CityOutput>
+                    <ns1:CityOutput>
+                        <ns1:id>101</ns1:id>
+                    </ns1:CityOutput>
+                </ns1:CityOutputResponse>
+            </ns0:Body>
+        </ns0:Envelope>
+    """
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    source = "CityService.CityPort.CityPortType.CityOperation"
+    context, manifest = prepare_manifest(rc, WSDL_SOAP_PARAM_MANIFEST.format(source=source), mode=Mode.external)
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("/example/City/", ["getall", "search"])
+
+    response = app.get("/example/City/?p1='foo'")
+
+    assert listdata(response, sort=False, full=True) == [
+        {
+            "id": 100,
+            "p1": "foo",
+            "p2": "default_val",
+        },
+        {
+            "id": 101,
+            "p1": "foo",
+            "p2": "default_val",
+        },
+    ]
+
+
 def test_soap_read_always_makes_list_even_if_reading_single_object(rc: RawConfig, responses: RequestsMock) -> None:
     endpoint_url = "http://example.com/city"
     soap_response = """

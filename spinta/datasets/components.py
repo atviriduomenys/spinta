@@ -100,6 +100,29 @@ class ResourceGiven:
     name: str = None
 
 
+class ResourceHttp:
+    """HTTP request settings of a resource, filled on `load` from `header()` formulas of resource params."""
+
+    # header name -> value, literal or unresolved `Expr` (resolved by request builder)
+    headers: dict
+
+    def __init__(self):
+        self.headers = {}
+
+
+class ResourceUrl:
+    """URL settings of a resource, filled on `load` from `query()` formulas of resource params."""
+
+    # outgoing query parameter name -> default value, or `NA` if value must come from request URL
+    query: dict
+    # Literal query parameter names given in resource.source, e.g. {"CLIENT_NAME"} for `...?CLIENT_NAME=ABC`
+    source_query: set[str]
+
+    def __init__(self):
+        self.query = {}
+        self.source_query = set()
+
+
 class Resource(External):
     eid: EntryId = None
     title: str
@@ -108,15 +131,18 @@ class Resource(External):
     backend: ExternalBackend = None
     level: Level
     access: Access
-    external: str
-    prepare: Expr
+    external: str  # dsa: resource.source
+    prepare: Expr  # dsa: resource.prepare
     models: dict[str, Model]
     given: ResourceGiven
     lang: LangData = None
-    comments: list[Comment] = None
+    comments: list[Comment] | None = None
     params: list[Param]
-    source_params: set
-    source_type: str
+    # source_params
+    # -> dsa: resource.source = http://example.com/{year}/data?page={page}
+    # -> set({"year", "page"})
+    source_params: set[str]  # dsa: resource.source.params
+    source_type: str  # dsa: resource.source.type
 
     schema = {
         "type": {"type": "string"},
@@ -155,14 +181,8 @@ class Resource(External):
         self.given = ResourceGiven()
         self.params = {}
         self.source_params = set()
-
-    def get_param_http_headers(self) -> dict:
-        headers = {}
-        for param in self.params:
-            if hasattr(param, "http_header"):
-                headers.update(param.http_header)
-
-        return headers
+        self.http = ResourceHttp()
+        self.url = ResourceUrl()
 
 
 class Param(ExtraMetaData):
@@ -175,7 +195,8 @@ class Param(ExtraMetaData):
     dependencies: set
     soap_body: dict[str, Any]  # Used to store result of input() function
     soap_body_value_type: str = "string"  # Type that soap body value will be converted to
-    http_header: dict  # Used to store results of header() function
+    # Outgoing query parameter name (`source`), set on load when `prepare` is `query()`.
+    query_name: str | None = None
 
     # Given values
     source: list[Any]

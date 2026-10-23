@@ -6,8 +6,9 @@
 VENVDIR       = ../.venv
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= $(VENVDIR)/bin/sphinx-build
-SOURCEDIR     = .
+SOURCEDIR     = en
 BUILDDIR      = _build
+PORT          ?= 8000
 
 .venv/bin/pip:
 	python -m venv .venv
@@ -28,10 +29,10 @@ help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 auto:
-		$(VENVDIR)/bin/sphinx-autobuild --port 8000 -b html $(SOURCEDIR) $(BUILDDIR)/html
+	$(VENVDIR)/bin/sphinx-autobuild --port $(PORT) -b html $(SOURCEDIR) $(BUILDDIR)/html/en $(SPHINXOPTS)
 
 open:
-		xdg-open http://127.0.0.1:8000
+	xdg-open http://127.0.0.1:$(PORT)
 
 .PHONY: help auto open Makefile
 
