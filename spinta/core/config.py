@@ -113,7 +113,7 @@ class ConfigSource:
             config.update(v)
         self.config = config
 
-    def keys(self, env: Optional[str] = None):
+    def keys(self, env: str | None = None):
         if env:
             for key in self.config:
                 if key[:2] == ("environments", env):
@@ -123,7 +123,7 @@ class ConfigSource:
                 if key[:1] != ("environments",):
                     yield key
 
-    def get(self, key: tuple, env: Optional[str] = None):
+    def get(self, key: tuple, env: str | None = None):
         if env:
             return self.config.get(("environments", env) + key, NA)
         else:
@@ -220,10 +220,10 @@ class EnvFile(EnvVars):
 #       ("backends", "default"): KeyNode("object", envvars, None, ["type", "dsn", "name"]),
 #       ...
 #   }
-ConfigKeys = Dict[Key, KeyNode]
+ConfigKeys = dict[Key, KeyNode]
 
 
-def _flatten_fork_config(data: Dict[str, Any]) -> Dict[Key, Any]:
+def _flatten_fork_config(data: dict[str, Any]) -> dict[Key, Any]:
     """Flatten a nested fork dict into flat tuple keys.
 
     A fork often contains only a partial configuration, e.g. only
@@ -235,7 +235,7 @@ def _flatten_fork_config(data: Dict[str, Any]) -> Dict[Key, Any]:
     `"backends.three"`), while nested dict keys are kept verbatim (they may
     contain dots themselves, e.g. denorm property `"test.name"`).
     """
-    flat: Dict[Key, Any] = {}
+    flat: dict[Key, Any] = {}
     for k, v in data.items():
         prefix = tuple(k.split("."))
         if isinstance(v, dict):
@@ -455,7 +455,7 @@ class RawConfig:
                 self._process_source(config, env)
         self._add_schema_nodes()
 
-    def _get_active_env(self) -> Optional[str]:
+    def _get_active_env(self) -> str | None:
         # The active environment is the base value of the `env` option from
         # the highest priority source that sets it.
         for config in reversed(self.sources):
@@ -464,13 +464,13 @@ class RawConfig:
                 return value
         return None
 
-    def _process_source(self, config: ConfigSource, env: Optional[str] = None) -> None:
+    def _process_source(self, config: ConfigSource, env: str | None = None) -> None:
         keys = list(config.keys(env))
         keys.sort(key=len)
         for key in keys:
             self._process_key(config, key, env)
 
-    def _process_key(self, config: ConfigSource, key: Key, env: Optional[str]) -> None:
+    def _process_key(self, config: ConfigSource, key: Key, env: str | None) -> None:
         raw = config.get(key, env)
         if raw is NA:
             return
@@ -595,7 +595,7 @@ def _get_key_schema(schema: Schema, key: str):
             return schema["values"]
 
 
-def _get_key_path_schema(schema: Schema, key: Key) -> Optional[Schema]:
+def _get_key_path_schema(schema: Schema, key: Key) -> Schema | None:
     """Resolve a schema node for a full configuration key path."""
     for k in key:
         schema = _get_key_schema(schema, k)
@@ -604,7 +604,7 @@ def _get_key_path_schema(schema: Schema, key: Key) -> Optional[Schema]:
     return schema
 
 
-def _check_keys(config: Dict[tuple, Any], schema: Schema, name: str):
+def _check_keys(config: dict[tuple, Any], schema: Schema, name: str):
     """Check that keys, which declare a list of child keys, don't have scalar
     values set.
 
@@ -623,7 +623,7 @@ def _check_keys(config: Dict[tuple, Any], schema: Schema, name: str):
                 # child keys.
                 break
         else:
-            if node.get("type") == "object" and not isinstance(value, (dict, list)):
+            if node.get("type") == "object" and not isinstance(value, dict | list):
                 raise Exception(
                     f"Invalid configuration value {value!r} for key {'.'.join(key)!r} in {name} config: "
                     f"expected a mapping or a list of key names, but got a scalar value, "
