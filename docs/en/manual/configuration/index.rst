@@ -318,9 +318,77 @@ complex values must use a YAML list instead::
       - pg
       - fs
 
-Setting a scalar value on a key that holds a list of suboption names, for
-example `backends: pg`, is an error.
+Keys that hold a list of names, such as `backends`, do not accept a single
+scalar value in configuration files. For example, the following is an error::
 
+    backends: pg
+
+Use a YAML list with one item instead::
+
+    backends: [pg]
+
+Comma separated names are still accepted in environment variables, `.env`
+files and command line arguments, for example `SPINTA_BACKENDS=pg`.
+
+Extending complex values
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+Often you need to change one item inside a complex value, for example a single
+model in `models`, without touching the others. There are three ways to write
+an override, and they differ in how much they replace:
+
+1. Assigning a complex value to a top level key replaces the whole structure.
+   Here all existing `models` are removed and only `example/Model` remains:
+
+   .. code-block:: yaml
+
+       models:
+         example/Model:
+           limit: 100
+
+2. Assigning a complex value to a dotted key replaces only that one item. Other
+   models stay untouched, and only `example/Model` is overwritten:
+
+   .. code-block:: yaml
+
+       models.example/Model:
+         limit: 100
+
+3. Assigning a simple value to a dotted key overwrites a single configuration
+   parameter. Everything else in `example/Model` stays as is:
+
+   .. code-block:: yaml
+
+       models.example/Model.limit: 100
+
+Use the second or third form when you want to change part of a configuration
+structure. Use the first form only when you really want to replace the whole
+structure.
+
+Option types
+^^^^^^^^^^^^
+
+Each configuration option has exactly one type, declared in `spinta/config.yml`.
+Polymorphic options, which accept more than one form of value, are not
+supported. The same option must always be written in the form declared there.
+
+For example, `distribute` is declared as a mapping, so it must be written as
+a mapping:
+
+.. code-block:: yaml
+
+    distribute:
+      type: copey
+
+None of the following forms are supported:
+
+.. code-block:: yaml
+
+    distribute: copy
+
+.. code-block:: yaml
+
+    distribute: [copy]
 
 
 .. _config_path:
