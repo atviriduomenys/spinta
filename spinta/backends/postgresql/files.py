@@ -1,6 +1,5 @@
 import io
 import uuid
-from typing import List, Optional
 
 import sqlalchemy as sa
 
@@ -13,7 +12,7 @@ class DatabaseFile(io.RawIOBase):
         conn,
         table: sa.Table,
         size: int = 0,
-        blocks: Optional[List[str]] = None,
+        blocks: list[str] | None = None,
         bsize: int = DEFAULT_BLOCK_SIZE,
         *,
         mode: str = "r",

@@ -1,5 +1,6 @@
+from collections.abc import Callable, Hashable, Iterator
 from copy import copy
-from typing import Any, Callable, Dict, Hashable, Iterator, List, Tuple, TypeVar, Union
+from typing import Any, TypeVar
 
 from spinta import commands
 from spinta.cli.helpers.auth import require_auth
@@ -19,8 +20,8 @@ from spinta.utils.schema import NA
 
 def create_manifest_from_inspect(
     context: Context = None,
-    manifest: Union[str, ManifestPath] = None,
-    resources: Tuple = None,
+    manifest: str | ManifestPath = None,
+    resources: tuple = None,
     backend: str = None,
     formula: str = None,
     dataset: str = None,
@@ -94,7 +95,7 @@ def _merge(
     commands.merge(context, manifest, old, new, has_manifest_priority)
 
 
-def _filter_models_for_dataset(context: Context, manifest: Manifest, dataset: Dataset) -> List[Model]:
+def _filter_models_for_dataset(context: Context, manifest: Manifest, dataset: Dataset) -> list[Model]:
     models = []
     for model in commands.get_models(context, manifest).values():
         if model.external:
@@ -162,11 +163,11 @@ def zipitems(
     a: TItem,
     b: TItem,
     key: Callable[[TItem], Hashable],
-) -> Iterator[List[Tuple[TItem, TItem]]]:
-    res: Dict[
+) -> Iterator[list[tuple[TItem, TItem]]]:
+    res: dict[
         Hashable,  # key
-        List[
-            List[
+        list[
+            list[
                 Any,  # a
                 Any,  # b
             ]
@@ -178,7 +179,7 @@ def zipitems(
         value_key = key(value)
         new_value = [value, NA]
 
-        if isinstance(value_key, Tuple):
+        if isinstance(value_key, tuple):
             for existing_key in res.keys():
                 if set(value_key) == set(existing_key):
                     value_key = existing_key
@@ -197,7 +198,7 @@ def zipitems(
         new_value = [NA, value]
 
         mapped_keys = []
-        if isinstance(value_key, Tuple):
+        if isinstance(value_key, tuple):
             value_key_set = set(value_key)
             mapped_keys = [existing_key for existing_key in res if value_key_set.issubset(set(existing_key))]
         elif isinstance(value_key, PriorityKey):
@@ -251,7 +252,7 @@ def _dataset_key(dataset: Dataset) -> PriorityKey:
     return key
 
 
-def _dataset_resource_source_key(dataset: Dataset) -> Tuple:
+def _dataset_resource_source_key(dataset: Dataset) -> tuple:
     keys = []
     for resource in dataset.resources.values():
         keys.append(_resource_source_key(resource))

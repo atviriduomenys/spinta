@@ -38,7 +38,7 @@ class PostgresqlExportMetadata:
 
     async def write_table_data(self, table_data: TableData, data: dict, counter: CounterManager):
         counter.update_specific(self.model, self.name, 1)
-        if not table_data.data or not isinstance(table_data.data, (list, dict)):
+        if not table_data.data or not isinstance(table_data.data, list | dict):
             return
 
         extra_fields = extract_extra_fields(table_data.prop.dtype, data)

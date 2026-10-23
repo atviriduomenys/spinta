@@ -1,5 +1,3 @@
-from typing import Optional
-
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -22,8 +20,8 @@ def traverse_ns_models(
     ns: Namespace,
     manifest: InternalSQLManifest,
     action: Action,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
+    dataset_: str | None = None,
+    resource: str | None = None,
     internal: bool = False,
     source_check: bool = False,
     loaded: bool = False,

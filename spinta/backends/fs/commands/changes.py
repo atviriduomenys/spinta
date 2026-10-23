@@ -1,4 +1,4 @@
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from spinta import commands
 from spinta.backends.fs.components import FileSystem

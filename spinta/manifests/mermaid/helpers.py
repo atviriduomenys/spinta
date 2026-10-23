@@ -128,8 +128,8 @@ class MermaidNameSpace:
             for enum_property in prop.enum:
                 mermaid_property = MermaidProperty(name=enum_property.strip('"'))
                 enum_class.add_property(mermaid_property, update)
-        elif isinstance(prop.dtype, (Array, ArrayBackRef)):
-            if prop.dtype.items and isinstance(prop.dtype.items.dtype, (Ref, BackRef)):
+        elif isinstance(prop.dtype, Array | ArrayBackRef):
+            if prop.dtype.items and isinstance(prop.dtype.items.dtype, Ref | BackRef):
                 self.mermaid.add_relationship(
                     MermaidRelationship(
                         node1=model.name,
@@ -152,7 +152,7 @@ class MermaidNameSpace:
                     update,
                 )
 
-        elif isinstance(prop.dtype, (Ref, BackRef)):
+        elif isinstance(prop.dtype, Ref | BackRef):
             self.mermaid.add_relationship(
                 MermaidRelationship(
                     node1=model.name,

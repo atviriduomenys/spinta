@@ -1,6 +1,6 @@
 import enum
 import itertools
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from rdflib import Graph
 from rdflib.query import Result
@@ -207,9 +207,9 @@ def read_rdf_manifest(
 
 def _get_schemas(
     graph: Graph,
-    schemas: List[Dict],
-    dataset: Dict,
-    models: List,
+    schemas: list[dict],
+    dataset: dict,
+    models: list,
 ):
     for i, row in enumerate(schemas, 1):
         if "schema" in row:
@@ -231,7 +231,7 @@ def _get_schemas(
         yield i, row
 
 
-def _prepare_data(graph: Graph, query: Result, dataset: Dict, lang: str = "en") -> Dict:
+def _prepare_data(graph: Graph, query: Result, dataset: dict, lang: str = "en") -> dict:
     data = {}
     for (model, prop), rows in itertools.groupby(query, key=_get_key):
         dim = _get_dimension(model, prop)
@@ -246,7 +246,7 @@ def _prepare_data(graph: Graph, query: Result, dataset: Dict, lang: str = "en") 
     return data
 
 
-def _read_model(graph: Graph, dataset: Dict, data: Dict, row: Dict, lang: str = "en") -> None:
+def _read_model(graph: Graph, dataset: dict, data: dict, row: dict, lang: str = "en") -> None:
     schema = _load_schema(str(row["schema"]))
     model, uri = _to_model_name(graph, dataset, row["model"])
     base, _ = _to_model_name(graph, dataset, row["base"])
@@ -316,7 +316,7 @@ def _read_model(graph: Graph, dataset: Dict, data: Dict, row: Dict, lang: str = 
     )
 
 
-def _read_property(graph: Graph, dataset: Dict, data: Dict, row: Dict, lang: str = "en") -> None:
+def _read_property(graph: Graph, dataset: dict, data: dict, row: dict, lang: str = "en") -> None:
     schema = _load_schema(str(row["schema"]))
     model, model_uri = _to_model_name(graph, dataset, row["model"] or "rdfs:Resource")
     prop, prop_uri = _to_property_name(graph, row["property"])
@@ -375,7 +375,7 @@ def _read_property(graph: Graph, dataset: Dict, data: Dict, row: Dict, lang: str
     )
 
 
-def _get_key(row: Dict) -> Tuple[str, str]:
+def _get_key(row: dict) -> tuple[str, str]:
     return row["model"], row["property"]
 
 
@@ -398,7 +398,7 @@ def _load_schema(schema: str) -> Schema:
         return Schema.undefined
 
 
-def _to_model_name(graph: Graph, dataset: Dict, name: str) -> Tuple[str, str]:
+def _to_model_name(graph: Graph, dataset: dict, name: str) -> tuple[str, str]:
     name = _parse_uri(graph, name)
     uri = ""
     if name:
@@ -409,7 +409,7 @@ def _to_model_name(graph: Graph, dataset: Dict, name: str) -> Tuple[str, str]:
     return name, uri
 
 
-def _to_property_name(graph: Graph, name: str) -> Tuple[str, str]:
+def _to_property_name(graph: Graph, name: str) -> tuple[str, str]:
     name = _parse_uri(graph, name)
     uri = ""
     if name and ":" in name:
@@ -440,10 +440,10 @@ TYPES = {
 
 def _to_type_name(
     graph: Graph,
-    dataset: Dict,
-    models: List,
+    dataset: dict,
+    models: list,
     name: str,
-) -> Tuple[str, str]:
+) -> tuple[str, str]:
     ref_model = None
     type = "string"
     if name:

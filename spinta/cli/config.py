@@ -1,5 +1,3 @@
-from typing import List, Optional
-
 from typer import Argument, Option, echo
 from typer import Context as TyperContext
 
@@ -14,7 +12,7 @@ from spinta.core.enums import Mode
 
 def config(
     ctx: TyperContext,
-    name: Optional[List[str]] = Argument(None),
+    name: list[str] | None = Argument(None),
     fmt: KeyFormat = KeyFormat.cfg,
 ):
     """Show current configuration values"""
@@ -25,7 +23,7 @@ def config(
 
 def check(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    manifests: list[str] | None = Argument(None, help=("Manifest files to load")),
     mode: Mode = Option("internal", help="Mode of backend operation"),
     check_names: bool = Option(None, help="To check dataset, model and property names"),
 ):

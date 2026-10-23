@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List
+from collections.abc import Iterable
 
 import sqlalchemy as sa
 import tqdm
@@ -12,7 +12,7 @@ from spinta.components import Context, Model, get_page_size, pagination_enabled
 
 
 def get_deleted_rows(
-    models: List[Model],
+    models: list[Model],
     context: Context,
     metadata: sa.MetaData,
     no_progress_bar: bool = False,
@@ -29,12 +29,11 @@ def get_deleted_rows(
         )
         if not no_progress_bar:
             rows = tqdm.tqdm(rows, "PUSH DELETED", ascii=True, total=total_count)
-        for row in rows:
-            yield row
+        yield from rows
 
 
 def _get_deleted_row_counts(
-    models: List[Model],
+    models: list[Model],
     context: Context,
     metadata: sa.MetaData,
 ) -> dict:
@@ -51,10 +50,10 @@ def _get_deleted_row_counts(
 
 
 def _iter_deleted_rows(
-    models: List[Model],
+    models: list[Model],
     context: Context,
     metadata: sa.MetaData,
-    counts: Dict[str, int],
+    counts: dict[str, int],
     no_progress_bar: bool = False,
 ) -> Iterable[PushRow]:
     models = reversed(models)

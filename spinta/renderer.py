@@ -1,4 +1,5 @@
-from typing import Any, Iterator, Optional
+from collections.abc import Iterator
+from typing import Any
 
 from starlette.requests import Request
 from starlette.responses import Response
@@ -15,9 +16,9 @@ def render(
     params: UrlParams,
     data: Iterator[Any],
     *,
-    action: Optional[Action] = None,
-    status_code: Optional[int] = 200,
-    headers: Optional[dict] = None,
+    action: Action | None = None,
+    status_code: int | None = 200,
+    headers: dict | None = None,
 ) -> Response:
     return commands.render(
         context,

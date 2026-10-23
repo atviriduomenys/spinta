@@ -4,7 +4,7 @@ import logging
 import os
 from copy import copy, deepcopy
 from dataclasses import dataclass
-from typing import Any, List
+from typing import Any
 from urllib.request import urlopen
 
 from lxml import etree, objectify
@@ -745,7 +745,7 @@ class XSDReader:
                 property_groups = new_property_groups
 
             elif local_name == "complexContent":
-                complex_content_property_groups: List[List[XSDModel]] = self.process_complex_content(child, state)
+                complex_content_property_groups: list[list[XSDModel]] = self.process_complex_content(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for cc_group in complex_content_property_groups:
@@ -766,7 +766,7 @@ class XSDReader:
                     group.extend(all_properties)
 
             elif local_name == "simpleContent":
-                simple_content_properties: List[XSDProperty] = self.process_simple_content(child, state)
+                simple_content_properties: list[XSDProperty] = self.process_simple_content(child, state)
                 for group in property_groups:
                     group.extend(simple_content_properties)
 
@@ -1122,7 +1122,7 @@ class XSDReader:
 
         return properties
 
-    def process_complex_type_extension(self, node: _Element, state: State) -> List[List[XSDProperty]]:
+    def process_complex_type_extension(self, node: _Element, state: State) -> list[list[XSDProperty]]:
         base = node.attrib.get("base")
         if not base:
             raise RuntimeError("Extension must have a 'base' attribute.")
@@ -1138,7 +1138,7 @@ class XSDReader:
             local_name = QName(child).localname
 
             if local_name == "element":
-                prop: List[XSDProperty] = self.process_element(child, state)
+                prop: list[XSDProperty] = self.process_element(child, state)
                 for group in property_groups:
                     group.append(prop)
 
@@ -1148,7 +1148,7 @@ class XSDReader:
                     group.append(prop)
 
             elif local_name == "sequence":
-                sequence_property_groups: List[List[XSDProperty]] = self.process_sequence(child, state)
+                sequence_property_groups: list[list[XSDProperty]] = self.process_sequence(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for seq_group in sequence_property_groups:
@@ -1158,7 +1158,7 @@ class XSDReader:
                 property_groups = new_property_groups
 
             elif local_name == "choice":
-                choice_property_groups: List[List[XSDProperty]] = self.process_choice(child, state)
+                choice_property_groups: list[list[XSDProperty]] = self.process_choice(child, state)
                 new_property_groups = []
                 for group in property_groups:
                     for choice_group in choice_property_groups:
@@ -1244,7 +1244,7 @@ class XSDReader:
         generic_type: XSDType = self._get_most_generic_type(member_types)
         return generic_type
 
-    def _get_most_generic_type(self, types: List[XSDType]) -> XSDType:
+    def _get_most_generic_type(self, types: list[XSDType]) -> XSDType:
         """
         Determines the most generic type from a list of XSDType instances,
         using the types from DATATYPES_MAPPING.
@@ -1253,7 +1253,7 @@ class XSDReader:
         type_hierarchy: list[str] = ["boolean", "integer", "number", "string"]
 
         for generic_type_name in reversed(type_hierarchy):
-            mapped_types: List[str] = [t.name.split(";")[0] for t in types]
+            mapped_types: list[str] = [t.name.split(";")[0] for t in types]
             if generic_type_name in mapped_types:
                 return XSDType(name=generic_type_name)
 

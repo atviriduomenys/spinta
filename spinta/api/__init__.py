@@ -1,7 +1,6 @@
 import json
 import logging
 import uuid
-from typing import Type
 
 from authlib.common.errors import AuthlibHTTPError
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
@@ -357,7 +356,7 @@ async def homepage(request: Request):
     context.set("auth.token", get_auth_token(context))
 
     config = context.get("config")
-    UrlParams: Type[components.UrlParams]
+    UrlParams: type[components.UrlParams]
     UrlParams = config.components["urlparams"]["component"]
     store = context.get("store")
 

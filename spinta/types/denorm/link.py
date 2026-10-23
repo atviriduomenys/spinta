@@ -40,7 +40,7 @@ def _get_denorm_prop(
             if isinstance(ref_prop.dtype, Ref)
             else model
         )
-        if name not in properties or not isinstance(ref_prop.dtype, (Ref, Object)):
+        if name not in properties or not isinstance(ref_prop.dtype, Ref | Object):
             if prop.model == model:
                 raise NoRefPropertyForDenormProperty(
                     prop,

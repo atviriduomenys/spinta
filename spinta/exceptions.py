@@ -1,6 +1,7 @@
 import logging
 import re
-from typing import Any, Dict, Iterable, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any
 
 log = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ class UnknownValue:
 UNKNOWN_VALUE = UnknownValue()
 
 
-def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: dict):
+def resolve_context_vars(schema: dict[str, str], this: Any | None, kwargs: dict):
     """Resolve value from given kwargs and schema."""
     # Extend context by calling get_error_context command on first positional
     # argument of Node or Type type.
@@ -59,7 +60,7 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
 
     for k in set(kwargs) - added:
         v = kwargs[k]
-        if not isinstance(v, (int, float, str)):
+        if not isinstance(v, int | float | str):
             v = str(v)
         context[k] = v
 
@@ -80,7 +81,7 @@ def resolve_context_vars(schema: Dict[str, str], this: Optional[Any], kwargs: di
     names += [x for x in schema if x not in names]
     names += [x for x in kwargs if x not in names]
 
-    def sort_key(item: Tuple[str, Any]) -> Tuple[int, str]:
+    def sort_key(item: tuple[str, Any]) -> tuple[int, str]:
         key = item[0]
         try:
             return names.index(key), key
@@ -94,8 +95,8 @@ class BaseError(Exception):
     type: str = None
     status_code: int = 500
     template: str = None
-    headers: Dict[str, str] = {}
-    context: Dict[str, Any] = {}
+    headers: dict[str, str] = {}
+    context: dict[str, Any] = {}
 
     def __init__(self, *args, **kwargs):
         if len(args) == 0:

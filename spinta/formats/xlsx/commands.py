@@ -1,6 +1,7 @@
 import io
 import pathlib
-from typing import Any, Dict, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -27,9 +28,9 @@ def render(
     *,
     action: Action,
     params: UrlParams,
-    data: Iterator[Dict[str, Any]],
+    data: Iterator[dict[str, Any]],
     status_code: int = 200,
-    headers: Dict[str, str] = None,
+    headers: dict[str, str] = None,
 ) -> Response:
     headers = headers or {}
     headers["Content-Disposition"] = f'attachment; filename="{model.basename}.xlsx"'
@@ -53,7 +54,7 @@ def render(
     action: Action = None,
     params: UrlParams = None,
     status_code: int = 200,
-    headers: Dict[str, str] = None,
+    headers: dict[str, str] = None,
     path: str = None,
 ) -> Response:
     rows = datasets_to_tabular(context, manifest)
@@ -75,5 +76,4 @@ def _render_xlsx(rows: Iterator[ManifestRow], cols: list):
     stream = io.BytesIO()
     write_xlsx(stream, rows, cols)
     stream.seek(0)
-    for row in stream.readlines():
-        yield row
+    yield from stream.readlines()

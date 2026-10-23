@@ -7,7 +7,7 @@ import os
 import pathlib
 import sys
 import typing
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, NamedTuple
 
 from ruamel.yaml import YAML
 
@@ -19,10 +19,10 @@ from spinta.utils.schema import NA
 if typing.TYPE_CHECKING:
     from spinta.manifests.components import ManifestPath
 
-Schema = Dict[str, Any]
+Schema = dict[str, Any]
 # A configuration key path, e.g. `("backends", "default", "dsn")` for
 # `backends.default.dsn`. The root key is an empty tuple `()`.
-Key = Tuple[str, ...]
+Key = tuple[str, ...]
 
 
 class KeyNode(NamedTuple):
@@ -267,15 +267,15 @@ class RawConfig:
 
     """
 
-    sources: List[ConfigSource]
+    sources: list[ConfigSource]
 
-    def __init__(self, sources: Optional[List[ConfigSource]] = None):
+    def __init__(self, sources: list[ConfigSource] | None = None):
         self._locked = False
         self.sources = sources or []
         self._keys: ConfigKeys = {}
         self._schema = SCHEMA
 
-    def read(self, sources: List[ConfigSource]):
+    def read(self, sources: list[ConfigSource]):
         if self._locked:
             raise Exception("Configuration is locked, use `rc.fork()` if you need to change configuration.")
 
@@ -356,9 +356,9 @@ class RawConfig:
         else:
             return value
 
-    def keys(self, *key, origin=False) -> Union[List[str], Tuple[List[str], str]]:
+    def keys(self, *key, origin=False) -> list[str] | tuple[list[str], str]:
         node = self._keys.get(key)
-        keys_list: List[str] = []
+        keys_list: list[str] = []
         if node is not None and isinstance(node.value, list):
             if node.type == "object" or not node.explicit:
                 # Object-type keys hold a list of child key names, and
@@ -420,7 +420,7 @@ class RawConfig:
         else:
             return table
 
-    def to_dict(self, *names: str) -> Dict[str, Any]:
+    def to_dict(self, *names: str) -> dict[str, Any]:
         result = {}
         for key, val in self.getall(*names):
             key = ".".join(key[len(names) :])
@@ -564,7 +564,7 @@ class RawConfig:
                     return False
         return True
 
-    def get_source_names(self) -> List[str]:
+    def get_source_names(self) -> list[str]:
         return [source.name for source in self.sources]
 
 
@@ -675,7 +675,7 @@ def _traverse(value, path=()):
         yield path, value
 
 
-def _get_inner_keys(config: Dict[tuple, Any], depth=1):
+def _get_inner_keys(config: dict[tuple, Any], depth=1):
     """Get inner keys for config.
 
     `config` is flattened dict, that looks like this:
@@ -763,14 +763,14 @@ class ResourceTuple(NamedTuple):
     # Resource URI, depends on type.
     external: str
     # Resource prepare formula.
-    prepare: Optional[str] = None
+    prepare: str | None = None
 
 
 def parse_resource_args(
     resource_type: str,
     resource_source: str,
-    formula: Optional[str] = None,
-) -> Optional[ResourceTuple]:
+    formula: str | None = None,
+) -> ResourceTuple | None:
     resource = ResourceTuple(resource_type, resource_source, formula)
     if resource.type is None and resource.external is None and not resource.prepare:
         return None
@@ -779,7 +779,7 @@ def parse_resource_args(
 
 def parse_manifest_path(
     rc: RawConfig,
-    path: Union[str, ManifestPath, ResourceTuple],
+    path: str | ManifestPath | ResourceTuple,
 ) -> ManifestPath:
     from spinta.manifests.components import ManifestPath
 
@@ -801,7 +801,7 @@ def check_if_manifest_valid(rc: RawConfig, manifest: str):
 def _get_resource_config(
     rc: RawConfig,
     resource: ResourceTuple,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     if resource.external and resource.external in rc.get("backends", default={}):
         return {
             "type": resource.type,
@@ -818,18 +818,18 @@ def _get_resource_config(
 
 def configure_rc(
     rc: RawConfig,
-    manifests: List[Union[str, ManifestPath]] = None,
+    manifests: list[str | ManifestPath] = None,
     *,
     mode: Mode = Mode.internal,
-    check_names: Optional[bool] = None,
+    check_names: bool | None = None,
     backend_type: str | None = None,
     backend: str | None = None,
-    resources: List[ResourceTuple] = None,
+    resources: list[ResourceTuple] = None,
     dataset: str = None,
     manifest_type: str = "inline",
     ensure_backends=True,
 ) -> RawConfig:
-    config: Dict[str, Any] = {}
+    config: dict[str, Any] = {}
 
     if backend:
         # TODO: Parse backend string to detect type. Currently type is hardcoded

@@ -1,6 +1,5 @@
 import logging
 import pathlib
-from typing import List, Optional
 
 import requests
 from typer import Argument, Exit, Option, echo
@@ -33,8 +32,8 @@ log = logging.getLogger(__name__)
 
 def push(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Source manifest files to copy from")),
-    output: Optional[str] = Option(
+    manifests: list[str] | None = Argument(None, help=("Source manifest files to copy from")),
+    output: str | None = Option(
         None, "-o", "--output", help=("Output data to a given location, by default outputs to stdout")
     ),
     credentials: str = Option(
@@ -71,7 +70,7 @@ def push(
     incremental: bool = Option(
         False, "-i", "--incremental", help=("Do an incremental push, only pushing objects from last page.")
     ),
-    page: Optional[List[str]] = Option(None, "--page", help=("Page value from which rows will be pushed.")),
+    page: list[str] | None = Option(None, "--page", help=("Page value from which rows will be pushed.")),
     page_model: str = Option(None, "--model", help=("Model of the page value.")),
     synchronize: bool = Option(
         False,

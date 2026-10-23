@@ -215,7 +215,7 @@ class Property:
     def get_enums(self, items: list) -> dict:
         enum = {}
         for item in items:
-            if isinstance(item, (list, dict)):  # Only handling primitive type enums
+            if isinstance(item, list | dict):  # Only handling primitive type enums
                 return {}
             enum[item] = {"source": item}
         return enum

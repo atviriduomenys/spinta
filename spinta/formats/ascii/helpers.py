@@ -1,9 +1,6 @@
-from typing import List, Optional, Tuple
-
-
 def get_widths(
-    rows, cols: List[str], max_value_length: int = 100, max_col_width: Optional[int] = None, rows_to_check: int = 200
-) -> Tuple[List[dict], dict]:
+    rows, cols: list[str], max_value_length: int = 100, max_col_width: int | None = None, rows_to_check: int = 200
+) -> tuple[list[dict], dict]:
     widths = {}
     max_widths = {}
     max_split_widths = {}
@@ -48,7 +45,7 @@ def get_widths(
     return read_rows, widths
 
 
-def get_displayed_cols(widths: dict, max_width: int, separator: str = "  ") -> Tuple[bool, List[str]]:
+def get_displayed_cols(widths: dict, max_width: int, separator: str = "  ") -> tuple[bool, list[str]]:
     total_width = 0
     cols = []
     shortened = False
@@ -64,7 +61,7 @@ def get_displayed_cols(widths: dict, max_width: int, separator: str = "  ") -> T
 
 def draw_border(
     widths: dict,
-    displayed_cols: List[str],
+    displayed_cols: list[str],
     separator: str = "  ",
     shortened: bool = False,
 ) -> str:
@@ -81,7 +78,7 @@ def draw_border(
 
 def draw_header(
     widths: dict,
-    displayed_cols: List[str],
+    displayed_cols: list[str],
     separator: str = "  ",
     shortened: bool = False,
 ) -> str:
@@ -101,7 +98,7 @@ def draw_header(
 def draw_row(
     data: dict,
     widths: dict,
-    displayed_cols: List[str],
+    displayed_cols: list[str],
     max_value_length: int = 100,
     separator: str = "  ",
     shortened: bool = False,
@@ -150,13 +147,13 @@ def draw_row(
     return result
 
 
-def prepare_line(widths: dict, displayed_cols: List[str]) -> dict:
+def prepare_line(widths: dict, displayed_cols: list[str]) -> dict:
     return {col: " " * widths[col] for col in widths.keys() if col in displayed_cols}
 
 
 def get_row_lines(
-    col: str, value: str, width: int, lines: dict, line_count: int, widths: dict, displayed_cols: List[str]
-) -> Tuple[dict, int]:
+    col: str, value: str, width: int, lines: dict, line_count: int, widths: dict, displayed_cols: list[str]
+) -> tuple[dict, int]:
     if len(value) > width:
         split_value = [value[i : i + width] for i in range(0, len(value), width)]
         for i, part in enumerate(split_value):

@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 import sqlalchemy as sa
 
@@ -8,7 +8,7 @@ from spinta.datasets.backends.sql.components import Sql
 
 
 @commands.load.register(Context, Sql, dict)
-def load(context: Context, backend: Sql, config: Dict[str, Any]):
+def load(context: Context, backend: Sql, config: dict[str, Any]):
     dsn = config["dsn"]
     schema = config.get("schema")
     if dsn:

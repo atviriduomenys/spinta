@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import weakref
-from typing import Any, Dict, Optional, Union
+from typing import Any
 
 from pytest import FixtureRequest
 
@@ -18,7 +18,7 @@ from spinta.utils.imports import importstr
 # Every short-lived test context is tracked here so that the engines (and their
 # connection pools) it created can be disposed after each test, see
 # `close_test_context_engines`.
-_test_contexts: "weakref.WeakSet[TestContext]" = weakref.WeakSet()
+_test_contexts: weakref.WeakSet[TestContext] = weakref.WeakSet()
 
 
 def create_test_context(
@@ -124,7 +124,7 @@ class ContextForTests:
                 self.attach("transaction", validate_and_return_transaction, self, backend, write=write)
                 yield self
 
-    def wipe(self: TestContext, model: Union[str, Node]):
+    def wipe(self: TestContext, model: str | Node):
         if isinstance(model, str):
             store = self.get("store")
             model = commands.get_model(self, store.manifest, model)
@@ -135,9 +135,7 @@ class ContextForTests:
         store = self.get("store")
         self.wipe(commands.get_namespace(self, store.manifest, ""))
 
-    def load(
-        self: TestContext, overrides: Optional[Dict[str, Any]] = None, ensure_config_dir: bool = True
-    ) -> TestContext:
+    def load(self: TestContext, overrides: dict[str, Any] | None = None, ensure_config_dir: bool = True) -> TestContext:
         # We pass context to tests unloaded, by doing this, we give test
         # functions opportunity to call `context.load` manually and provide
         # `overrides` for config, this way each test can configure context in
@@ -169,4 +167,4 @@ class ContextForTests:
         return self
 
 
-TestContext = Union[Context, ContextForTests]
+TestContext = Context | ContextForTests

@@ -1,6 +1,7 @@
 import uuid
+from collections.abc import Iterable, Iterator
 from operator import itemgetter
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.sql.elements import Null
@@ -260,7 +261,7 @@ def _load_internal_manifest_node(
     context: Context,
     config: Config,
     manifest: Manifest,
-    source: Optional[Manifest],
+    source: Manifest | None,
     eid: EntryId,
     data: dict,
 ) -> MetaData:
@@ -281,9 +282,9 @@ def load_internal_namespace_from_name(
     # Drop last element from path which is usually a model name.
     drop: bool = True,
 ) -> Namespace:
-    ns: Optional[Namespace] = None
-    parent: Optional[Namespace] = None
-    parts: List[str] = []
+    ns: Namespace | None = None
+    parent: Namespace | None = None
+    parts: list[str] = []
     parts_ = [p for p in path.split("/") if p]
     if drop:
         parts_ = parts_[:-1]
@@ -344,7 +345,7 @@ def get_table_structure(meta: sa.MetaData):
     return table
 
 
-def _read_all_sql_manifest_rows(path: Optional[str], conn: sa.engine.Connection, *, rename_duplicates: bool = True):
+def _read_all_sql_manifest_rows(path: str | None, conn: sa.engine.Connection, *, rename_duplicates: bool = True):
     meta = sa.MetaData(conn)
     inspector = sa.inspect(conn.engine)
     table_names = inspector.get_table_names()
@@ -579,7 +580,7 @@ def datasets_to_sql(
 
 
 def _prefixes_to_sql(
-    prefixes: Dict[str, UriPrefix], parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
+    prefixes: dict[str, UriPrefix], parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
 ) -> Iterator[InternalManifestRow]:
     for name, prefix in prefixes.items():
         item_id = _handle_id(prefix.id)
@@ -604,7 +605,7 @@ def _prefixes_to_sql(
 
 
 def _namespaces_to_sql(
-    namespaces: Dict[str, Namespace], parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
+    namespaces: dict[str, Namespace], parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
 ) -> Iterator[InternalManifestRow]:
     namespaces = {k: ns for k, ns in namespaces.items() if not ns.generated}
 
@@ -630,7 +631,7 @@ def _namespaces_to_sql(
 
 
 def _enums_to_sql(
-    enums: Optional[Enums],
+    enums: Enums | None,
     parent_id: uuid.UUID = None,
     depth: int = 0,
     path: str = None,
@@ -687,7 +688,7 @@ def _enums_to_sql(
 
 
 def _lang_to_sql(
-    lang: Optional[LangData],
+    lang: LangData | None,
     parent_id: uuid.UUID = None,
     depth: int = 0,
     path: str = None,
@@ -717,7 +718,7 @@ def _lang_to_sql(
 
 
 def _comments_to_sql(
-    comments: Optional[List[Comment]],
+    comments: list[Comment] | None,
     access: Access = Access.private,
     parent_id: uuid.UUID = None,
     depth: int = 0,
@@ -754,7 +755,7 @@ def _comments_to_sql(
 
 
 def _backends_to_sql(
-    backends: Dict[str, Backend], parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
+    backends: dict[str, Backend], parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
 ) -> Iterator[InternalManifestRow]:
     for name, backend in backends.items():
         new_id = _handle_id(backend.config.get("id"))
@@ -821,7 +822,7 @@ def _dataset_to_sql(
 
 
 def _params_to_sql(
-    params: List[Param], parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
+    params: list[Param], parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
 ) -> Iterator[InternalManifestRow]:
     if not params:
         return
@@ -1003,7 +1004,7 @@ def _model_to_sql(
 
 
 def _unique_to_sql(
-    model_unique_data, hide_list: List, parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
+    model_unique_data, hide_list: list, parent_id: uuid.UUID = None, depth: int = 0, path: str = None, mpath: str = None
 ) -> Iterator[InternalManifestRow]:
     if not model_unique_data:
         return
@@ -1185,12 +1186,12 @@ def to_row_tabular(keys, values) -> ManifestRow:
 def _handle_prepare(prepare: Any):
     if isinstance(prepare, NotAvailable):
         prepare = sa.null()
-    elif isinstance(prepare, (Expr, NoOp)):
+    elif isinstance(prepare, Expr | NoOp):
         prepare = prepare.todict()
     return prepare
 
 
-def convert_sql_to_tabular_rows(rows: list) -> Iterator[Tuple[str, List[str]]]:
+def convert_sql_to_tabular_rows(rows: list) -> Iterator[tuple[str, list[str]]]:
     previous_row = {}
     data_row = {}
     enum_data = {}

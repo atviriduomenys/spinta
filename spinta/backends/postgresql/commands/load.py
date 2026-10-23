@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 import sqlalchemy as sa
 
@@ -11,7 +11,7 @@ from spinta.utils.sqlalchemy import get_metadata_naming_convention
 
 
 @commands.load.register(Context, PostgreSQL, dict)
-def load(context: Context, backend: PostgreSQL, config: Dict[str, Any]):
+def load(context: Context, backend: PostgreSQL, config: dict[str, Any]):
     backend.dsn = config["dsn"]
     backend.engine = create_postgresql_engine(backend.dsn, echo=False)
     backend.schema = sa.MetaData(backend.engine, naming_convention=get_metadata_naming_convention(PG_NAMING_CONVENTION))

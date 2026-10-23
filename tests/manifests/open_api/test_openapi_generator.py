@@ -1,4 +1,5 @@
 import contextlib
+import copy
 import json
 import re
 import uuid
@@ -2427,6 +2428,28 @@ def test_declared_identifier_is_not_described_as_a_uuid_in_a_response(open_manif
     assert identifier.get("format") != "uuid"
     # The value the data holds, which the shape of a UUID would refuse.
     _validate("AE", identifier)
+
+
+@pytest.mark.parametrize("base", [None, {"_id": "AE", "kodas": "AE"}])
+def test_search_answer_satisfies_a_validator_refusing_undescribed_properties(open_manifest_path_factory, base):
+    """A search answers with `_base` too, which a strict gateway refuses unless it is described."""
+    open_api_spec = _service_spec(open_manifest_path_factory, manifest_data=MANIFEST_WITH_DECLARED_ID)
+    components = copy.deepcopy(open_api_spec["components"])
+    components["schemas"]["ds_Salis"]["additionalProperties"] = False
+
+    answer = {
+        "_data": [
+            {
+                "_type": "datasets/gov/rc/jadis/at280/1/ds/Salis",
+                "_id": "AE",
+                "_revision": None,
+                "_base": base,
+                "kodas": "AE",
+            }
+        ],
+        "_page": {"next": "WyJBRSJd"},
+    }
+    _validate(answer, {**components["schemas"]["ds_SalisCollection"], "components": components})
 
 
 def test_error_examples_satisfy_their_own_schemas(open_manifest_path_factory):

@@ -27,7 +27,7 @@ def load(
             commands.load(context, store.internal, into=target)
 
     file = None
-    if isinstance(manifest, (CsvManifest, AsciiManifest)):
+    if isinstance(manifest, CsvManifest | AsciiManifest):
         file = manifest.file
 
     # There are cases, when we don't want to load any manifest.

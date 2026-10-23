@@ -1,5 +1,4 @@
 import logging
-from typing import List, Optional
 
 from typer import Argument, Exit, Option, echo
 from typer import Context as TyperContext
@@ -15,12 +14,12 @@ log = logging.getLogger(__name__)
 
 def run(
     ctx: TyperContext,
-    manifests: Optional[List[str]] = Argument(None, help=("Manifest files to load")),
+    manifests: list[str] | None = Argument(None, help=("Manifest files to load")),
     mode: Mode = Option("internal", help="Mode of backend operation"),
     host: str = Option("127.0.0.1", help="Run server on given host"),
     port: int = Option(8000, help="Run server on given port"),
-    backend: Optional[str] = Option(None, "-b", "--backend", help=("Backend connection string")),
-    backend_type: Optional[str] = Option(None, "-t", "--backend_type", help=("Backend type")),
+    backend: str | None = Option(None, "-b", "--backend", help=("Backend connection string")),
+    backend_type: str | None = Option(None, "-t", "--backend_type", help=("Backend type")),
 ):
     """Run development server"""
     import os
@@ -42,7 +41,7 @@ def run(
 
 def wait(
     ctx: TyperContext,
-    seconds: Optional[int] = Argument(None),
+    seconds: int | None = Argument(None),
 ):
     """Wait while all backends are up"""
     context = ctx.obj

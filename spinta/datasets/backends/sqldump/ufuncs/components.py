@@ -17,4 +17,4 @@ class File:
     encoding: str = "utf-8"
 
     def open(self):
-        return open(self.path, "r", encoding=self.encoding)
+        return open(self.path, encoding=self.encoding)

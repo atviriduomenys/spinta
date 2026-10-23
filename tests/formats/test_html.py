@@ -2,7 +2,7 @@ import base64
 import hashlib
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import pytest
 from _pytest.fixtures import FixtureRequest
@@ -310,7 +310,7 @@ def _prep_file_type(
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
-) -> Tuple[TestClient, str]:
+) -> tuple[TestClient, str]:
     context = bootstrap_manifest(
         rc,
         """
@@ -358,13 +358,13 @@ def _prep_file_type(
     return app, _id
 
 
-def _table(data: List[List[Cell]]) -> List[List[Dict[str, Any]]]:
+def _table(data: list[list[Cell]]) -> list[list[dict[str, Any]]]:
     return [[cell.as_dict() for cell in row] for row in data]
 
 
 def _table_with_header(
     resp: TestClientResponse,
-) -> List[Dict[str, Dict[str, Any]]]:
+) -> list[dict[str, dict[str, Any]]]:
     header = resp.context["header"]
     return [{key: cell.as_dict() for key, cell in zip(header, row)} for row in resp.context["data"]]
 
@@ -404,7 +404,7 @@ def test_file_type_list(
     ]
 
 
-def _row(row: List[Tuple[str, Cell]]) -> List[Tuple[str, Dict[str, Any]]]:
+def _row(row: list[tuple[str, Cell]]) -> list[tuple[str, dict[str, Any]]]:
     return [(name, cell.as_dict()) for name, cell in row]
 
 
@@ -843,7 +843,7 @@ def test_show_single_object(
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
-) -> Tuple[TestClient, str]:
+) -> tuple[TestClient, str]:
     context = bootstrap_manifest(
         rc,
         """
@@ -884,7 +884,7 @@ def test_show_single_object(
 
     assert resp.status_code == 201
 
-    resp_for_rec = app.get("example/html/City/{0}".format(record_id))
+    resp_for_rec = app.get(f"example/html/City/{record_id}")
 
     resp_html_tree_single_object_id = html.fromstring(resp_for_rec.content)
     result = resp_html_tree_single_object_id.xpath("//table//tbody//tr//th")
@@ -907,7 +907,7 @@ def test_show_external_ref(
     rc: RawConfig,
     postgresql: str,
     request: FixtureRequest,
-) -> Tuple[TestClient, str]:
+) -> tuple[TestClient, str]:
     context, manifest = load_manifest_and_context(
         rc,
         """
