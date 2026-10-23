@@ -16,7 +16,6 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import gather_prepare_columns, get_prop_names
 from spinta.backends.postgresql.helpers.name import get_pg_column_name, get_pg_constraint_name
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.commands.write import dataitem_from_payload, move_stream
 from spinta.components import Context, DataItem, Model
 from spinta.core.enums import Action
@@ -177,7 +176,7 @@ def _ensure_table_set(column: sa.Column, table: sa.Table) -> sa.Column:
 
 
 def _models_without_unique_constraint(context: Context) -> Iterator[Model]:
-    store = ensure_store_is_loaded(context)
+    store = context.get("store")
     for model in commands.get_models(context, store.manifest).values():
         if model.model_type().startswith("_") or not model.external or model.external.unknown_primary_key:
             continue

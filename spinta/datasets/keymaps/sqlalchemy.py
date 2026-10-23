@@ -363,13 +363,13 @@ def sync(context: Context, keymap: SqlAlchemyKeyMap, *, data: Generator[KeymapSy
     transaction_size = keymap.sync_transaction_size
     transaction = None
     try:
-        transaction = keymap.db.conn.begin()
+        transaction = keymap.db.begin()
         for i, row in enumerate(data):
             if transaction_size is not None and i % transaction_size == 0 and i != 0:
                 if transaction.is_active:
                     transaction.commit()
 
-                transaction = keymap.db.conn.begin()
+                transaction = keymap.db.begin()
 
             keymap.synchronize(row)
             yield row

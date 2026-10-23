@@ -173,52 +173,53 @@ def push(
                 delay_range=delay_range,
             )
 
-        # Synchronize push state
-        if synchronize_state:
-            sync_push_state(
-                context=context,
-                models=models,
-                client=client,
-                server=creds.server,
-                error_counter=error_counter,
-                no_progress_bar=no_progress_bar,
-                push_state=push_state,
+        with push_state.db.begin():
+            # Synchronize push state
+            if synchronize_state:
+                sync_push_state(
+                    context=context,
+                    models=models,
+                    client=client,
+                    server=creds.server,
+                    error_counter=error_counter,
+                    no_progress_bar=no_progress_bar,
+                    push_state=push_state,
+                    timeout=(connect_timeout, read_timeout),
+                    max_retries=max_retries,
+                    delay_range=delay_range,
+                )
+
+            initial_page_data = load_initial_page_data(push_state, models, incremental, override_page)
+            rows = read_rows(
+                context,
+                client,
+                creds.server,
+                models,
+                push_state,
+                limit,
                 timeout=(connect_timeout, read_timeout),
-                max_retries=max_retries,
-                delay_range=delay_range,
+                stop_on_error=stop_on_error,
+                retry_count=retry_count,
+                no_progress_bar=no_progress_bar,
+                error_counter=error_counter,
+                initial_page_data=initial_page_data,
             )
 
-        initial_page_data = load_initial_page_data(push_state, models, incremental, override_page)
-        rows = read_rows(
-            context,
-            client,
-            creds.server,
-            models,
-            push_state,
-            limit,
-            timeout=(connect_timeout, read_timeout),
-            stop_on_error=stop_on_error,
-            retry_count=retry_count,
-            no_progress_bar=no_progress_bar,
-            error_counter=error_counter,
-            initial_page_data=initial_page_data,
-        )
-
-        push_(
-            context,
-            client,
-            creds.server,
-            models,
-            rows,
-            push_state=push_state,
-            stop_time=stop_time,
-            stop_row=stop_row,
-            chunk_size=chunk_size,
-            dry_run=dry_run,
-            stop_on_error=stop_on_error,
-            error_counter=error_counter,
-            timeout=(connect_timeout, read_timeout),
-        )
+            push_(
+                context,
+                client,
+                creds.server,
+                models,
+                rows,
+                push_state=push_state,
+                stop_time=stop_time,
+                stop_row=stop_row,
+                chunk_size=chunk_size,
+                dry_run=dry_run,
+                stop_on_error=stop_on_error,
+                error_counter=error_counter,
+                timeout=(connect_timeout, read_timeout),
+            )
 
         if error_counter.has_errors():
             raise Exit(code=1)

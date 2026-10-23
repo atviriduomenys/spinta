@@ -65,6 +65,10 @@ class SqliteDatabase:
         copied._conn = None
         return copied
 
+    def begin(self) -> sa.engine.Transaction:
+        """Begin a transaction on the already open connection."""
+        return self.conn.begin()
+
     @property
     def is_entered(self) -> bool:
         return self._conn is not None
@@ -148,7 +152,10 @@ class SqliteMigrations:
         copied.db = db if db else copied.db
         return copied
 
-    def contains_migration(self, name: str):
+    def contains_migration(self, name: str) -> bool:
+        if not sa.inspect(self.db.conn).has_table(self.migration_table_name):
+            return False
+
         migrations = self.db.get_table(self.migration_table_name)
 
         query = sa.select([sa.func.count()]).where(migrations.c.migration == name)

@@ -73,7 +73,7 @@ def get_push_states(
 
     result = list()
     for push_state_target in push_state_targets:
-        if not push_state_target.startswith("sqlite"):
+        if "://" not in push_state_target:
             push_state_target = f"sqlite+spinta:///{push_state_target}"
 
         result.append(PushState(push_state_target))

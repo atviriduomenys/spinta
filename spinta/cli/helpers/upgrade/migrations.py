@@ -6,13 +6,14 @@ from spinta import commands
 from spinta.cli.helpers.script.components import ScriptTag, ScriptTarget
 from spinta.cli.helpers.script.helpers import sort_scripts_by_required
 from spinta.cli.helpers.upgrade.components import UpgradeScript
-from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
 from spinta.components import Context
 from spinta.exceptions import UpgradeError
 from spinta.utils.sqlite import SqliteDatabase, SqliteMigrations
 
 
 def get_target_migrations(target: ScriptTarget) -> dict[str, UpgradeScript]:
+    from spinta.cli.helpers.upgrade.registry import upgrade_script_registry
+
     migration_scripts = upgrade_script_registry.get_all(targets={target.value}, tags={ScriptTag.DB_MIGRATION.value})
     return sort_scripts_by_required(migration_scripts)
 
