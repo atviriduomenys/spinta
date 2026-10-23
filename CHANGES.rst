@@ -4,6 +4,41 @@ Changes
 1.4.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Keys that hold a list of names, such as ``backends``, no longer accept a
+  single scalar value in configuration files. ``backends: one`` now fails with
+  an error, use ``backends: [one]`` instead. Comma separated names in
+  environment variables, ``.env`` files and command line arguments, such as
+  ``SPINTA_BACKENDS=one,two``, still work (`#1990`_).
+- Setting a configuration key to an empty value removes all of its subkeys,
+  and setting it to a list of names keeps only the listed subkeys. For example
+  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one`` now also hides subkeys set in
+  lower priority sources: a ``keymaps.default`` set in a configuration file is
+  ignored when ``SPINTA_KEYMAPS=other`` is set. If you relied on such values,
+  remove the override or list the subkeys you want to keep (`#1990`_).
+
+Improvements:
+
+- ``spinta config`` output has a new ``Env`` column, showing which environment
+  (``environments.<env>``) provided each value (`#1990`_).
+- Custom property types in manifests can be configured with parameters given
+  as a mapping, for example ``type: {name: sqlalchemy.types.BigInteger}``, in
+  addition to a list of parameter names (`#1990`_).
+- Configuration documentation was rewritten. It describes the configuration
+  sources and their precedence, the ``config_path`` directory with the
+  recommended ``{config_path}/config.yaml`` file, and the configuration syntax,
+  including simple and complex values and merge and reset semantics. A new
+  page describes keymap configuration (`#1990`_).
+
+Bug fixes:
+
+- Fixed ``RawConfig`` modifying the global ``spinta.config:CONFIG`` dictionary
+  it reads from. The ``environments`` section was removed after the first read,
+  so later configuration reads in the same process lost environment specific
+  settings, such as test backend DSNs (`#1990`_).
+
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 
 1.3.1 (2026-10-22)
 =====================
