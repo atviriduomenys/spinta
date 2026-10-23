@@ -15,16 +15,22 @@ def _recursive_iter_params(
     manifest: Manifest,
     params: List[Param],
     values: ResolvedParams,
-    url_query_params: Expr | None,
+    query: Expr | None,
 ) -> Iterator[ResolvedParams]:
     if len(params) > 0:
         param = params[0]
+        if not param.formulas:
+            # Params without formulas (e.g. `header()`, `input()`) are resolved elsewhere and have no values to
+            # iterate over here. Skip them, otherwise `zip()` below yields nothing and all values are lost.
+            yield from _recursive_iter_params(context, model, manifest, params[1:], values, query)
+            return
         env = ParamBuilder(context)
         env.update(
+            model=model,
             params=values or {},
             target_param=param.name,
             manifest=manifest,
-            url_query_params=url_query_params,
+            query=query,
         )
         for source, formula in zip(param.sources, param.formulas):
             env.update(this=source)
@@ -45,19 +51,19 @@ def _recursive_iter_params(
                     manifest,
                     params[1:],
                     new_value,
-                    url_query_params,
+                    query,
                 )
     else:
         yield values
 
 
 def iterparams(
-    context: Context, model: Model, manifest: Manifest, params: List[Param] = [], url_query_params: Expr | None = None
+    context: Context, model: Model, manifest: Manifest, params: List[Param] = [], query: Expr | None = None
 ) -> Iterator[ResolvedParams]:
     values = {}
 
     if params:
-        yield from _recursive_iter_params(context, model, manifest, params, values, url_query_params)
+        yield from _recursive_iter_params(context, model, manifest, params, values, query)
     else:
         yield {}
 

@@ -4,6 +4,33 @@ Changes
 1.3.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- Resource parameters defined with ``query()`` in ``prepare`` are now sent to
+  the data source with ``dask/csv``, ``dask/json``, ``dask/xml`` and
+  ``dask/soap`` resources. Previously they were silently dropped from the
+  request (`#2066`_):
+
+  - ``query('default')`` is always sent with the default value, unless a value
+    is given in the request URL for a property linked to it with ``param()``,
+    in which case the URL value is sent instead.
+  - ``query()`` without a default requires a value from the request URL through
+    a property linked with ``param()``. If it is missing, the request fails with
+    ``400`` before reaching the data source.
+  - A property linked with ``param()`` is not used as a row filter; its value is
+    sent to the data source instead. For example, ``/example/Street?client=ABC``
+    sends ``?CLIENT_NAME=ABC``.
+  - A request URL value for a resource parameter that is not linked to any
+    property with ``param()`` now fails with ``400`` instead of being ignored.
+
+- Query parameters given in a resource ``source`` URL are merged with
+  ``query()`` resource parameters into one query string. If the same parameter
+  is defined in both places, ``spinta check --check-query-conflicts`` reports
+  it (`#2066`_).
+
+- A ``query()`` resource parameter without a default that is not linked to any
+  property with ``param()`` makes the manifest invalid (`#2066`_).
+
 
 1.2.0 (2026-10-14)
 =====================
@@ -108,6 +135,7 @@ Bug fixes:
 .. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
 .. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
 .. _#2055: https://github.com/atviriduomenys/spinta/issues/2055
+.. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
 
 Improvements:
 

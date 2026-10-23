@@ -20,6 +20,7 @@ from spinta.components import (
 )
 from spinta.core.enums import Action
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
+from spinta.dimensions.param.components import ParamProperty, ParamPropertyBuilder
 from spinta.dimensions.scope.helpers import get_active_custom_scope
 from spinta.exceptions import InvalidPageKey, InvalidPageParameterCount, ModelNotFound
 from spinta.manifests.components import Manifest
@@ -100,8 +101,35 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
         params_builder = RequestParamsBuilder(context).init(params)
         select_expr = _get_select_expr_from_params(params)
         params_builder.resolve(select_expr)
+    if params.query:
+        _resolve_param_props(context, params)
     if params.expand:
         params.expand = _get_expand_expr_from_params(params)
+
+
+def _resolve_param_props(context: Context, params: UrlParams) -> None:
+    """Resolve query conditions on source-less properties linked to resource params.
+
+    Each filter condition is resolved by `ParamPropertyBuilder`. A linked `eq()` returns `ParamProperty`, which is
+    moved to `params.param_props`; other conditions are kept in `params.query` as they are.
+    """
+    builder = ParamPropertyBuilder(context).init(model=params.model)
+    query = []
+    for condition in params.query:
+        if _is_select_condition(condition):
+            query.append(condition)
+            continue
+        resolved = builder.resolve(asttoexpr(condition))
+        if isinstance(resolved, ParamProperty):
+            params.param_props = (params.param_props or []) + [resolved]
+        else:
+            query.append(condition)
+    params.query = query or None
+
+
+def _is_select_condition(condition: Any) -> bool:
+    # `select(...)` is a field selection, not a filter; it is handled by the select path.
+    return isinstance(condition, dict) and condition.get("name") == "select"
 
 
 def _get_expand_expr_from_params(params: UrlParams) -> Expr:

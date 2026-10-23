@@ -35,9 +35,12 @@ class QueryParams:
     lang: List = None
     push: bool = False
     url_params: dict
+    # Request-time values of source-less properties linked to resource params (`ParamProperty`).
+    param_props: list
 
-    def __init__(self, url_params: dict | None = None) -> None:
+    def __init__(self, url_params: dict | None = None, param_props: list | None = None) -> None:
         self.url_params = url_params or {}
+        self.param_props = param_props or []
 
 
 class Selected:

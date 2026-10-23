@@ -18,6 +18,7 @@ from spinta.datasets.backends.dataframe.commands.read import (
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
+from spinta.dimensions.param.helpers import get_param_props
 from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
@@ -131,7 +132,8 @@ def getall(
     resource = model.external.resource
 
     builder = backend.query_builder_class(context)
-    builder.update(model=model, params={param.name: param for param in resource.params}, url_query_params=query)
+    builder.update(model=model, params={param.name: param for param in resource.params}, query=query)
+    param_props = get_param_props(kwargs.get("params"))
 
     props = {}
 
@@ -145,15 +147,15 @@ def getall(
     meta = get_dask_dataframe_meta(model)
 
     if resource.external:
-        data_source = parametrize_bases(context, model, model.external.resource, resolved_params)
+        data_source = parametrize_bases(
+            context, model, model.external.resource, resolved_params, query=query, param_props=param_props
+        )
     elif resource.prepare is not NA:
         data_source = builder.resolve(resource.prepare)
     else:
         raise CannotReadResource(resource)
 
-    http_headers = resource.get_param_http_headers()
-    for header_name, header_value in http_headers.items():
-        http_headers[header_name] = builder.resolve(header_value)
+    http_headers = {name: builder.resolve(value) for name, value in resource.http.headers.items()}
 
     df = (
         from_sequence(data_source)
@@ -167,4 +169,4 @@ def getall(
         .flatten()
         .to_dataframe(meta=meta)
     )
-    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties, param_props=param_props)

@@ -89,9 +89,32 @@ def header(env: LoadBuilder, expr: Expr) -> None:
 
 @ufunc.resolver(LoadBuilder, str, str)
 def header(env: LoadBuilder, header_name: str, header_value: str) -> None:
-    env.param.http_header = {header_name: header_value}
+    if env.resource is not None:
+        env.resource.http.headers[header_name] = header_value
 
 
 @ufunc.resolver(LoadBuilder, str, Expr)
 def header(env: LoadBuilder, header_name: str, header_value: Expr) -> None:
-    env.param.http_header = {header_name: header_value}
+    # Value that can't be resolved on load (e.g. `creds()`) is kept as `Expr`, resolved by the request builder.
+    if env.resource is not None:
+        env.resource.http.headers[header_name] = header_value
+
+
+@ufunc.resolver(LoadBuilder, object)
+def query(env: LoadBuilder, default: object) -> None:
+    """`query('default')` - outgoing query parameter (`source`) with a default value.
+
+    Stored on `resource.url.query`. A value given in the request URL for a source-less property linked with
+    `param()` overrides the default.
+    """
+    if env.resource is not None and isinstance(env.this, str):
+        env.param.query_name = env.this
+        env.resource.url.query[env.this] = default
+
+
+@ufunc.resolver(LoadBuilder)
+def query(env: LoadBuilder) -> None:
+    """`query()` - outgoing query parameter (`source`) without a default, value must come from the request URL."""
+    if env.resource is not None and isinstance(env.this, str):
+        env.param.query_name = env.this
+        env.resource.url.query[env.this] = NA

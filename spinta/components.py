@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     from spinta.accesslog import AccessLog
     from spinta.backends.components import Backend, DistributionStrategy
     from spinta.core.config import RawConfig
-    from spinta.datasets.components import Attribute, Entity
+    from spinta.datasets.components import Attribute, Entity, Param
     from spinta.datasets.keymaps.components import KeyMap
     from spinta.dimensions.comments.components import Comment
     from spinta.dimensions.enum.components import Enums, EnumValue
@@ -653,7 +653,7 @@ class Model(MetaData):
     title: str
     description: str
     ns: Namespace
-    external: Entity = None
+    external: Entity | None = None
     scopes: Dict[str, Scope]
     properties: Dict[str, Property]
     mode: Mode = None
@@ -792,6 +792,8 @@ class Property(ExtraMetaData):
     level: Level
     dtype: DataType = None
     external: Attribute
+    # Resource param linked by `param()` prepare formula of a source-less property, set on link.
+    param: Param | None = None
     list: Property = None
     model: Model = None
     uri: str = None
@@ -933,6 +935,9 @@ class UrlParams:
     formatparams: dict
 
     select: Optional[List[str]] = None
+    # Request-time values of source-less properties linked to a resource param (`param()`), set by `eq()` in
+    # `query`. They are not row filters, they are sent to the data source as query parameters.
+    param_props: List[Any] = None
     select_props: Optional[Dict[str, Union[Expr, Bind]]] = None
     select_funcs: Optional[Dict[str, FuncProperty]] = None
 
@@ -1145,6 +1150,8 @@ class Config:
     languages: List[str]
     # For CLI commands `spinta copy` and `spinta check --check-names`
     check_names: bool = False
+    # For CLI command `spinta check --check-query-conflicts`
+    check_query_conflicts: bool = False
     # MB
     max_api_file_size: int
     max_error_count_on_insert: int

@@ -1,8 +1,10 @@
 import logging
 
+from spinta.components import Property
 from spinta.core.ufuncs import Bind, ufunc
 from spinta.datasets.backends.wsdl.components import WsdlBackend
-from spinta.exceptions import InvalidSource, InvalidValue
+from spinta.datasets.components import Resource
+from spinta.exceptions import InvalidSource, InvalidValue, ParamNotFound
 from spinta.ufuncs.linkbuilder.components import LinkBuilder
 
 log = logging.getLogger(__name__)
@@ -36,3 +38,77 @@ def wsdl(env: LinkBuilder, parent_resource_backend: WsdlBackend) -> None:
         raise InvalidSource(env.resource, error=error_msg)
 
     backend.wsdl_backend = parent_resource_backend
+
+
+@ufunc.resolver(LinkBuilder)
+def param(env: LinkBuilder) -> None:
+    return env.call("param", env.this)
+
+
+@ufunc.resolver(LinkBuilder, Bind)
+def param(env: LinkBuilder, bind: Bind) -> None:
+    return env.call("param", env.this, bind)
+
+
+@ufunc.resolver(LinkBuilder, Property)
+def param(env: LinkBuilder, prop: Property) -> None:
+    """Link source-less property to a resource param with the same name: `param()`.
+
+    Example manifest:
+
+        d | r | b | m | property | type    | ref    | source | prepare  | access
+        example                  | dataset |        |        |          |
+          | resource             | json    |        | url    |          |
+          |   |   |   |          | param   | status | ST     | query()  | open
+          |   |   | Country      |         |        |        |          | open
+          |   |   |   | id       | integer |        | id     |          |
+          |   |   |   | status   | string  |        |        | param()  |
+
+    Example UAPI request:
+
+        /example/Country?status=ok
+
+    Example Data source request:
+
+        url?ST=ok
+
+    """
+    return env.call("param", prop, Bind(prop.name))
+
+
+@ufunc.resolver(LinkBuilder, str)
+def param(env: LinkBuilder, name: str) -> None:
+    return env.call("param", env.this, Bind(name))
+
+
+@ufunc.resolver(LinkBuilder, Resource, Bind)
+def param(env: LinkBuilder, _: Resource, bind: Bind) -> None:
+    """Resource-level `param(name)`: return the resource param object by name."""
+    if bind.name not in env.params:
+        raise ParamNotFound(param=bind.name)
+    return env.params[bind.name]
+
+
+@ufunc.resolver(LinkBuilder, Property, str)
+def param(env: LinkBuilder, prop: Property, name: str) -> None:
+    return env.call("param", prop, Bind(name))
+
+
+@ufunc.resolver(LinkBuilder, Property, Bind)
+def param(env: LinkBuilder, prop: Property, bind: Bind) -> None:
+    """Link source-less property to an explicitly named resource param: `param('name')` or `param(name)`.
+
+    Example manifest:
+
+        d | r | b | m | property | type    | ref    | source | prepare    | access
+        example                  | dataset |        |        |            |
+          | resource             | json    |        | url    |            |
+          |   |   |   |          | param   | status | ST     | query()    | open
+          |   |   | Country      |         |        |        |            | open
+          |   |   |   | id       | integer |        | id     |            |
+          |   |   |   | status   | string  |        |        | param(st)  |
+
+    """
+    if bind.name not in env.params:
+        raise ParamNotFound(param=bind.name)
+    prop.param = env.params[bind.name]
