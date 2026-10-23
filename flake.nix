@@ -33,6 +33,7 @@
           pkgs.python311
           poetry
           pkgs.git
+          pkgs.gnumake
           pkgs.openssl
           pkgs.nushell
           pkgs.nushellPlugins.formats
