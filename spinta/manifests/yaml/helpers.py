@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pathlib
 import uuid
-from typing import TYPE_CHECKING, Iterator, Optional, Tuple
+from collections.abc import Iterator
+from typing import TYPE_CHECKING
 
 import jsonpatch
 from ruamel.yaml import YAML
@@ -41,8 +42,7 @@ def list_yaml_files(manifest: YamlManifest) -> Iterator[pathlib.Path]:
 def read_yaml_file(path: pathlib.Path):
     try:
         with path.open() as f:
-            for data in yaml.load_all(f):
-                yield data
+            yield from yaml.load_all(f)
     except (ParserError, ScannerError, YAMLError) as e:
         raise exceptions.InvalidManifestFile(
             filename=path,
@@ -84,14 +84,14 @@ def read_schema_versions(path: pathlib.Path):
 
 def read_manifest_schemas(
     manifest: YamlManifest,
-) -> Iterator[Tuple[pathlib.Path, Optional[dict]]]:
+) -> Iterator[tuple[pathlib.Path, dict | None]]:
     for path in list_yaml_files(manifest):
         yield path, next(read_yaml_file(path), None)
 
 
 def read_inline_manifest_schemas(
     manifest: InlineManifest,
-) -> Iterator[Tuple[None, Optional[dict]]]:
+) -> Iterator[tuple[None, dict | None]]:
     for schema in manifest.manifest:
         yield None, schema
 

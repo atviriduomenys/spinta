@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 from spinta import commands
 from spinta.components import Context, Model, Property
 from spinta.exceptions import (
@@ -40,7 +38,7 @@ def link(context: Context, dtype: Array) -> None:
     intermediate_model: Model = dtype.model
     if dtype.refprops:
         refprops = []
-        raw_refprops: List[str] = dtype.refprops
+        raw_refprops: list[str] = dtype.refprops
         for rprop in raw_refprops:
             if rprop not in dtype.model.properties:
                 raise ModelReferenceKeyNotFound(dtype, ref=rprop, model=dtype.model)

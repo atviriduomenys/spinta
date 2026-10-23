@@ -50,8 +50,7 @@ def _compute_rc_signature(args: str, key_path: str) -> str:
     proc = subprocess.run(
         ["openssl", "dgst", "-sha256", "-sign", key_path],
         input=args.encode("utf-8"),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         check=True,
     )
     sig_b64 = base64.b64encode(proc.stdout).decode("ascii")

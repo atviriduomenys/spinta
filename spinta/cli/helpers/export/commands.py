@@ -1,5 +1,3 @@
-from typing import Optional, Union
-
 from spinta import commands
 from spinta.backends import Backend
 from spinta.cli.helpers.message import cli_error
@@ -213,8 +211,8 @@ def build_data_patch_for_export(context: Context, prop: Property, *, given: dict
 
 @commands.build_data_patch_for_export.register(Context, DataType)
 def build_data_patch_for_export(
-    context: Context, dtype: DataType, *, given: Optional[object], access: Access
-) -> Union[dict, NotAvailable]:
+    context: Context, dtype: DataType, *, given: object | None, access: Access
+) -> dict | NotAvailable:
     if given is NA:
         given = dtype.default
     return given
@@ -222,8 +220,8 @@ def build_data_patch_for_export(
 
 @commands.build_data_patch_for_export.register(Context, Object)
 def build_data_patch_for_export(
-    context: Context, dtype: Object, *, given: Optional[dict], access: Access
-) -> Union[dict, NotAvailable]:
+    context: Context, dtype: Object, *, given: dict | None, access: Access
+) -> dict | NotAvailable:
     props = take(dtype.properties).values()
 
     props = [prop for prop in props if prop.access >= access]
@@ -240,8 +238,8 @@ def build_data_patch_for_export(
 
 @commands.build_data_patch_for_export.register(Context, Ref)
 def build_data_patch_for_export(
-    context: Context, dtype: Ref, *, given: Optional[dict], access: Access
-) -> Union[dict, NotAvailable]:
+    context: Context, dtype: Ref, *, given: dict | None, access: Access
+) -> dict | NotAvailable:
     if given is None:
         return given
 
@@ -261,8 +259,8 @@ def build_data_patch_for_export(
 
 @commands.build_data_patch_for_export.register(Context, ExternalRef)
 def build_data_patch_for_export(
-    context: Context, dtype: ExternalRef, *, given: Optional[dict], access: Access
-) -> Union[dict, NotAvailable]:
+    context: Context, dtype: ExternalRef, *, given: dict | None, access: Access
+) -> dict | NotAvailable:
     if given is None:
         return given
 
@@ -290,23 +288,23 @@ def build_data_patch_for_export(
 
 @commands.build_data_patch_for_export.register(Context, Inherit)
 def build_data_patch_for_export(
-    context: Context, dtype: Inherit, *, given: Optional[object], access: Access
-) -> Union[dict, NotAvailable]:
+    context: Context, dtype: Inherit, *, given: object | None, access: Access
+) -> dict | NotAvailable:
     # Needs to be implemented when it's possible to modify Inherit type
     return NA
 
 
 @commands.build_data_patch_for_export.register(Context, BackRef)
 def build_data_patch_for_export(
-    context: Context, dtype: BackRef, *, given: Optional[dict], access: Access
-) -> Union[dict, NotAvailable]:
+    context: Context, dtype: BackRef, *, given: dict | None, access: Access
+) -> dict | NotAvailable:
     return NA
 
 
 @commands.build_data_patch_for_export.register(Context, Array)
 def build_data_patch_for_export(
-    context: Context, dtype: Array, *, given: Optional[Union[list, NotAvailable]], access: Access
-) -> Union[list, None, NotAvailable]:
+    context: Context, dtype: Array, *, given: list | NotAvailable | None, access: Access
+) -> list | None | NotAvailable:
     if dtype.items.access < access:
         return NA
 
@@ -321,8 +319,8 @@ def build_data_patch_for_export(
 
 @commands.build_data_patch_for_export.register(Context, File)
 def build_data_patch_for_export(
-    context: Context, dtype: File, *, given: Optional[dict], access: Access
-) -> Union[dict, NotAvailable]:
+    context: Context, dtype: File, *, given: dict | None, access: Access
+) -> dict | NotAvailable:
     given = {
         "_id": given.get("_id", None) if given else None,
         "_content_type": given.get("_content_type", None) if given else None,

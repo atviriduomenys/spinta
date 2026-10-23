@@ -36,7 +36,7 @@ def test_copy_mmd(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -86,7 +86,7 @@ def test_copy_mmd_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_pat
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -136,7 +136,7 @@ def test_copy_mmd_array(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -188,7 +188,7 @@ def test_copy_mmd_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -247,7 +247,7 @@ def test_copy_mmd_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -306,7 +306,7 @@ def test_copy_mmd_ref_required(context: Context, rc, cli: SpintaCliRunner, tmp_p
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -366,7 +366,7 @@ def test_copy_mmd_backref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -427,7 +427,7 @@ def test_copy_mmd_backref_not_array(context: Context, rc, cli: SpintaCliRunner, 
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -488,7 +488,7 @@ def test_copy_mmd_backref_required(context: Context, rc, cli: SpintaCliRunner, t
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -548,7 +548,7 @@ def test_copy_mmd_base(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -605,7 +605,7 @@ def test_copy_mmd_base_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path)
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -665,7 +665,7 @@ def test_copy_with_two_datasets_and_main_specified(context: Context, rc, cli: Sp
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents

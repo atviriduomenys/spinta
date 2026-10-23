@@ -4,9 +4,10 @@ import os
 import re
 import sys
 import time as time_module
+from collections.abc import Iterator
 from itertools import chain, islice
 from traceback import format_stack
-from typing import Any, Dict, Iterator, TextIO, Type
+from typing import Any, TextIO
 from urllib.parse import parse_qs
 
 import objprint
@@ -52,7 +53,7 @@ def pp(
     obj: Any = na,
     *args,
     v: Any = na,
-    t: Type = na,
+    t: type = na,
     on: bool = True,  # print if on condition is true
     st: bool = False,
     tb: bool = False,
@@ -60,7 +61,7 @@ def pp(
     file: TextIO = sys.__stderr__,
     prefix: str = "\n",
     suffix: str = "",
-    kwargs: Dict[str, Any] = None,
+    kwargs: dict[str, Any] = None,
 ) -> Any:
     if obj is na:
         ret = None

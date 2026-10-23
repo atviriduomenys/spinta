@@ -1,6 +1,5 @@
 import asyncio
 import pathlib
-from typing import List, Optional
 
 from typer import Context as TyperContext
 from typer import Option
@@ -23,7 +22,7 @@ def _get_dataset_models(context: Context, manifest: Manifest, dataset: Dataset):
             yield model
 
 
-def _pull_models(context: Context, models: List[Model]):
+def _pull_models(context: Context, models: list[Model]):
     for model in models:
         external = model.external
         backend = external.resource.backend
@@ -34,7 +33,7 @@ def _pull_models(context: Context, models: List[Model]):
 def pull(
     ctx: TyperContext,
     dataset: str,
-    model: Optional[List[str]] = Option(None, "-m", "--model", help=("Pull only specified models.")),
+    model: list[str] | None = Option(None, "-m", "--model", help=("Pull only specified models.")),
     push: bool = Option(False, help="Write pulled data to database"),
     export: str = Option(
         None,

@@ -1,5 +1,3 @@
-from typing import List
-
 from spinta import commands
 from spinta.commands.write import push_stream
 from spinta.components import Context
@@ -14,7 +12,7 @@ async def sync(
     context: Context,
     manifest: BackendManifest,
     *,
-    sources: List[Manifest] = None,
+    sources: list[Manifest] = None,
 ):
     stream = read_sync_versions(context, manifest)
     stream = versions_to_dstream(context, manifest, stream)

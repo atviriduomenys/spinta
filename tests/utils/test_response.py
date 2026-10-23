@@ -266,7 +266,7 @@ def test_get_retry_connect_timeout_message(responses: RequestsMock, capsys: Capt
 
 def test_get_retry_io_error(responses: RequestsMock, capsys: CaptureFixture):
     server = "https://www.example.com"
-    responses.add(GET, server, body=IOError("IO Error"))
+    responses.add(GET, server, body=OSError("IO Error"))
 
     client = requests.Session()
     result = get_request_with_retries(client, server, timeout=(5, 300), retries=0, delay_range=tuple())

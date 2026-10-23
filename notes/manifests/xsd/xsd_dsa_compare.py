@@ -44,7 +44,7 @@ def compare_dsa_to_csv(directory, xsd_file_name, dsa_file_name):
     status = "correct"
     os.chdir(directory)
     try:
-        with open(dsa_file_name, "r") as dsa_file:
+        with open(dsa_file_name) as dsa_file:
             # with open(xsd_file_name, "r") as xsd_file:
             dsa_reader = csv.DictReader(dsa_file)
             dsa_sources = []

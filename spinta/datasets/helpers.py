@@ -1,5 +1,5 @@
 import base64
-from typing import Any, List, Optional, Set, Tuple
+from typing import Any
 
 import cbor2
 
@@ -29,7 +29,7 @@ INVALID_PREFIXES = ("/", "@", ":", "?")
 def load_resource_backend(
     context: Context,
     resource: Resource,
-    name: Optional[str],  # Backend name given in `ref` column.
+    name: str | None,  # Backend name given in `ref` column.
 ) -> Backend:
     if name:
         # If backend name is given, just use an exiting backend.
@@ -85,8 +85,8 @@ def get_enum_filters(
     context: Context,
     model: Model,
     fpr: ForeignProperty = None,
-) -> Optional[Expr]:
-    args: List[Expr] = []
+) -> Expr | None:
+    args: list[Expr] = []
     for prop in take(["_id", all], model.properties).values():
         if (enum := get_prop_enum(prop)) and authorized(context, prop, Action.GETALL):
             has_lower_access = any(item.access < prop.access for item in enum.values() if item.access is not None)
@@ -121,9 +121,9 @@ def get_enum_filters(
 
 def isexpr(
     obj: Any,
-    names: Set[str],
+    names: set[str],
     *,
-    nargs: Optional[int] = None,
+    nargs: int | None = None,
 ):
     return isinstance(obj, Expr) and obj.name in names and (nargs is None or len(obj.args) == nargs)
 
@@ -147,14 +147,14 @@ def get_ref_filters(
     model: Model,
     fpr: ForeignProperty = None,
     *,
-    seen: List[
-        Tuple[
+    seen: list[
+        tuple[
             str,  # absolute model name
             str,  # model property
         ]
     ] = None,
-) -> Optional[Expr]:
-    query: Optional[Expr] = None
+) -> Expr | None:
+    query: Expr | None = None
     if fpr:
         query = merge_formulas(
             query,

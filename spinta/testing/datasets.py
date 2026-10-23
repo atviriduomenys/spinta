@@ -2,13 +2,12 @@ import contextlib
 import json
 import os
 import tempfile
-from typing import Dict, List
 
 import sqlalchemy as sa
 
 from spinta.testing.cli import SpintaCliRunner
 
-Schema = Dict[str, List[sa.Column]]
+Schema = dict[str, list[sa.Column]]
 
 
 def pull(cli: SpintaCliRunner, rc, dataset, model=None, *, push=True):

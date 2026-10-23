@@ -1,4 +1,5 @@
-from typing import Any, Generator
+from collections.abc import Generator
+from typing import Any
 
 
 def prepare_keymap_values(value: Any) -> Any | list[Any]:
@@ -12,7 +13,7 @@ def _extract_items_from_source(source: Any) -> Generator[Any, None, None]:
     if isinstance(source, dict):
         for item in source.values():
             yield from _extract_items_from_source(item)
-    elif isinstance(source, (list, tuple, set)):
+    elif isinstance(source, list | tuple | set):
         for item in source:
             yield from _extract_items_from_source(item)
     else:

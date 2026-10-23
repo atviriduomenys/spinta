@@ -2,8 +2,8 @@ import csv
 import datetime
 import json
 import pathlib
+from collections.abc import AsyncIterator
 from functools import lru_cache
-from typing import AsyncIterator, List
 
 from multipledispatch import dispatch
 
@@ -83,7 +83,7 @@ def generate_csv_headers(context: Context, dtype: Array, backend: PostgreSQL):
     return ["_txn", "_rid", *[column.name for column in columns]]
 
 
-def split_data(data: dict) -> (dict, List[TableData]):
+def split_data(data: dict) -> (dict, list[TableData]):
     other_dict = {k: v for k, v in data.items() if not isinstance(v, TableData)}
     table_list = [v for v in data.values() if isinstance(v, TableData)]
     return other_dict, table_list

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from spinta.components import Model
 from spinta.core.ufuncs import Env, Expr, Unresolved
@@ -96,4 +96,4 @@ class ParamValues(Env):
 
 
 # Created by spinta.datasets.utils:iterparams() function.
-ResolvedParams = Dict[str, Any]
+ResolvedParams = dict[str, Any]

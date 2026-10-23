@@ -15,7 +15,7 @@ from collections import defaultdict
 from functools import cached_property
 from itertools import chain
 from threading import Lock
-from typing import Any, List, Literal, Set, Tuple, Type, TypedDict, Union
+from typing import Any, Literal, TypedDict
 
 import requests
 import ruamel.yaml
@@ -82,6 +82,8 @@ WORLD_READABLE_FILE = 0o644  # rw-r--r-- (owner read/write, others read)
 CLIENT_FILE_CACHE_SIZE_LIMIT = 1000
 KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
+# `credentials.cfg` section with the Catalog credentials; `default` is its old name.
+KATALOGAS_CREDENTIALS_SECTION = "katalogas"
 DEFAULT_CREDENTIALS_SECTION = "default"
 DEPRECATED_SCOPE_PREFIX = "spinta_"
 
@@ -91,7 +93,7 @@ DEPRECATED_SCOPE_PREFIX = "spinta_"
 ALLOWED_JWT_ALGORITHMS = ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"]
 
 # Scope types taken from authlib.oauth2.rfc6749.util.scope_to_list
-SCOPE_TYPE = Union[tuple, list, set, str, None]
+SCOPE_TYPE = tuple | list | set | str | None
 Kid = str  # key id
 
 
@@ -105,7 +107,7 @@ class JWK(TypedDict):
 
 
 class JWKS(TypedDict):
-    keys: List[JWK]
+    keys: list[JWK]
 
 
 class KeyType(enum.Enum):
@@ -204,7 +206,7 @@ class ResourceProtector(rfc6749.ResourceProtector):
     def __init__(
         self,
         context: Context,
-        Validator: Type[rfc6750.BearerTokenValidator],
+        Validator: type[rfc6750.BearerTokenValidator],
     ):
         super().__init__()
         self.register_token_validator(Validator(context))
@@ -322,8 +324,8 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         config = self._context.get("config")
         _require_auth_config(config)
         JWTClaimsRegistry(
-            iss={"essential": True, "value": config.token_issuer},
-            aud={"essential": True, "value": config.resource_server},
+            iss={"essential": True, "value": config.auth_server_id},
+            aud={"essential": True, "value": config.resource_server_id},
             client_id={"essential": True},
             exp={"essential": True},
             iat={"essential": True},
@@ -365,7 +367,7 @@ class Client(rfc6749.ClientMixin):
     id: str
     name: str
     secret_hash: str
-    scopes: Set[str]
+    scopes: set[str]
     backends: dict[str, dict[str, Any]]
     contract_scopes: dict[str, list[str]]
 
@@ -515,7 +517,7 @@ class Token(rfc6749.TokenMixin):
     def get_sub(self) -> str:  # User.
         return self._token.get("sub", "")
 
-    def get_aud(self) -> str:  # Resource server (audience).
+    def get_aud(self) -> str | list[str]:  # Resource server (audience).
         return self._token.get("aud", "")
 
     def get_jti(self) -> str:
@@ -802,7 +804,7 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True) -> R
     return import_key(key)
 
 
-def create_client_access_token(context: Context, client: Union[str, Client]):
+def create_client_access_token(context: Context, client: str | Client):
     private_key = load_key(context, KeyType.private)
     if isinstance(client, str):
         client = query_client(get_clients_path(context.get("config")), client)
@@ -823,10 +825,12 @@ class ClientCredentialsServerMetadata(AuthorizationServerMetadata):
 def get_authorization_server_metadata(context: Context) -> ClientCredentialsServerMetadata:
     config = context.get("config")
     _require_auth_config(config)
-    base = config.token_issuer.rstrip("/")
+    if not config.auth_server_url:
+        raise RequiredConfigParam(name="auth_server_url")
+    base = config.auth_server_url
     return ClientCredentialsServerMetadata(
         {
-            "issuer": config.token_issuer,
+            "issuer": config.auth_server_id,
             "token_endpoint": f"{base}/auth/token",
             "introspection_endpoint": f"{base}/auth/introspect",
             "jwks_uri": f"{base}/.well-known/jwks.json",
@@ -839,10 +843,10 @@ def get_authorization_server_metadata(context: Context) -> ClientCredentialsServ
 
 
 def _require_auth_config(config) -> None:
-    if not config.token_issuer:
-        raise RequiredConfigParam(name="token_issuer")
-    if not config.resource_server:
-        raise RequiredConfigParam(name="resource_server")
+    if not config.auth_server_id:
+        raise RequiredConfigParam(name="auth_server_id")
+    if not config.resource_server_id:
+        raise RequiredConfigParam(name="resource_server_id")
 
 
 def create_access_token(
@@ -850,7 +854,7 @@ def create_access_token(
     private_key,
     client: str,
     expires_in: int = None,
-    scopes: Set[str] = None,
+    scopes: set[str] = None,
 ):
     config = context.get("config")
     _require_auth_config(config)
@@ -868,9 +872,9 @@ def create_access_token(
     scopes = " ".join(sorted(scopes)) if scopes else ""
     jti = str(uuid.uuid4())
     payload = {
-        "iss": config.token_issuer,
+        "iss": config.auth_server_id,
         "sub": client,
-        "aud": config.resource_server,
+        "aud": [config.resource_server_id],
         "client_id": client,
         "iat": iat,
         "exp": exp,
@@ -888,7 +892,7 @@ def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
     return client_file
 
 
-def client_has_scope(context: Context, client: Client, scope: Union[Scopes, str]) -> bool:
+def client_has_scope(context: Context, client: Client, scope: Scopes | str) -> bool:
     scopes = {
         get_scope_name(context, None, scope, is_udts=False),
         get_scope_name(context, None, scope, is_udts=True),
@@ -897,7 +901,7 @@ def client_has_scope(context: Context, client: Client, scope: Union[Scopes, str]
     return bool(scopes & client.scopes)
 
 
-def check_scope(context: Context, scope: Union[Scopes, str]) -> bool:
+def check_scope(context: Context, scope: Scopes | str) -> bool:
     config = context.get("config")
     token = context.get("auth.token")
 
@@ -921,8 +925,8 @@ def has_scope(context: Context, scope: Scopes | str, raise_error: bool = True) -
 
 def get_scope_name(
     context: Context,
-    node: Union[Namespace, Model, Property, None],
-    action: Union[Action, Scopes],
+    node: Namespace | Model | Property | None,
+    action: Action | Scopes,
     is_udts: bool = False,
 ) -> str:
     config = context.get("config")
@@ -980,7 +984,7 @@ def get_clients_list(path: pathlib.Path) -> list:
 
 def authorized(
     context: Context,
-    node: Union[Namespace, Model, Property],
+    node: Namespace | Model | Property,
     action: Action,
     *,
     throw: bool = False,
@@ -1029,7 +1033,7 @@ def authorized(
 
     # Build scope names.
     scope_formatter = scope_formatter or config.scope_formatter
-    if not isinstance(action, (list, tuple)):
+    if not isinstance(action, list | tuple):
         action = [action]
     scopes = [
         scope_formatter(context, scope, act, is_udts) for act in action for scope in scopes for is_udts in [False, True]
@@ -1056,7 +1060,7 @@ def gen_auth_server_keys(
     *,
     overwrite: bool = False,
     exist_ok: bool = False,
-) -> Tuple[pathlib.Path, pathlib.Path]:
+) -> tuple[pathlib.Path, pathlib.Path]:
     path = path / "keys"
     path.mkdir(exist_ok=True)
     os.chmod(path, OWNER_READABLE_DIR)
@@ -1126,7 +1130,7 @@ def create_client_file(
     name: str,
     client_id: str,
     secret: str | None = None,
-    scopes: List[str] | None = None,
+    scopes: list[str] | None = None,
     backends: dict[str, dict[str, str]] | None = None,
     contract_scopes: dict[str, list[str]] | None = None,
     *,

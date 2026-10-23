@@ -1,6 +1,7 @@
 import datetime
 import functools
-from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Tuple, TypedDict
+from collections.abc import Iterator
+from typing import Any, NamedTuple, TypedDict
 
 import markdown
 import nh3
@@ -17,10 +18,10 @@ from spinta.types.datatype import File, Ref
 from spinta.utils.path import resource_filename
 from spinta.utils.url import build_url_path
 
-CurrentLocation = List[
-    Tuple[
+CurrentLocation = list[
+    tuple[
         str,  # Link title
-        Optional[str],  # Link URL
+        str | None,  # Link URL
     ]
 ]
 
@@ -77,7 +78,7 @@ def get_current_location(
     return loc
 
 
-def short_id(value: Optional[str]) -> Optional[str]:
+def short_id(value: str | None) -> str | None:
     if value is not None and isinstance(value, str):
         return value[:8]
     return value
@@ -86,12 +87,12 @@ def short_id(value: Optional[str]) -> Optional[str]:
 def get_cell(
     context: Context,
     prop: Property,
-    pk: Optional[str],
-    row: Dict[str, Any],
+    pk: str | None,
+    row: dict[str, Any],
     name: Any,
     *,
     shorten=False,
-    color: Optional[Color] = None,
+    color: Color | None = None,
 ) -> Cell:
     link = None
     model = None
@@ -134,7 +135,7 @@ def get_cell(
     return Cell(value, link, color)
 
 
-def get_ns_data(rows) -> Iterator[List[Cell]]:
+def get_ns_data(rows) -> Iterator[list[Cell]]:
     yield [
         Cell("title"),
         Cell("description"),
@@ -164,16 +165,16 @@ def get_ns_data(rows) -> Iterator[List[Cell]]:
 
 class _ParsedNode(TypedDict):
     name: str
-    args: List[Any]
+    args: list[Any]
 
 
 def get_model_link_params(
     model: Node,
     *,
-    pk: Optional[str] = None,
-    prop: Optional[str] = None,
+    pk: str | None = None,
+    prop: str | None = None,
     **extra,
-) -> List[_ParsedNode]:
+) -> list[_ParsedNode]:
     assert prop is None or (prop and pk), "If prop is given, pk must be given too."
 
     ptree = [
@@ -214,9 +215,9 @@ def _split_path(
     manifest: Manifest,
     base: str,
     orig_path: str,
-) -> List[PathInfo]:
+) -> list[PathInfo]:
     parts = orig_path.split("/") if orig_path else []
-    result: List[PathInfo] = []
+    result: list[PathInfo] = []
     last = len(parts)
     base = [base] if base else []
     for i, part in enumerate(parts, 1):
@@ -303,7 +304,7 @@ def create_templates(directory: str) -> Jinja2Templates:
     return templates
 
 
-@functools.lru_cache(maxsize=None)
+@functools.cache
 def get_templates() -> Jinja2Templates:
     """Shared Jinja2Templates instance for all HTML render sites."""
     return create_templates(str(resource_filename("spinta", "templates")))

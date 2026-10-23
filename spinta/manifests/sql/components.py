@@ -1,5 +1,3 @@
-from typing import Optional
-
 import sqlalchemy as sa
 
 from spinta.core.ufuncs import Expr
@@ -8,8 +6,8 @@ from spinta.manifests.components import Manifest
 
 class SqlManifest(Manifest):
     type = "sql"
-    path: Optional[str] = None
-    prepare: Optional[Expr] = None
+    path: str | None = None
+    prepare: Expr | None = None
 
     @staticmethod
     def detect_from_path(path: str) -> bool:

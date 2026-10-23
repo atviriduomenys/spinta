@@ -1,5 +1,4 @@
 import urllib.parse
-from typing import List
 
 from spinta import exceptions
 from spinta.backends.helpers import is_accessible_by_equals_sign
@@ -70,7 +69,7 @@ def apply_query_rules(rules, params):
     return params
 
 
-def parse_url_path(path) -> List[UrlParseNode]:
+def parse_url_path(path) -> list[UrlParseNode]:
     query = []
     name = None if path.startswith(":") else "path"
     args = []
@@ -103,7 +102,7 @@ def parse_url_path(path) -> List[UrlParseNode]:
     return query
 
 
-def build_url_path(query: List[UrlParseNode]):
+def build_url_path(query: list[UrlParseNode]):
     parts = []
     other = []
     for param in query:

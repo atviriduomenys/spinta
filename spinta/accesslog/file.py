@@ -1,7 +1,7 @@
 import json
 import pathlib
 import sys
-from typing import Any, Dict, TextIO, Union
+from typing import Any, TextIO
 
 from starlette.requests import Request
 
@@ -11,7 +11,7 @@ from spinta.components import Config, Context, Store
 
 
 class FileAccessLog(AccessLog):
-    file: Union[TextIO, pathlib.Path] = None
+    file: TextIO | pathlib.Path = None
 
     _file: TextIO = None
     _closed: bool = True
@@ -20,7 +20,7 @@ class FileAccessLog(AccessLog):
         if not self._closed:
             self._file.close()
 
-    def log(self, message: Dict[str, Any]) -> None:
+    def log(self, message: dict[str, Any]) -> None:
         if self._file is None:
             return
         message = json.dumps(message)
@@ -52,7 +52,7 @@ def load(context: Context, accesslog: FileAccessLog, config: Config):
 
 def _prepare_file(
     accesslog: AccessLog,
-    file: Union[TextIO, pathlib.Path, None],
+    file: TextIO | pathlib.Path | None,
 ) -> None:
     if isinstance(file, pathlib.Path):
         file = file.open("a")

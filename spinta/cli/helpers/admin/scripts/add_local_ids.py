@@ -1,6 +1,5 @@
 import pathlib
 from copy import copy
-from typing import List
 
 from click import echo
 
@@ -57,7 +56,7 @@ def add_explicit_id_properties(context: Context, manifest: str, verbose: bool = 
 
 def add_local_ids(
     context: Context,
-    manifests: List[str] | None = None,
+    manifests: list[str] | None = None,
     output_path: pathlib.Path | None = None,
     **kwargs,
 ) -> None:

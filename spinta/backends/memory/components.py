@@ -1,7 +1,6 @@
 import contextlib
 import datetime
 import uuid
-from typing import Dict
 
 from spinta.backends.components import Backend
 from spinta.backends.constants import BackendFeatures
@@ -17,9 +16,9 @@ class Memory(Backend):
         BackendFeatures.WRITE,
     }
 
-    data: Dict[
+    data: dict[
         str,  # table
-        Dict[
+        dict[
             str,  # id
             ObjectData,  # data
         ],

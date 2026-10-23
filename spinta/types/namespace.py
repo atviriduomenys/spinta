@@ -1,6 +1,7 @@
 import collections
 import uuid
-from typing import Any, Dict, Iterable, Iterator, List, Optional, TypedDict, overload
+from collections.abc import Iterable, Iterator
+from typing import Any, TypedDict, overload
 
 from starlette.requests import Request
 from starlette.responses import Response
@@ -36,8 +37,8 @@ def load_namespace_from_name(
     # Drop last element from path which is usually a model name.
     drop: bool = True,
 ) -> Namespace:
-    ns: Optional[Namespace] = None
-    parts: List[str] = []
+    ns: Namespace | None = None
+    parts: list[str] = []
     parts_ = [p for p in path.split("/") if p]
     if drop:
         parts_ = parts_[:-1]
@@ -66,7 +67,7 @@ def load_namespace_from_name(
 def load(
     context: Context,
     ns: Namespace,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     manifest: Manifest,
     *,
     source: Manifest = None,
@@ -140,9 +141,9 @@ def getall(
     context: Context,
     ns: Namespace,
     *,
-    action: Optional[Action] = None,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
+    action: Action | None = None,
+    dataset_: str | None = None,
+    resource: str | None = None,
     **kwargs,
 ):
     return _query_data(context, ns, action, dataset_, resource, **kwargs)
@@ -152,8 +153,8 @@ def _query_data(
     context: Context,
     ns: Namespace,
     action: Action,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
+    dataset_: str | None = None,
+    resource: str | None = None,
     **kwargs,
 ):
     models = commands.traverse_ns_models(
@@ -179,8 +180,8 @@ def _model_matches_params(
     context: Context,
     model: Model,
     action: Action,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
+    dataset_: str | None = None,
+    resource: str | None = None,
     internal: bool = False,
 ):
     if not internal and model.name.startswith("_"):
@@ -296,7 +297,7 @@ def _topological_sort(model: Model, visited: dict, stack: list, dependencies: di
     stack.append(model)
 
 
-def sort_models_by_ref_and_base(models: List[Model]):
+def sort_models_by_ref_and_base(models: list[Model]):
     dependencies = collections.defaultdict(list)
     for model in models:
         if model.base and commands.identifiable(model.base):

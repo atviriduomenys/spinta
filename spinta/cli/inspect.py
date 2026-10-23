@@ -1,5 +1,3 @@
-from typing import Optional, Tuple
-
 from typer import Argument, Option, echo
 from typer import Context as TyperContext
 
@@ -12,17 +10,17 @@ from spinta.manifests.tabular.helpers import render_tabular_manifest
 
 def inspect(
     ctx: TyperContext,
-    manifest: Optional[str] = Argument(None, help="Path to manifest."),
-    resource: Optional[Tuple[str, str]] = Option(
+    manifest: str | None = Argument(None, help="Path to manifest."),
+    resource: tuple[str, str] | None = Option(
         (None, None),
         "-r",
         "--resource",
         help=("Resource type and source URI (-r sql sqlite:////tmp/db.sqlite)"),
     ),
     formula: str = Option("", "-f", "--formula", help=("Formula if needed, to prepare resource for reading")),
-    backend: Optional[str] = Option(None, "-b", "--backend", help=("Backend connection string")),
-    output: Optional[str] = Option(None, "-o", "--output", help=("Output tabular manifest in a specified file")),
-    auth: Optional[str] = Option(None, "-a", "--auth", help=("Authorize as a client")),
+    backend: str | None = Option(None, "-b", "--backend", help=("Backend connection string")),
+    output: str | None = Option(None, "-o", "--output", help=("Output tabular manifest in a specified file")),
+    auth: str | None = Option(None, "-a", "--auth", help=("Authorize as a client")),
     priority: str = Option("manifest", "-p", "--priority", help=("Merge property priority ('manifest' or 'external')")),
 ):
     """Update manifest schema from an external data source"""

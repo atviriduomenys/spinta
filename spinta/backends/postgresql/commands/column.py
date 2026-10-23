@@ -1,5 +1,3 @@
-from typing import List
-
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -13,7 +11,7 @@ from spinta.types.datatype import Array, ArrayBackRef, BackRef, DataType, Extern
 from spinta.types.text.components import Text
 
 
-def convert_str_to_columns(table: sa.Table, prop: Property, columns: List[str]) -> List[sa.Column]:
+def convert_str_to_columns(table: sa.Table, prop: Property, columns: list[str]) -> list[sa.Column]:
     return_list = []
     for column in columns:
         return_list.append(convert_str_to_column(table, prop, column))
@@ -47,7 +45,7 @@ def get_column(backend: PostgreSQL, dtype: DataType, table: sa.Table = None, **k
         table = get_table(backend, prop)
     column_name = gcn(dtype.prop)
     column = convert_str_to_column(table, prop, column_name)
-    if isinstance(column.type, (sa.types.JSON, JSONB)) and dtype.prop.place != dtype.prop.name:
+    if isinstance(column.type, sa.types.JSON | JSONB) and dtype.prop.place != dtype.prop.name:
         return column[dtype.prop.name].label(dtype.prop.place)
     return column
 
@@ -80,7 +78,7 @@ def get_column(backend: PostgreSQL, dtype: String, table: sa.Table = None, **kwa
     if parent and isinstance(parent.dtype, Text):
         return column[dtype.prop.name].label(dtype.prop.place.replace("@", "."))
 
-    if isinstance(column.type, (sa.types.JSON, JSONB)) and dtype.prop.place != dtype.prop.name:
+    if isinstance(column.type, sa.types.JSON | JSONB) and dtype.prop.place != dtype.prop.name:
         return column[dtype.prop.name].label(dtype.prop.place)
     return column
 

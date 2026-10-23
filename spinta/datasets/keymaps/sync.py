@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import datetime
-from collections.abc import Generator
-from typing import Iterable, List
+from collections.abc import Generator, Iterable
 
 import tqdm
 
@@ -129,7 +128,7 @@ def process_keymap_data(
 
 
 def sync_model_insert(
-    model: Model, identifiable: bool, row: dict, primary_keys: List[Property], counters: dict, dry_run: bool
+    model: Model, identifiable: bool, row: dict, primary_keys: list[Property], counters: dict, dry_run: bool
 ):
     id_ = row["_id"]
     values = _extract_row_data_from_keys(row, primary_keys)
@@ -225,7 +224,7 @@ def sync_keymap(
     keymap: KeyMap,
     client,
     server: str,
-    models: List[Model],
+    models: list[Model],
     error_counter: ErrorCounter,
     no_progress_bar: bool,
     reset_cid: bool,
@@ -304,7 +303,7 @@ def sync_keymap(
             counters["_total"].close()
 
 
-def remap_decoded_values(decoded: object, properties: List[str]):
+def remap_decoded_values(decoded: object, properties: list[str]):
     mapped = {}
     if not isinstance(decoded, list):
         decoded = [decoded]
@@ -329,7 +328,7 @@ def keymaps_affected_by_change(row: dict, model: Model) -> dict:
     return keymaps
 
 
-def _extract_row_data_from_keys(row: dict, keys: List[Property]) -> dict:
+def _extract_row_data_from_keys(row: dict, keys: list[Property]) -> dict:
     result = {}
     for key in keys:
         if key.name in row:

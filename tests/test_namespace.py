@@ -1,6 +1,5 @@
 import hashlib
 from pathlib import Path
-from typing import Tuple
 
 import pytest
 
@@ -13,7 +12,7 @@ from spinta.types.namespace import sort_models_by_refs
 from spinta.utils.data import take
 
 
-def _create_data(app: TestClient, ns: str) -> Tuple[str, str]:
+def _create_data(app: TestClient, ns: str) -> tuple[str, str]:
     continent = ns + "/Continent"
     country = ns + "/Country"
     capital = ns + "/Capital"

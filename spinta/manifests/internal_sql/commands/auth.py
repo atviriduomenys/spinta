@@ -1,5 +1,3 @@
-from typing import List
-
 import sqlalchemy as sa
 
 from spinta import commands
@@ -53,7 +51,7 @@ def internal_authorized(
     name: str,
     access: Access,
     action: Action,
-    parents: List[str],
+    parents: list[str],
     *,
     throw: bool = False,
 ):
@@ -74,7 +72,7 @@ def internal_authorized(
     # Protected and higher level nodes can be accessed with parent nodes scopes.
     if access > Access.private:
         scopes.extend(parents)
-    if not isinstance(action, (list, tuple)):
+    if not isinstance(action, list | tuple):
         action = [action]
     scopes = [
         internal_scope_formatter(context, scope, act, is_udts)

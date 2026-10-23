@@ -1,11 +1,10 @@
 import pathlib
-from typing import Union
 
 from spinta.components import Config
 from spinta.core.config import DEFAULT_CONFIG_PATH, RawConfig
 
 
-def asbool(s: Union[str, bool]) -> bool:
+def asbool(s: str | bool) -> bool:
     if isinstance(s, bool):
         return s
     s = s.lower()
@@ -40,7 +39,7 @@ def get_keymap_path(path: pathlib.Path):
 
 
 # Returns clients folder, used for auth functionality.
-def get_clients_path(path: Union[Config, pathlib.Path]):
+def get_clients_path(path: Config | pathlib.Path):
     if isinstance(path, pathlib.Path):
         return path / "clients"
     return path.config_path / "clients"
