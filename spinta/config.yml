@@ -130,6 +130,18 @@ manifests:
         file:
           type: io
 
+datasets:
+  type: object
+  keys:
+    type: string
+  values:
+    type: object
+    items:
+      accrual_periodicity:
+        type: string
+      enable_retention_policy:
+        type: bool
+
 models:
   type: object
   keys:

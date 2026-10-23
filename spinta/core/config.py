@@ -259,8 +259,7 @@ class RawConfig:
             elif value is not None:
                 value = cast(value)
             else:
-                # XXX: why []?
-                value = default or []
+                value = default
 
         if required and value is None:
             name = ".".join(key)

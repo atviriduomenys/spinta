@@ -622,6 +622,7 @@ def test_changes_single_object(app: TestClient, mocker):
         "header": [
             "_cid",
             "_created",
+            "_compressed",
             "_op",
             "_id",
             "_txn",
@@ -635,6 +636,7 @@ def test_changes_single_object(app: TestClient, mocker):
             [
                 {"value": 1},
                 {"value": change[0]["_created"]},
+                {"value": "", "color": "#f5f5f5"},
                 {"value": "insert"},
                 {"value": obj.sid, "link": f"/{model}/{obj.id}"},
                 {"value": change[0]["_txn"]},
@@ -646,6 +648,7 @@ def test_changes_single_object(app: TestClient, mocker):
             [
                 {"value": 2},
                 {"value": change[1]["_created"]},
+                {"value": "", "color": "#f5f5f5"},
                 {"value": "patch"},
                 {"value": obj.sid, "link": f"/datasets/json/Rinkimai/{obj.id}"},
                 {"value": change[1]["_txn"]},
@@ -705,6 +708,7 @@ def test_changes_object_list(app, mocker):
         "header": [
             "_cid",
             "_created",
+            "_compressed",
             "_op",
             "_id",
             "_txn",
@@ -718,6 +722,7 @@ def test_changes_object_list(app, mocker):
             [
                 {"value": 1},
                 {"value": change[0]["_created"]},
+                {"value": "", "color": "#f5f5f5"},
                 {"value": "insert"},
                 {"link": f"/{model}/{obj.id}", "value": obj.sid},
                 {"value": change[0]["_txn"]},
@@ -729,6 +734,7 @@ def test_changes_object_list(app, mocker):
             [
                 {"value": 2},
                 {"value": change[1]["_created"]},
+                {"value": "", "color": "#f5f5f5"},
                 {"value": "patch"},
                 {"link": f"/{model}/{obj.id}", "value": obj.sid},
                 {"value": change[1]["_txn"]},

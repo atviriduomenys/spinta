@@ -197,6 +197,7 @@ def load_model_properties(
         "_txn": {"type": "string"},
         "_cid": {"type": "integer"},
         "_created": {"type": "datetime"},
+        "_compressed": {"type": "datetime"},
         "_where": {"type": "rql"},
         "_base": {"type": "inherit"},
         "_page": {"type": "page"},

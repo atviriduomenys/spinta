@@ -34,6 +34,7 @@ RESERVED_PROPERTY_NAMES = {
     "_type",
     "_txn",
     "_cid",
+    "_compressed",
     "_where",
     "_base",
     "_uri",
