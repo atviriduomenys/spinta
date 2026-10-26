@@ -5,7 +5,6 @@ import logging
 import textwrap
 from collections.abc import Callable
 from typing import Any
-from unittest.mock import Mock
 
 import pytest
 import requests
@@ -17,7 +16,7 @@ from responses import GET, POST, RequestsMock
 from spinta import commands
 from spinta.backends.components import Backend
 from spinta.cli.helpers.errors import ErrorCounter
-from spinta.cli.helpers.push.components import PUSH_STATE_DB, PushRow
+from spinta.cli.helpers.push.components import PUSH_STATE_DB, PushRow, PushState
 from spinta.cli.helpers.push.state import init_push_state, reset_pushed
 from spinta.cli.helpers.push.sync import _build_push_state_sync_url, _fetch_all_model_data
 from spinta.cli.helpers.push.write import (
@@ -28,7 +27,7 @@ from spinta.cli.helpers.push.write import (
     push,
     send_request,
 )
-from spinta.components import Config, Model
+from spinta.components import Config, Context, Model
 from spinta.core.config import RawConfig
 from spinta.core.context import load_commands
 from spinta.manifests.tabular.helpers import striptable
@@ -345,17 +344,28 @@ def test_prepare_rows_with_errors_handles_ignored_404(responses: RequestsMock):
     model.name = "example/City"
     server = "https://example.com"
     responses.add(GET, f"{server}/{model.name}/id", body="Not found", status=404)
-    table = sa.Table(
-        "City", sa.MetaData(), sa.Column("id", sa.Text), sa.Column("checksum", sa.Text), sa.Column("data", sa.Text)
-    )
-    saved = {table.c.id: "id", table.c.checksum: "checksum", table.c.data: '{"_id": "id", "name": "Vilnius"}'}
     error_counter = ErrorCounter(max_count=10)
 
-    rows = list(
-        prepare_rows_with_errors(
-            requests.Session(), server, Mock(), [saved], model, table, (5, 300), error_counter=error_counter
+    with PushState("sqlite://") as push_state:
+        table = push_state.db.get_table(model.name, model=model)
+        push_state.db.conn.execute(
+            table.insert().values(id="id", checksum="checksum", data='{"_id": "id", "name": "Vilnius"}')
         )
-    )
+        saved = push_state.db.conn.execute(table.select()).fetchone()
+        rows = list(
+            prepare_rows_with_errors(
+                requests.Session(),
+                server,
+                Context("push"),
+                [saved],
+                model,
+                table,
+                (5, 300),
+                push_state=push_state,
+                error_counter=error_counter,
+            )
+        )
+        assert push_state.db.conn.execute(table.select()).fetchall() == [saved]
 
     assert len(rows) == 1
     assert rows[0].op == "insert"
@@ -1027,11 +1037,10 @@ def test_push_delete_with_dependent_objects(
     resp = remote.app.get("/datasets/gov/delete_test/City")
     assert len(listdata(resp)) == 3
 
-    conn = geodb.engine.connect()
-
-    conn.execute(geodb.tables["salis"].delete().where(geodb.tables["salis"].c.id == 2))
-    conn.execute(geodb.tables["miestas"].delete().where(geodb.tables["miestas"].c.id == 2))
-    conn.execute(geodb.tables["miestas"].delete().where(geodb.tables["miestas"].c.id == 1))
+    with geodb.engine.begin() as conn:
+        conn.execute(geodb.tables["salis"].delete().where(geodb.tables["salis"].c.id == 2))
+        conn.execute(geodb.tables["miestas"].delete().where(geodb.tables["miestas"].c.id == 2))
+        conn.execute(geodb.tables["miestas"].delete().where(geodb.tables["miestas"].c.id == 1))
     result = cli.invoke(
         localrc,
         [
