@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import ANY
 
 import pytest
-from responses import POST, RequestsMock
+from responses import GET, POST, RequestsMock
 
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
@@ -1887,4 +1887,55 @@ def test_composite_ref_four_levels_composite_2_level(rc: RawConfig, tmp_path: Pa
                 "country": {"code": "PL", "region": {"code": "REG002", "name": "Warsaw Region"}},
             },
         },
+    ]
+
+
+def test_xml_read_with_extra_http_header(rc: RawConfig, responses: RequestsMock):
+    """Test that header() function works with dask/xml backend."""
+    endpoint_url = "http://example.com/data"
+    xml_response = """
+        <cities>
+            <city>
+                <id>1</id>
+                <name>Vilnius</name>
+            </city>
+            <city>
+                <id>2</id>
+                <name>Kaunas</name>
+            </city>
+        </cities>
+    """
+
+    def request_callback(request):
+        # Verify that the custom header was sent
+        assert request.headers.get("X-API-Key") == "secret_key"
+        assert request.headers.get("X-Client-ID") == "client42"
+        return (200, [], xml_response)
+
+    responses.add_callback(GET, endpoint_url, callback=request_callback)
+
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type     | ref  | source             | access | prepare
+        example                  | dataset  |      |                    |        |
+          | resource             | dask/xml |      | {endpoint_url}     |        |
+          |   |   |              | param    | key  | X-API-Key          |        | header("secret_key")
+          |   |   |              | param    | cid  | X-Client-ID        |        | header("client42")
+          |   |   | City         |          | id   | /cities/city       | open   |
+          |   |   |   | id       | integer  |      | id                 |        |
+          |   |   |   | name     | string   |      | name               |        |
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/City", ["getall"])
+
+    resp = app.get("/example/City/")
+    assert resp.status_code == 200
+    assert listdata(resp, sort=False) == [
+        (1, "Vilnius"),
+        (2, "Kaunas"),
     ]

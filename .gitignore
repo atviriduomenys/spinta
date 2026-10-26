@@ -14,16 +14,14 @@
 /var/
 /.idea/
 ruff.toml
-config.yml
-manifest.*
+/config.yml
+/manifest.*
 
 # pyenv
 .python-version
 /keymaps.db
 /.vscode/
 /reports/
-/config.yml
-/manifest.csv
 /test/
 
 # Script input/output directories & files

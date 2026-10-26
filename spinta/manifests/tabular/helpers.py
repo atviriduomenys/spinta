@@ -6,22 +6,14 @@ import pathlib
 import textwrap
 import types
 import uuid
+from collections.abc import Callable, Iterable, Iterator
 from itertools import zip_longest
 from operator import itemgetter
 from typing import (
     IO,
     Any,
-    Callable,
-    Dict,
-    Iterable,
-    Iterator,
-    List,
     NamedTuple,
-    Optional,
-    Set,
-    Tuple,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -96,7 +88,7 @@ from spinta.utils.schema import NA, NotAvailable
 
 log = logging.getLogger(__name__)
 
-ParsedRow = Tuple[int, Dict[str, Any]]
+ParsedRow = tuple[int, dict[str, Any]]
 
 MAIN_DIMENSIONS = [
     "dataset",
@@ -139,10 +131,10 @@ class TabularManifestError(Exception):
 
 
 def _detect_header(
-    path: Optional[str],
+    path: str | None,
     line: int,  # Line number
     row: Iterable[str],
-) -> List[str]:
+) -> list[str]:
     header = [h.strip().lower() for h in row]
     unknown_columns = set(header[: len(DATASET)]) - set(DATASET)
     if unknown_columns:
@@ -152,10 +144,10 @@ def _detect_header(
 
 
 def _detect_dimension(
-    path: Optional[pathlib.Path],
+    path: pathlib.Path | None,
     line: str,  # Line number with a prefix (depends on manifest format)
-    row: Dict[str, str],
-) -> Optional[str]:
+    row: dict[str, str],
+) -> str | None:
     dimensions = [k for k in MAIN_DIMENSIONS if row[k]]
 
     if len(dimensions) == 1:
@@ -178,7 +170,7 @@ def _detect_dimension(
 def _parse_spyna(
     reader: TabularReader,
     formula: str,
-) -> Union[SpynaAST, NotAvailable, None]:
+) -> SpynaAST | NotAvailable | None:
     if formula:
         try:
             return spyna.parse(formula)
@@ -194,7 +186,7 @@ class TabularReader:
     type: str
     name: str
     data: ManifestRow  # Used when `appendable` is False
-    rows: List[Dict[str, Any]]  # Used when `appendable` is True
+    rows: list[dict[str, Any]]  # Used when `appendable` is True
     appendable: bool = False  # Tells if reader is appendable.
     allow_updates: bool = False  # Tells if manifest supports structure updates
 
@@ -209,10 +201,10 @@ class TabularReader:
     def __str__(self):
         return f"<{type(self).__name__} name={self.name!r}>"
 
-    def read(self, row: Dict[str, str]) -> None:
+    def read(self, row: dict[str, str]) -> None:
         raise NotImplementedError
 
-    def append(self, row: Dict[str, str]) -> None:
+    def append(self, row: dict[str, str]) -> None:
         if not self.allow_updates:
             if any(row.values()):
                 self.error(f"Updates are not supported in context of {self.type!r}.")
@@ -239,8 +231,8 @@ class TabularReader:
 
 class ManifestReader(TabularReader):
     type: str = "manifest"
-    datasets: Set[str]
-    namespaces: Set[str]
+    datasets: set[str]
+    namespaces: set[str]
     data: ManifestTableRow
 
     def read(self, row: ManifestRow) -> None:
@@ -265,7 +257,7 @@ class DatasetReader(TabularReader):
     type: str = "dataset"
     data: DatasetRow
 
-    def read(self, row: Dict[str, str]) -> None:
+    def read(self, row: dict[str, str]) -> None:
         self.name = row["dataset"]
         dataset_type = row["type"]
 
@@ -300,12 +292,9 @@ class DatasetReader(TabularReader):
             reader is None
             or isinstance(
                 reader,
-                (
-                    ManifestReader,
-                    DatasetReader,
-                ),
+                ManifestReader | DatasetReader,
             )
-            or (isinstance(reader, (ResourceReader, ModelReader)) and self.name == "/")
+            or (isinstance(reader, ResourceReader | ModelReader) and self.name == "/")
         )
 
     def enter(self) -> None:
@@ -317,9 +306,9 @@ class DatasetReader(TabularReader):
 
 class ResourceReader(TabularReader):
     type: str = "resource"
-    data: Union[BackendRow, ResourceRow]
+    data: BackendRow | ResourceRow
 
-    def read(self, row: Dict[str, str]) -> None:
+    def read(self, row: dict[str, str]) -> None:
         self.name = row["resource"]
 
         if self.name == "/":
@@ -330,7 +319,7 @@ class ResourceReader(TabularReader):
             else:
                 self.read_resource(row)
 
-    def read_backend(self, row: Dict[str, str]) -> None:
+    def read_backend(self, row: dict[str, str]) -> None:
         # Backends will be loaded using
         # `spinta.manifests.helpers._load_manifest_backends`.
 
@@ -352,7 +341,7 @@ class ResourceReader(TabularReader):
 
         backends[self.name] = self.data
 
-    def read_resource(self, row: Dict[str, str]) -> None:
+    def read_resource(self, row: dict[str, str]) -> None:
         dataset = _get_state_obj(self.state.dataset)
         dataset = dataset.data if dataset else None
 
@@ -380,7 +369,7 @@ class ResourceReader(TabularReader):
             return True
         return (
             reader is None
-            or isinstance(reader, (ManifestReader, DatasetReader, ResourceReader, EnumReader, PrefixReader))
+            or isinstance(reader, ManifestReader | DatasetReader | ResourceReader | EnumReader | PrefixReader)
             or (isinstance(reader, ModelReader) and self.name == "/")
         )
 
@@ -395,7 +384,7 @@ class BaseReader(TabularReader):
     type: str = "base"
     data: BaseRow
 
-    def read(self, row: Dict[str, str]) -> None:
+    def read(self, row: dict[str, str]) -> None:
         self.name = row["base"]
 
         if self.name == "/":
@@ -417,12 +406,7 @@ class BaseReader(TabularReader):
             reader is None
             or isinstance(
                 reader,
-                (
-                    ManifestReader,
-                    DatasetReader,
-                    ResourceReader,
-                    BaseReader,
-                ),
+                ManifestReader | DatasetReader | ResourceReader | BaseReader,
             )
             or (isinstance(reader, ModelReader) and self.name == "/")
         )
@@ -438,7 +422,7 @@ class ModelReader(TabularReader):
     type: str = "model"
     data: ModelRow
 
-    def read(self, row: Dict[str, str]) -> None:
+    def read(self, row: dict[str, str]) -> None:
         dataset = _get_state_obj(self.state.dataset)
         resource = _get_state_obj(self.state.resource)
         base = _get_state_obj(self.state.base)
@@ -507,13 +491,7 @@ class ModelReader(TabularReader):
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(
             reader,
-            (
-                ManifestReader,
-                DatasetReader,
-                ResourceReader,
-                BaseReader,
-                ModelReader,
-            ),
+            ManifestReader | DatasetReader | ResourceReader | BaseReader | ModelReader,
         )
 
     def enter(self) -> None:
@@ -524,7 +502,7 @@ class ModelReader(TabularReader):
         self.state.model = None
 
 
-def _parse_property_ref(ref: str) -> Tuple[str, List[str]]:
+def _parse_property_ref(ref: str) -> tuple[str, list[str]]:
     if "[" in ref:
         ref = ref.rstrip("]")
         ref_model, ref_props = ref.split("[", 1)
@@ -589,7 +567,9 @@ def _get_type_repr(dtype: DataType | str | None) -> str:
             args = ", ".join(dtype.type_args)
             args = f"({args})"
         dtype_name = (
-            dtype.name if not isinstance(dtype, (Denorm, Inherit, ExternalRef, ArrayBackRef)) else dtype.get_type_repr()
+            dtype.name
+            if not isinstance(dtype, Denorm | Inherit | ExternalRef | ArrayBackRef)
+            else dtype.get_type_repr()
         )
         return f"{dtype_name}{args}{required}{unique}"
     else:
@@ -650,9 +630,9 @@ def combine_source_prepare(source, prepare):
 class PropertyReader(TabularReader):
     type: str = "property"
     data: PropertyRow
-    enums: Set[str]
+    enums: set[str]
 
-    def read(self, row: Dict[str, str]) -> None:
+    def read(self, row: dict[str, str]) -> None:
         # Parse the data type once, here at the boundary, and pass the parsed
         # result inward. Downstream code must not re-parse `row["type"]` or
         # compare against the raw string: modifiers (`required`, `unique`) and
@@ -679,7 +659,7 @@ class PropertyReader(TabularReader):
         self.name = prop_name
         self.state.model.data["properties"][prop_name] = complete_structure
 
-    def append(self, row: Dict[str, str]) -> None:
+    def append(self, row: dict[str, str]) -> None:
         if not row["property"]:
             result = combine_source_prepare(row["source"], row["prepare"])
             if not result:
@@ -689,7 +669,7 @@ class PropertyReader(TabularReader):
     def release(self, reader: TabularReader = None) -> bool:
         return reader is None or isinstance(
             reader,
-            (ManifestReader, DatasetReader, ResourceReader, BaseReader, ModelReader, PropertyReader, UniqueReader),
+            ManifestReader | DatasetReader | ResourceReader | BaseReader | ModelReader | PropertyReader | UniqueReader,
         )
 
     def enter(self) -> None:
@@ -710,7 +690,7 @@ class PropertyReader(TabularReader):
                 if external_name := self.data.get("external", {}).get("name"):
                     raise SourceOrPrepareNotAllowed(source=external_name)
 
-    def _append_prepare(self, row: Dict[str, str], prepare: str):
+    def _append_prepare(self, row: dict[str, str], prepare: str):
         if "prepare" in self.data:
             prep = self.data["prepare"]
             self.data["prepare"] = f"{prep}.{prepare}" if prep else prepare
@@ -1300,7 +1280,7 @@ class PrefixReader(TabularReader):
     type: str = "prefix"
     data: PrefixRow
 
-    def read(self, row: Dict[str, str]) -> None:
+    def read(self, row: dict[str, str]) -> None:
         if not row["ref"]:
             # `ref` is a required parameter.
             return
@@ -1338,7 +1318,7 @@ class PrefixReader(TabularReader):
 
         prefixes[self.name] = self.data
 
-    def append(self, row: Dict[str, str]) -> None:
+    def append(self, row: dict[str, str]) -> None:
         self.read(row)
 
     def release(self, reader: TabularReader = None) -> bool:
@@ -1355,7 +1335,7 @@ class NamespaceReader(TabularReader):
     type: str = "ns"
     appendable: bool = True
 
-    def read(self, row: Dict[str, str]) -> None:
+    def read(self, row: dict[str, str]) -> None:
         if not row["dataset"]:
             self.error('Namespace does not have a name (specified in "dataset" column)')
 
@@ -1369,7 +1349,7 @@ class NamespaceReader(TabularReader):
         manifest.namespaces.add(self.name)
         self.rows.append(get_namespace_data(row, self.type, self.name))
 
-    def append(self, row: Dict[str, str]) -> None:
+    def append(self, row: dict[str, str]) -> None:
         self.read(row)
 
     def release(self, reader: TabularReader = None) -> bool:
@@ -1417,7 +1397,7 @@ class ParamReader(TabularReader):
             "description": row[DESCRIPTION],
         }
 
-    def _get_and_append_data(self, old: Dict, row: ManifestRow):
+    def _get_and_append_data(self, old: dict, row: ManifestRow):
         source = row[SOURCE]
         prepare = row[PREPARE]
         if source or prepare:
@@ -1459,7 +1439,7 @@ class ParamReader(TabularReader):
             self._get_and_append_data(params[self.name], row)
 
     def release(self, reader: TabularReader = None) -> bool:
-        return not isinstance(reader, (AppendReader, LangReader))
+        return not isinstance(reader, AppendReader | LangReader)
 
     def enter(self) -> None:
         pass
@@ -1538,7 +1518,7 @@ class EnumReader(TabularReader):
         self.read(row)
 
     def release(self, reader: TabularReader = None) -> bool:
-        return not isinstance(reader, (AppendReader, LangReader))
+        return not isinstance(reader, AppendReader | LangReader)
 
     def enter(self) -> None:
         pass
@@ -1564,7 +1544,7 @@ class LangReader(TabularReader):
     def read(self, row: ManifestRow) -> None:
         reader = self.state.stack[-1]
         if not isinstance(
-            reader, (DatasetReader, ResourceReader, BaseReader, ModelReader, PropertyReader, EnumReader, LangReader)
+            reader, DatasetReader | ResourceReader | BaseReader | ModelReader | PropertyReader | EnumReader | LangReader
         ):
             self.error(f"Language metadata is not supported on {reader.type}.")
             return
@@ -1610,7 +1590,7 @@ class UniqueReader(TabularReader):
         self.name = row[REF]
         reader = self.state.stack[-1]
 
-        if not isinstance(reader, (ModelReader, UniqueReader, AppendReader)):
+        if not isinstance(reader, ModelReader | UniqueReader | AppendReader):
             self.error(f"Unique reader is not supported for {reader.type}.")
             return
 
@@ -1757,11 +1737,11 @@ READERS = {
 
 
 class State:
-    stack: List[TabularReader]
+    stack: list[TabularReader]
 
-    backends: Dict[str, Dict[str, str]] = None
+    backends: dict[str, dict[str, str]] = None
 
-    models: Set[str]
+    models: set[str]
 
     manifest: ManifestReader = None
     dataset: DatasetReader = None
@@ -1782,12 +1762,7 @@ class State:
                 if (
                     isinstance(
                         parent,
-                        (
-                            ManifestReader,
-                            NamespaceReader,
-                            DatasetReader,
-                            ModelReader,
-                        ),
+                        ManifestReader | NamespaceReader | DatasetReader | ModelReader,
                     )
                     and parent.name != "/"
                 ):
@@ -1803,8 +1778,8 @@ class State:
 
 
 def _read_tabular_manifest_rows(
-    path: Optional[str],
-    rows: Iterator[Tuple[str, List[str]]],
+    path: str | None,
+    rows: Iterator[tuple[str, list[str]]],
     *,
     rename_duplicates: bool = True,
     allow_updates: bool = False,
@@ -1837,10 +1812,10 @@ def _read_tabular_manifest_rows(
 
 
 def _check_row_size(
-    path: Optional[str],
+    path: str | None,
     line: int,
-    header: List[str],
-    row: List[str],
+    header: list[str],
+    row: list[str],
 ):
     if len(header) != len(row):
         header = ["header", "row"]
@@ -1887,7 +1862,7 @@ def read_tabular_manifest(
 def _read_txt_manifest(
     path: str,
     file: IO[str] = None,
-) -> Iterator[Tuple[str, List[str]]]:
+) -> Iterator[tuple[str, list[str]]]:
     if file:
         yield from _read_ascii_tabular_manifest(file)
     else:
@@ -1898,7 +1873,7 @@ def _read_txt_manifest(
 def _read_csv_manifest(
     path: str,
     file: IO[str] = None,
-) -> Iterator[Tuple[str, List[str]]]:
+) -> Iterator[tuple[str, list[str]]]:
     if file:
         rows = csv.reader(file)
         for i, row in enumerate(rows, 1):
@@ -1924,7 +1899,7 @@ def _empty_rows_counter():
     return _counter
 
 
-def _read_xlsx_manifest(path: str) -> Iterator[Tuple[str, List[str]]]:
+def _read_xlsx_manifest(path: str) -> Iterator[tuple[str, list[str]]]:
     wb = openpyxl.load_workbook(path)
 
     yield "1", DATASET
@@ -1951,7 +1926,7 @@ def striptable(table):
     return textwrap.dedent(table).strip()
 
 
-def _join_escapes(row: List[str]) -> List[str]:
+def _join_escapes(row: list[str]) -> list[str]:
     res = []
     for v in row:
         if res and res[-1] and res[-1].endswith("\\"):
@@ -1965,7 +1940,7 @@ def _read_ascii_tabular_manifest(
     lines: Iterable[str],
     *,
     check_column_names: bool = True,
-) -> Iterator[Tuple[str, List[str]]]:
+) -> Iterator[tuple[str, list[str]]]:
     lines = (line.strip() for line in lines)
     lines = filter(None, lines)
 
@@ -1996,7 +1971,7 @@ def read_ascii_tabular_rows(
     *,
     strip: bool = False,
     check_column_names: bool = True,
-) -> Iterator[List[str]]:
+) -> Iterator[list[str]]:
     if strip:
         manifest = striptable(manifest)
     rows = _read_ascii_tabular_manifest(
@@ -2091,7 +2066,7 @@ def referenced_model_name(
     refprops: list[Property],
     explicit: bool = False,
     explicit_only: bool = False,
-    relative_model_name: Optional[str] = None,
+    relative_model_name: str | None = None,
 ) -> str:
     model_name = relative_model_name
     if model_name is None:
@@ -2119,7 +2094,7 @@ def tabular_eid(model: Model):
 
 
 class OrderBy(NamedTuple):
-    func: Callable[[Union[Dataset, Model, Property, EnumItem]], Any]
+    func: Callable[[Dataset | Model | Property | EnumItem], Any]
     reverse: bool = False
 
 
@@ -2159,11 +2134,11 @@ T = TypeVar("T", Dataset, Model, Property, EnumItem)
 
 
 def sort(
-    ordering: Dict[str, OrderBy],
+    ordering: dict[str, OrderBy],
     items: Iterable[T],
-    order_by: Optional[str],
+    order_by: str | None,
 ) -> Iterable[T]:
-    order: Optional[OrderBy] = None
+    order: OrderBy | None = None
 
     if order_by:
         order = ordering[order_by]
@@ -2181,7 +2156,7 @@ def _end_marker(name):
 
 
 def _prefixes_to_tabular(
-    prefixes: Dict[str, UriPrefix],
+    prefixes: dict[str, UriPrefix],
     *,
     separator: bool = False,
 ) -> Iterator[ManifestRow]:
@@ -2205,7 +2180,7 @@ def _prefixes_to_tabular(
 
 
 def _backends_to_tabular(
-    backends: Dict[str, Backend],
+    backends: dict[str, Backend],
     *,
     separator: bool = False,
 ) -> Iterator[ManifestRow]:
@@ -2225,7 +2200,7 @@ def _backends_to_tabular(
 
 
 def _namespaces_to_tabular(
-    namespaces: Dict[str, Namespace],
+    namespaces: dict[str, Namespace],
     *,
     separator: bool = False,
 ) -> Iterator[ManifestRow]:
@@ -2256,7 +2231,7 @@ ENUMS_ORDER_BY = {
 
 
 def _enums_to_tabular(
-    enums: Optional[Enums],
+    enums: Enums | None,
     *,
     external: bool = True,
     access: Access = Access.private,
@@ -2300,7 +2275,7 @@ def _enums_to_tabular(
 
 
 def _lang_to_tabular(
-    lang: Optional[LangData],
+    lang: LangData | None,
 ) -> Iterator[ManifestRow]:
     if lang is None:
         return
@@ -2336,7 +2311,7 @@ def _text_to_tabular(prop):
 
 
 def _comments_to_tabular(
-    comments: Optional[List[Comment]],
+    comments: list[Comment] | None,
     *,
     access: Access = Access.private,
 ) -> Iterator[ManifestRow]:
@@ -2364,7 +2339,7 @@ def _comments_to_tabular(
         first = False
 
 
-def _unique_to_tabular(model_unique_data, hide_list: List) -> Iterator[ManifestRow]:
+def _unique_to_tabular(model_unique_data, hide_list: list) -> Iterator[ManifestRow]:
     if not model_unique_data:
         return
     for row in model_unique_data:
@@ -2372,7 +2347,7 @@ def _unique_to_tabular(model_unique_data, hide_list: List) -> Iterator[ManifestR
             yield torow(DATASET, {"type": "unique", "ref": ", ".join([r.name for r in row])})
 
 
-def _params_to_tabular(params: List[Param]) -> Iterator[ManifestRow]:
+def _params_to_tabular(params: list[Param]) -> Iterator[ManifestRow]:
     if not params:
         return
     for param in params:
@@ -2599,7 +2574,7 @@ def _prepare_to_tabular(data, prop):
     return data, prep_rows
 
 
-def _scopes_to_tabular(scopes: Dict[str, Scope]) -> Iterator[ManifestRow] | None:
+def _scopes_to_tabular(scopes: dict[str, Scope]) -> Iterator[ManifestRow] | None:
     if not scopes:
         return
     for scope in scopes.values():
@@ -2810,9 +2785,9 @@ def torow(keys, values) -> ManifestRow:
 def render_tabular_manifest(
     context: Context,
     manifest: Manifest,
-    cols: List[ManifestColumn] = None,
+    cols: list[ManifestColumn] = None,
     *,
-    sizes: Dict[ManifestColumn, int] = None,
+    sizes: dict[ManifestColumn, int] = None,
 ) -> str:
     rows = datasets_to_tabular(context, manifest)
     return render_tabular_manifest_rows(rows, cols, sizes=sizes)
@@ -2820,9 +2795,9 @@ def render_tabular_manifest(
 
 def render_tabular_manifest_rows(
     rows: Iterable[ManifestRow],
-    cols: List[ManifestColumn] = None,
+    cols: list[ManifestColumn] = None,
     *,
-    sizes: Dict[ManifestColumn, int] = None,
+    sizes: dict[ManifestColumn, int] = None,
 ) -> str:
     cols = cols or MANIFEST_COLUMNS
     hs = 1 if ID in cols else 0  # hierarchical cols start
@@ -2898,13 +2873,13 @@ SHORT_NAMES = {
 
 
 def normalizes_columns(
-    cols: List[str],
+    cols: list[str],
     *,
     check_column_names: bool = True,
-) -> List[ManifestColumn]:
-    result: List[ManifestColumn] = []
-    unknown: List[str] = []
-    invalid: List[str] = []
+) -> list[ManifestColumn]:
+    result: list[ManifestColumn] = []
+    unknown: list[str] = []
+    invalid: list[str] = []
     for col in cols:
         col = col or ""
         col = col.strip().lower()
@@ -2929,12 +2904,8 @@ def normalizes_columns(
 def write_tabular_manifest(
     context: Context,
     path: str,
-    rows: Union[
-        Manifest,
-        Iterable[ManifestRow],
-        None,
-    ] = None,
-    cols: List[ManifestColumn] = None,
+    rows: Manifest | Iterable[ManifestRow] | None = None,
+    cols: list[ManifestColumn] = None,
 ) -> None:
     cols = cols or DATASET
 
@@ -2955,9 +2926,9 @@ def write_tabular_manifest(
 def write_csv(
     path: pathlib.Path,
     rows: Iterator[ManifestRow],
-    cols: List[ManifestColumn],
+    cols: list[ManifestColumn],
 ) -> None:
-    with path.open("w") as f:
+    with path.open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=cols)
         writer.writeheader()
         writer.writerows(rows)
@@ -2966,7 +2937,7 @@ def write_csv(
 def write_xlsx(
     path: Any,
     rows: Iterator[ManifestRow],
-    cols: List[ManifestColumn],
+    cols: list[ManifestColumn],
 ) -> None:
     workbook = xlsxwriter.Workbook(
         path,
@@ -3090,7 +3061,7 @@ def write_xlsx(
     workbook.close()
 
 
-def _get_state_obj(reader: TabularReader) -> Optional[TabularReader]:
+def _get_state_obj(reader: TabularReader) -> TabularReader | None:
     if reader is None or reader.name == "/":
         return None
     else:

@@ -1,4 +1,5 @@
-from typing import AsyncIterator, Awaitable, Callable, Generic, Iterable, List, Optional, Tuple, TypeVar
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable
+from typing import Generic, TypeVar
 
 T = TypeVar("T")  # iterator item type
 K = TypeVar("K")  # type of a group by item
@@ -17,7 +18,7 @@ class agroupby(Generic[T, K]):
     def __init__(
         self,
         iterable: AsyncIterator[T],
-        key: Optional[Callable[[T], K]] = None,
+        key: Callable[[T], K] | None = None,
     ) -> None:
         if key is None:
             key = lambda x: x  # noqa
@@ -25,10 +26,10 @@ class agroupby(Generic[T, K]):
         self.it = iterable
         self.tgtkey = self.currkey = self.currvalue = object()
 
-    def __aiter__(self) -> AsyncIterator[Tuple[K, AsyncIterator[T]]]:
+    def __aiter__(self) -> AsyncIterator[tuple[K, AsyncIterator[T]]]:
         return self
 
-    async def __anext__(self) -> Awaitable[Tuple[K, AsyncIterator[T]]]:
+    async def __anext__(self) -> Awaitable[tuple[K, AsyncIterator[T]]]:
         self.id = object()
         while self.currkey == self.tgtkey:
             self.currvalue = await self.it.__anext__()  # Exit on AsyncStopIteration
@@ -46,7 +47,7 @@ class agroupby(Generic[T, K]):
             self.currkey = self.keyfunc(self.currvalue)
 
 
-async def alist(it: AsyncIterator[T]) -> List[T]:
+async def alist(it: AsyncIterator[T]) -> list[T]:
     return [x async for x in it]
 
 

@@ -81,16 +81,16 @@ def test_migrate_modify_geometry_type(migration_db: Engine, rc: RawConfig, cli: 
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeo" TYPE '
-        'geometry(GEOMETRY,3346) USING ST_Transform("migrate/example"."Test"."someGeo", '
+        'geometry(GEOMETRY,3346) USING ST_Transform("someGeo", '
         "3346);\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeoLt" TYPE '
         "geometry(GEOMETRY,4326) USING "
-        'ST_Transform("migrate/example"."Test"."someGeoLt", 4326);\n'
+        'ST_Transform("someGeoLt", 4326);\n'
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeoWorld" TYPE '
         "geometry(GEOMETRY,3346) USING "
-        'ST_Transform("migrate/example"."Test"."someGeoWorld", 3346);\n'
+        'ST_Transform("someGeoWorld", 3346);\n'
         "\n"
         "COMMIT;\n"
         "\n"
@@ -177,7 +177,7 @@ def test_migrate_geometry_to_string_to_geometry(
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeo" TYPE TEXT USING '
-        'CAST("migrate/example"."Test"."someGeo" AS TEXT);\n'
+        'CAST("someGeo" AS TEXT);\n'
         "\n"
         f"{drop_index(table_identifier=table_identifier, index_name='ix_Test_someGeo')}"
         "COMMIT;\n"
@@ -215,7 +215,7 @@ def test_migrate_geometry_to_string_to_geometry(
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN "someGeo" TYPE '
-        'geometry(GEOMETRY,3346) USING CAST("migrate/example"."Test"."someGeo" AS '
+        'geometry(GEOMETRY,3346) USING CAST("someGeo" AS '
         "geometry(GEOMETRY,3346));\n"
         "\n"
         'CREATE INDEX "ix_Test_someGeo" ON "migrate/example"."Test" '

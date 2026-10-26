@@ -1,6 +1,6 @@
 import codecs
 import io
-from typing import AsyncIterable, AsyncIterator
+from collections.abc import AsyncIterable, AsyncIterator
 
 
 async def splitlines(

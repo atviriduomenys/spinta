@@ -107,6 +107,13 @@ Or to a property::
 Old format scopes (Deprecated and will be removed)
 ==================================================
 
+.. versionchanged:: 1.2.0
+
+When an access token with `spinta_*` scopes is used, a deprecation warning
+(:ref:`ScopeFormatDeprecationWarning <deprecation-warnings>`) is emitted,
+once per call site. The new scope format is documented here:
+https://ivpk.github.io/uapi/#section/Authorization/Scope
+
 Each client can be given list of scopes. Scopes names uses following pattern::
 
     {$SPINTA_SCOPE_PREFIX}{ns}_{model}_{property}_{action}

@@ -1,8 +1,10 @@
 from spinta.cli.manifest import _read_and_return_manifest
 from spinta.components import Context
+from spinta.exceptions import InvalidName
 from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, MermaidClassDef, write_mermaid_manifest
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.context import create_test_context
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -34,7 +36,7 @@ def test_copy_mmd(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -84,7 +86,7 @@ def test_copy_mmd_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_pat
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -134,7 +136,7 @@ def test_copy_mmd_array(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -186,7 +188,7 @@ def test_copy_mmd_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -245,7 +247,7 @@ def test_copy_mmd_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -304,7 +306,7 @@ def test_copy_mmd_ref_required(context: Context, rc, cli: SpintaCliRunner, tmp_p
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -364,7 +366,7 @@ def test_copy_mmd_backref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -425,7 +427,7 @@ def test_copy_mmd_backref_not_array(context: Context, rc, cli: SpintaCliRunner, 
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -486,7 +488,7 @@ def test_copy_mmd_backref_required(context: Context, rc, cli: SpintaCliRunner, t
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -546,7 +548,7 @@ def test_copy_mmd_base(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -603,7 +605,7 @@ def test_copy_mmd_base_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path)
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -663,7 +665,7 @@ def test_copy_with_two_datasets_and_main_specified(context: Context, rc, cli: Sp
         ],
     )
 
-    with open(tmp_path / "result.mmd", "r") as file:
+    with open(tmp_path / "result.mmd") as file:
         contents = file.read()
         assert (
             contents
@@ -708,8 +710,12 @@ def test_write_mermaid_manifest_output_as_string(context: Context, rc, cli: Spin
           |   |   |   | id       | string           |           | id          |         | public                   
         """),
     )
-    manifest = _read_and_return_manifest(context, [str(tmp_path / "manifest.csv")])
-    mermaid = write_mermaid_manifest(context, manifest, "datasets/gov/example")
+    # Reading a manifest loads it into the store of the context it is given, and
+    # the one of the fixture is shared by the whole session, so a context of its
+    # own is used and every test after this one keeps the manifest it expects.
+    own_context = create_test_context(rc)
+    manifest = _read_and_return_manifest(own_context, [str(tmp_path / "manifest.csv")])
+    mermaid = write_mermaid_manifest(own_context, manifest, "datasets/gov/example")
 
     assert (
         mermaid
@@ -758,8 +764,12 @@ def test_write_mermaid_manifest_nested_properties(context: Context, rc, cli: Spi
             |   |   |   | name                          | string           |           | pavadinimas    
             """),
     )
-    manifest = _read_and_return_manifest(context, [str(tmp_path / "manifest.csv")])
-    mermaid = write_mermaid_manifest(context, manifest, "datasets/gov/example")
+    # Reading a manifest loads it into the store of the context it is given, and
+    # the one of the fixture is shared by the whole session, so a context of its
+    # own is used and every test after this one keeps the manifest it expects.
+    own_context = create_test_context(rc)
+    manifest = _read_and_return_manifest(own_context, [str(tmp_path / "manifest.csv")])
+    mermaid = write_mermaid_manifest(own_context, manifest, "datasets/gov/example")
 
     assert (
         mermaid
@@ -805,8 +815,12 @@ def test_write_mermaid_manifest_model_without_properties(context: Context, rc, c
           |   |   | City                              |                  |           | salis       
         """),
     )
-    manifest = _read_and_return_manifest(context, [str(tmp_path / "manifest.csv")])
-    mermaid = write_mermaid_manifest(context, manifest, "datasets/gov/example")
+    # Reading a manifest loads it into the store of the context it is given, and
+    # the one of the fixture is shared by the whole session, so a context of its
+    # own is used and every test after this one keeps the manifest it expects.
+    own_context = create_test_context(rc)
+    manifest = _read_and_return_manifest(own_context, [str(tmp_path / "manifest.csv")])
+    mermaid = write_mermaid_manifest(own_context, manifest, "datasets/gov/example")
 
     assert (
         mermaid
@@ -822,3 +836,116 @@ classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
     )
+
+
+def test_copy_mmd_enum_escapes_breakout_chars(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+        d | r | b | m | property | type             | ref | source | prepare     | visibility
+        datasets/gov/example     |                  |     |        |             |
+          | data                 | sql              |     |        |             |
+                                 |                  |     |        |             |
+          |   |   | Country      |                  |     | salis  |             |
+          |   |   |   | id       | integer required |     | id     |             | public
+          |   |   |   | status   | string           |     |        |             |
+          |   |   |   |          | enum             |     |        | "a}b<img>c" |
+        """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "--access",
+            "open",
+            "-o",
+            tmp_path / "result.mmd",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    contents = (tmp_path / "result.mmd").read_text()
+
+    assert "a#125;b#60;img#62;c" in contents
+    assert "a}b" not in contents
+    assert "<img>" not in contents
+
+
+def test_copy_mmd_enum_source_escapes_breakout_chars(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+        d | r | b | m | property | type             | ref | source     | prepare | visibility
+        datasets/gov/example     |                  |     |            |         |
+          | data                 | sql              |     |            |         |
+                                 |                  |     |            |         |
+          |   |   | Country      |                  |     | salis      |         |
+          |   |   |   | id       | integer required |     | id         |         | public
+          |   |   |   | status   | string           |     |            |         |
+          |   |   |   |          | enum             |     | a}b<img>c  |         |
+        """),
+    )
+
+    cli.invoke(
+        rc,
+        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+    )
+
+    contents = (tmp_path / "result.mmd").read_text()
+    assert "a#125;b#60;img#62;c" in contents
+    assert "a}b" not in contents
+    assert "<img>" not in contents
+
+
+def test_copy_mmd_model_name_breakout_chars_rejected(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+        d | r | b | m | property | type             | ref | source     | prepare | visibility
+        datasets/gov/example     |                  |     |            |         |
+          | data                 | sql              |     |            |         |
+                                 |                  |     |            |         |
+          |   |   | Cou}n<img>y  |                  |     | salis      |         |
+          |   |   |   | id       | integer required |     | id         |         | public
+        """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert isinstance(result.exception, InvalidName)
+    assert not (tmp_path / "result.mmd").exists()
+
+
+def test_copy_mmd_property_name_breakout_chars_rejected(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+        d | r | b | m | property | type             | ref | source     | prepare | visibility
+        datasets/gov/example     |                  |     |            |         |
+          | data                 | sql              |     |            |         |
+                                 |                  |     |            |         |
+          |   |   | Country      |                  |     | salis      |         |
+          |   |   |   | i}d<img> | string           |     | id         |         | public
+        """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert isinstance(result.exception, InvalidName)
+    assert not (tmp_path / "result.mmd").exists()

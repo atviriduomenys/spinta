@@ -2,9 +2,10 @@
 
 import importlib.util
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable
+from typing import Any
 
 from spinta.core.config import RawConfig
 from spinta.core.ufuncs import Expr, UFuncRegistry
@@ -68,7 +69,7 @@ def _load_adapters_from_config(raw_config: RawConfig | None) -> tuple[set[str], 
             except Exception as e:
                 log.warning("Failed to call get_deferred_prepare_names in %s: %s", module_path, e)
             else:
-                if isinstance(result, (list, tuple)):
+                if isinstance(result, list | tuple):
                     deferred.update(result)
                 else:
                     deferred.add(str(result))

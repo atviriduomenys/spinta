@@ -7,7 +7,7 @@ import os
 import pathlib
 import sys
 import typing
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Union
+from typing import Any, NamedTuple
 
 from ruamel.yaml import YAML
 
@@ -19,8 +19,24 @@ from spinta.utils.schema import NA
 if typing.TYPE_CHECKING:
     from spinta.manifests.components import ManifestPath
 
-Schema = Dict[str, Any]
-Key = Tuple[str]
+Schema = dict[str, Any]
+# A configuration key path, e.g. `("backends", "default", "dsn")` for
+# `backends.default.dsn`. The root key is an empty tuple `()`.
+Key = tuple[str, ...]
+
+
+class KeyNode(NamedTuple):
+    type: str | None  # resolved from SCHEMA (`spinta/config.yml`), None if unknown
+    source: ConfigSource | None  # last source that wrote this node, None for schema-derived nodes
+    env: str | None  # env overlay name if value came from environments.<env>, else None
+    value: Any  # object-type -> effective child-name list; else leaf value
+    # True if `value` was explicitly set by a configuration source. False for
+    # auto-derived nodes: union parent nodes (child-name lists collected from
+    # more specific keys) and schema-derived nodes (object structure and
+    # default values). Only explicit object-type nodes hide child keys that
+    # are not in their child-name list (see `RawConfig._key_exists`).
+    explicit: bool = False
+
 
 yaml = YAML(typ="safe")
 
@@ -33,18 +49,37 @@ SCHEMA = {
 
 
 def read_config(args=None, envfile=None):
-    rc = RawConfig()
-    rc.read(
-        [
+    # `config` option can be set in any source (even in cliargs), so we first
+    # read all sources to discover additional config files, and only then read
+    # everything in the correct order. The effective order of sources is:
+    #
+    #     spinta -> config files -> envfile -> envvars -> cliargs
+    #
+    # Each subsequent source overrides values from all previous sources.
+    def _make_sources():
+        return [
             Path("spinta", "spinta.config:CONFIG"),
-            EnvFile(
-                "envfile", envfile or ".env", anchor=True
-            ),  # User-specified sources will be placed before this source
+            EnvFile("envfile", envfile or ".env"),
             EnvVars("envvars", os.environ),
             CliArgs("cliargs", args or []),
         ]
-    )
-    return rc
+
+    tmp_rc = RawConfig()
+    tmp_rc.read(_make_sources())
+    configs = tmp_rc.get("config", cast=list, default=[])
+    if configs:
+        final_sources = [
+            Path("spinta", "spinta.config:CONFIG"),
+            *[Path(c, c) for c in configs],
+            EnvFile("envfile", envfile or ".env"),
+            EnvVars("envvars", os.environ),
+            CliArgs("cliargs", args or []),
+        ]
+        rc = RawConfig()
+        rc.read(final_sources)
+        return rc
+    else:
+        return tmp_rc
 
 
 class KeyFormat(str, enum.Enum):
@@ -55,18 +90,10 @@ class KeyFormat(str, enum.Enum):
 
 class ConfigSource:
     name: str
-    # If set True, object keys become static and only their values can be changed (unless another source that is also static
-    # Can completely overwrite
-    static_keys: bool = False
 
-    # If set True, RawConfig will know that this config source is anchor for user-specified configuration sources
-    # RawConfig will place user-specified configuration sources before this source
-    anchor: bool = False
-
-    def __init__(self, name=None, config=None, anchor: bool = False):
+    def __init__(self, name=None, config=None):
         self.name = self.getname(name)
-        self.config = config
-        self.anchor = anchor
+        self.config = {} if config is None else config
 
     def __str__(self):
         return self.name
@@ -81,11 +108,12 @@ class ConfigSource:
         config = {}
         for k, v in self.config.items():
             v = dict(_traverse(v, k))
-            v.update(_get_inner_keys(v, depth=len(k)))
+            inner = _get_inner_keys(v, depth=len(k))
+            v.update(inner)
             config.update(v)
         self.config = config
 
-    def keys(self, env: str = None):
+    def keys(self, env: str | None = None):
         if env:
             for key in self.config:
                 if key[:2] == ("environments", env):
@@ -95,7 +123,7 @@ class ConfigSource:
                 if key[:1] != ("environments",):
                     yield key
 
-    def get(self, key: tuple, env: str = None):
+    def get(self, key: tuple, env: str | None = None):
         if env:
             return self.config.get(("environments", env) + key, NA)
         else:
@@ -104,13 +132,18 @@ class ConfigSource:
 
 class PyDict(ConfigSource):
     def read(self, schema: Schema):
-        envs = self.config.pop("environments", {})
-        config = {tuple(k.split(".")): v for k, v in self.config.items()}
+        # Don't modify given config dict, it can be shared, e.g. a global
+        # `spinta.config.CONFIG` dict can be imported by multiple `RawConfig`
+        # instances.
+        config = dict(self.config)
+        envs = config.pop("environments", {})
+        config = {tuple(k.split(".")): v for k, v in config.items()}
         for env, values in envs.items():
             for k, v in values.items():
                 config[("environments", env) + tuple(k.split("."))] = v
         self.config = config
         super().read(schema)
+        _check_keys(self.config, schema, self.name)
 
 
 class Path(PyDict):
@@ -125,7 +158,6 @@ class Path(PyDict):
 
 class CliArgs(PyDict):
     name = "cli"
-    static_keys = True
 
     def read(self, schema: Schema):
         config = {}
@@ -134,13 +166,12 @@ class CliArgs(PyDict):
             if "," in val:
                 val = [v.strip() for v in val.split(",")]
             config[key] = val
-        self.config = config
+        self.config = _parse_object_key_values(config, schema)
         super().read(schema)
 
 
 class EnvVars(ConfigSource):
     name = "env"
-    static_keys = True
 
     def read(self, schema: Schema):
         config = {}
@@ -152,6 +183,7 @@ class EnvVars(ConfigSource):
             if len(key) > 1 and key[0] not in schema["items"] and key[1] in schema["items"]:
                 key = ("environments",) + key
             config[key] = val
+        config = _parse_object_key_values(config, schema)
         self.config = config
         super().read(schema)
 
@@ -176,6 +208,47 @@ class EnvFile(EnvVars):
         super().read(schema)
 
 
+# A mapping of a config key path (see `Key`) to a `KeyNode`. Holds the whole
+# effective configuration tree: values from all sources, with
+# `environments.<env>.*` overlays applied (prefix dropped) and schema
+# structure and defaults merged in. All read methods (`get`, `keys`,
+# `getall`, ...) read only this tree.
+# Example:
+#   keys: ConfigKeys = {
+#       ():                      KeyNode("object", spinta, None, ["backends", "manifests", ...]),  # root
+#       ("backends",):           KeyNode("object", spinta, None, ["default", "keymaps"]),
+#       ("backends", "default"): KeyNode("object", envvars, None, ["type", "dsn", "name"]),
+#       ...
+#   }
+ConfigKeys = dict[Key, KeyNode]
+
+
+def _flatten_fork_config(data: dict[str, Any]) -> dict[Key, Any]:
+    """Flatten a nested fork dict into flat tuple keys.
+
+    A fork often contains only a partial configuration, e.g. only
+    `keymaps.default.type` without `keymaps.default.dsn`. Flattening nested
+    structures into leaf keys makes such partial forks merge with lower
+    priority sources instead of replacing them.
+
+    Top-level keys are split on dots (config hierarchy, e.g.
+    `"backends.three"`), while nested dict keys are kept verbatim (they may
+    contain dots themselves, e.g. denorm property `"test.name"`).
+    """
+    flat: dict[Key, Any] = {}
+    for k, v in data.items():
+        prefix = tuple(k.split("."))
+        if isinstance(v, dict):
+            if not v:
+                # Empty dicts declare nothing, same as before.
+                continue
+            for subpath, subval in _traverse(v, ()):
+                flat[prefix + subpath] = subval
+        else:
+            flat[prefix] = v
+    return flat
+
+
 class RawConfig:
     """A raw configuration reader component
 
@@ -196,86 +269,37 @@ class RawConfig:
 
     sources: list[ConfigSource]
 
-    # ConfigSource name for source that will be used to anchor user-specified sources
-    anchor: str | None = None
-
     def __init__(self, sources: list[ConfigSource] | None = None):
         self._locked = False
         self.sources = sources or []
-        self._keys: Dict[Tuple[str], Tuple[int, List[str]]] = {}
+        self._keys: ConfigKeys = {}
         self._schema = SCHEMA
 
-        for source in self.sources:
-            if source.anchor:
-                self.anchor = source.name
-
-    def read(
-        self,
-        sources: list[ConfigSource],
-        after: str | None = None,
-        before: str | None = None,
-    ):
+    def read(self, sources: list[ConfigSource]):
         if self._locked:
             raise Exception("Configuration is locked, use `rc.fork()` if you need to change configuration.")
 
-        if after and before:
-            raise Exception("Cannot use both `after` and `before` arguments.")
-
-        anchor_source = None
         for config in sources:
             log.info(f"Reading config from {config.name}.")
             config.read(self._schema)
-            if config.anchor:
-                anchor_source = config.name
 
-        if anchor_source:
-            self.anchor = anchor_source
-
-        target = after or before
-        root_source = target is None
-        if not root_source:
-            pos = (i for i, s in enumerate(self.sources) if s.name == target)
-            pos = next(pos, None)
-            if pos is None:
-                argument = "after" if after else "before"
-                raise Exception(f"Given {argument} value {target!r} does not exist.")
-            pos += 0 if before else 1
-            self.sources[pos:pos] = sources
-        else:
-            self.sources.extend(sources)
-
-        self._keys = self._update_keys()
-
-        env, _ = self._get_config_value(("env",), default=None)
-        for config in sources:
-            env_configs = []
-            if env:
-                env_configs = config.get(("config", env)) or []
-                env_configs = self._cast_value(env_configs, list, [])
-            global_configs = config.get(("config",)) or []
-            global_configs = self._cast_value(global_configs, list, [])
-
-            nested_configs = env_configs + global_configs
-            if not nested_configs:
-                continue
-            self.read(
-                [Path(nested_config, nested_config) for nested_config in nested_configs],
-                before=self.anchor or config.name if root_source else config.name,
-            )
+        self.sources.extend(sources)
+        self._rebuild()
 
     def add(self, name, params):
         self.read([PyDict(name, params)])
         return self
 
-    def fork(self, sources=None, after=None) -> RawConfig:
+    def fork(self, sources=None) -> RawConfig:
         rc = RawConfig(list(self.sources))
         if sources:
             if isinstance(sources, dict):
-                rc.add("fork", sources)
+                fork_source = ConfigSource("fork", _flatten_fork_config(sources))
+                rc.read([fork_source])
             else:
-                rc.read(sources, after)
+                rc.read(sources)
         else:
-            rc._keys = rc._update_keys()
+            rc._rebuild()
         return rc
 
     def lock(self):
@@ -293,11 +317,28 @@ class RawConfig:
         exists=False,
         origin=False,
     ) -> Any:
-        env, _ = self._get_config_value(("env",), default=None)
-        value, config = self._get_config_value(key, default, env)
+        node = self._keys.get(key)
+        if node is not None and self._key_exists(key):
+            config = node.source
+            if node.type == "object":
+                # The schema declares this key as an object (e.g. `backends`
+                # is a mapping of backend names to backend configs), so its
+                # value is the list of child key names, and a reset value,
+                # like an empty string, is returned as an empty list.
+                value = list(node.value)
+            else:
+                value = node.value
+        else:
+            value, config = default, None
 
         if cast is not None:
-            value = self._cast_value(value, cast, default=default)
+            if cast is list and isinstance(value, str):
+                value = value.split(",") if value else []
+            elif value is not None:
+                value = cast(value)
+            else:
+                # XXX: why []?
+                value = default or []
 
         if required and value is None:
             name = ".".join(key)
@@ -315,9 +356,20 @@ class RawConfig:
         else:
             return value
 
-    def keys(self, *key, origin=False) -> Union[List[str], Tuple[List[str], str]]:
-        config, keys = self._keys.get(key, (None, []))
-        return (keys, config.name) if origin else keys
+    def keys(self, *key, origin=False) -> list[str] | tuple[list[str], str]:
+        node = self._keys.get(key)
+        keys_list: list[str] = []
+        if node is not None and isinstance(node.value, list):
+            if node.type == "object" or not node.explicit:
+                # Object-type keys hold a list of child key names, and
+                # non-explicit nodes are union parent nodes, which also hold
+                # a list of child key names. An explicit non-object node
+                # holding a list is a leaf with an array value (e.g.
+                # `ignore: [a, b]`), not a list of child key names.
+                keys_list = list(node.value)
+        if origin:
+            return (keys_list, node.source.name if node is not None and node.source else "")
+        return keys_list
 
     def getall(self, *key, origin=False):
         keys = self.keys(*key)
@@ -329,13 +381,10 @@ class RawConfig:
             res = res if origin else (res,)
             yield (key,) + res
 
-    def dump(self, *names, fmt: KeyFormat = KeyFormat.cfg, file=sys.stdout, all_sources: bool = False):
-        table = [("Origin", "Name", "Value")]
+    def dump(self, *names, fmt: KeyFormat = KeyFormat.cfg, file=sys.stdout):
+        table = [("Origin", "Env", "Name", "Value")]
         sizes = [len(x) for x in table[0]]
-
-        values = self.getall(origin=True) if not all_sources else self._getall_sources()
-
-        for key, val, origin in values:
+        for key, val, origin in self.getall(origin=True):
             if names:
                 for name in names:
                     it = enumerate(name.split("."))
@@ -344,18 +393,23 @@ class RawConfig:
                 else:
                     continue
 
+            node = self._keys.get(key)
+            env_str = ""
+            if node is not None and node.env:
+                env_str = node.env
+
             if fmt == KeyFormat.env:
-                key = "SPINTA_" + "__".join(key).upper()
+                key_str = "SPINTA_" + "__".join(key).upper()
             else:
-                key = ".".join(key)
+                key_str = ".".join(key)
 
             if isinstance(val, list):
                 for i, v in enumerate(val):
-                    row = (origin, key + f".{i}", v)
+                    row = (origin, env_str, key_str + f".{i}", v)
                     table.append(row)
                     sizes = [max(x) for x in zip(sizes, map(len, map(str, row)))]
             else:
-                row = (origin, key, val)
+                row = (origin, env_str, key_str, val)
                 table.append(row)
                 sizes = [max(x) for x in zip(sizes, map(len, map(str, row)))]
 
@@ -366,131 +420,251 @@ class RawConfig:
         else:
             return table
 
-    def to_dict(self, *names: str) -> Dict[str, Any]:
+    def to_dict(self, *names: str) -> dict[str, Any]:
         result = {}
         for key, val in self.getall(*names):
             key = ".".join(key[len(names) :])
             result[key] = val
         return result
 
-    def _cast_value(self, value: Any, cast: Any, default: Any | None = None) -> Any:
-        if cast is list and isinstance(value, str):
-            value = value.split(",") if value else []
-        elif value is not None:
-            value = cast(value)
-        else:
-            # XXX: why []?
-            value = default or []
+    def _rebuild(self) -> None:
+        """Rebuild the whole configuration tree in `_keys` from scratch.
 
-        return value
+        Sources are processed in priority order (low to high), and after
+        each source's base keys, the source's `environments.<env>.*` overlay
+        keys are processed, where `<env>` is the active environment given by
+        the base value of the `env` option. Overlay keys are overlaid on top
+        of the base values in `_keys`, with the `environments.<env>` prefix
+        dropped, so an overlay of source N beats the base values of source
+        N, but loses to the base values of source N+1.
 
-    def _update_keys(self) -> Dict[Key, List[str]]:
-        """Update inner keys respecting already set values."""
-        keys = {}
-        env, _ = self._get_config_value(("env",), default=None)
+        Finally, schema (`spinta/config.yml`) structure and default values
+        are added as non-explicit nodes, which are not registered in parent
+        child-name lists, so `keys()` and `getall()` don't see them, but
+        `get()` can find them.
+
+        Within each (source, base-or-overlay) group keys are processed
+        parents-first (sorted by length), which makes same-source
+        reset+re-add deterministic.
+        """
+        self._keys = {}
+        env = self._get_active_env()
         for config in self.sources:
-            self._update_config_keys(keys, config, config.keys())
+            self._process_source(config)
             if env:
-                self._update_config_keys(keys, config, config.keys(env), env)
-        return keys
+                self._process_source(config, env)
+        self._add_schema_nodes()
 
-    def _update_config_keys(self, keys, config, ckeys, env=None):
-        # Update `keys` in place.
-        if () not in keys:
-            keys[()] = config, []
-        for key in ckeys:
-            if key and key[0] not in keys[()][1]:
-                keys[()][1].append(key[0])
-            n = len(key)
-            schema = self._schema
-            for i in range(1, n + 1):
-                schema = self._get_key_schema(schema, key[i - 1])
-                if schema is None or schema["type"] != "object":
-                    # Skip all non object keys, only objects can have keys.
-                    break
-                k = tuple(key[:i])
-                v = config.get(k, env)
-                if v is not NA:
-                    # Source has explicit value set.
-                    if isinstance(v, str):
-                        v = [x.strip() for x in v.split(",")]
-                    else:
-                        v = list(v)
-
-                    if k not in keys:
-                        keys[k] = config, v
-
-                    origin, existing = keys[k]
-                    if config.static_keys:
-                        keys[k] = config, v
-                        break
-
-                    if origin.static_keys:
-                        break
-
-                    for item in v:
-                        if item not in existing:
-                            existing.append(item)
-
-                    keys[k] = config, existing
-                elif i < n:
-                    # No explicit value set, just collect all parents.
-                    if k not in keys:
-                        keys[k] = config, []
-                    if key[i] not in keys[k][1]:
-                        keys[k][1].append(key[i])
-
-    def _get_key_schema(self, schema: Schema, key: str):
-        if schema["type"] == "object":
-            if "items" in schema:
-                if key in schema["items"]:
-                    return schema["items"][key]
-            if "case" in schema:
-                for items in schema["case"].values():
-                    if key in items:
-                        return items[key]
-            if "keys" in schema and schema["keys"]["type"] == "string":
-                return schema["values"]
-
-    def _get_config_value(self, key: Key, default: Any = NA, env: str = None):
-        assert isinstance(key, tuple)
+    def _get_active_env(self) -> str | None:
+        # The active environment is the base value of the `env` option from
+        # the highest priority source that sets it.
         for config in reversed(self.sources):
-            val = NA
-            if env:
-                val = config.get(key, env)
-            if val is NA:
-                val = config.get(key)
-            if val is not NA:
-                return val, config
-        if default is NA:
-            schema = self._schema
-            for k in key:
-                schema = self._get_key_schema(schema, k)
-                if schema is None:
-                    break
+            value = config.get(("env",))
+            if value is not NA:
+                return value
+        return None
+
+    def _process_source(self, config: ConfigSource, env: str | None = None) -> None:
+        keys = list(config.keys(env))
+        keys.sort(key=len)
+        for key in keys:
+            self._process_key(config, key, env)
+
+    def _process_key(self, config: ConfigSource, key: Key, env: str | None) -> None:
+        raw = config.get(key, env)
+        if raw is NA:
+            return
+        if len(key) == 0:
+            return
+        # Ensure all ancestors exist (union), parents-first makes
+        # same-source reset+re-add deterministic.
+        self._ensure_union((), key[0], config)
+        for j in range(1, len(key)):
+            self._ensure_union(key[:j], key[j], config)
+        full_schema = _get_key_path_schema(self._schema, key)
+        if full_schema is not None and full_schema.get("type") == "object":
+            if isinstance(raw, str):
+                # This should never happen, all configuration sources
+                # must either parse comma separated values of
+                # object-type keys into lists (see
+                # `_parse_object_key_values`) or raise an error (see
+                # `_check_keys`).
+                raise Exception(
+                    f"Invalid configuration value {raw!r} for key {'.'.join(key)!r} in {config.name} config: "
+                    f"expected a mapping or a list of key names, but got a scalar value, "
+                    f"use a list instead, e.g. {'.'.join(key)}: ['one']."
+                )
+            # Explicit replace: last source's explicit list wins;
+            # higher (or same-source, processed later) leaves add back.
+            self._keys[key] = KeyNode(type="object", source=config, env=env, value=list(raw), explicit=True)
+        else:
+            node_type = full_schema.get("type") if full_schema is not None else None
+            self._keys[key] = KeyNode(type=node_type, source=config, env=env, value=raw, explicit=True)
+
+    def _ensure_union(self, prefix: Key, child: str, config: ConfigSource) -> None:
+        node = self._keys.get(prefix)
+        if node is None:
+            if len(prefix) == 0:
+                node_type: str | None = "object"
             else:
-                default = schema.get("default", NA)
-        return default, None
+                schema = _get_key_path_schema(self._schema, prefix)
+                node_type = schema.get("type") if schema is not None else None
+            self._keys[prefix] = KeyNode(type=node_type, source=config, env=None, value=[child])
+        elif isinstance(node.value, list):
+            if child not in node.value:
+                node.value.append(child)
+        else:
+            # A former leaf scalar becomes a parent (scalar-tail dict
+            # values, e.g. property `type` given as a dict). Keep its
+            # type/source/env, but track children so `keys()`/`getall()`
+            # can reconstruct the subtree.
+            self._keys[prefix] = KeyNode(type=node.type, source=node.source, env=node.env, value=[child])
 
-    def _getall_sources(self):
-        env, _ = self._get_config_value(("env",), default=None)
+    def _add_schema_nodes(self) -> None:
+        """Add schema structure and default values to `_keys`.
 
-        for source in self.sources:
-            for key in source.keys():
-                value = source.get(key)
+        Schema-derived nodes are not registered in parent child-name lists,
+        so `keys()` and `getall()` don't see them, but `get()` can find
+        object-type structure and default values of unset options.
+        """
+        # Static schema paths (e.g. `accesslog.buffer_size`).
+        self._add_schema_nodes_for(self._schema, ())
+        # Dynamic schema paths (e.g. `manifests.<name>.mode`), resolved for
+        # subtrees set by configuration sources.
+        for key in list(self._keys):
+            schema = _get_key_path_schema(self._schema, key)
+            if schema is not None:
+                self._add_schema_nodes_for(schema, key, recurse=False)
 
-                if value is not NA:
-                    yield key, value, source.name
+    def _add_schema_nodes_for(self, schema: Schema, path: Key, recurse: bool = True) -> None:
+        for name, sub in _iter_static_schema_items(schema):
+            key = path + (name,)
+            if sub.get("type") == "object":
+                if key not in self._keys:
+                    self._keys[key] = KeyNode(type="object", source=None, env=None, value=[])
+                    if recurse:
+                        self._add_schema_nodes_for(sub, key)
+            elif key not in self._keys and "default" in sub:
+                self._keys[key] = KeyNode(type=sub.get("type"), source=None, env=None, value=sub["default"])
 
-            if env:
-                for key in source.keys(env):
-                    value = source.get(key, env)
+    def _key_exists(self, key: Key) -> bool:
+        # Check if `key` is present in the effective key structure.
+        #
+        # Values set on parent keys, like `SPINTA_BACKENDS=` or
+        # `SPINTA_BACKENDS=one`, control the structure of the parent key
+        # subtree. Keys removed from the subtree are not available, even if
+        # a lower priority source still has values set for them.
+        #
+        # Auto-created parents are complete unions (contain every known leaf),
+        # so they never hide; only explicit (subset) object parents hide.
+        for i in range(1, len(key)):
+            node = self._keys.get(key[:i])
+            if node is not None and node.explicit and node.type == "object":
+                if key[i] not in node.value:
+                    return False
+        return True
 
-                    if value is not NA:
-                        yield key, value, source.name
-
-    def get_source_names(self) -> List[str]:
+    def get_source_names(self) -> list[str]:
         return [source.name for source in self.sources]
+
+
+def _iter_static_schema_items(schema: Schema):
+    """Iterate statically known child items of an object-type schema node.
+
+    Static items are declared under `items` and under `case` branches. Items
+    of dynamic subtrees, declared with `keys`/`values` (e.g. `backends` can
+    have any number of backends with arbitrary names), are not included,
+    since their child names are not known statically.
+    """
+    if schema.get("type") == "object":
+        yield from schema.get("items", {}).items()
+        for items in schema.get("case", {}).values():
+            yield from items.items()
+
+
+def _get_key_schema(schema: Schema, key: str):
+    if schema.get("type") == "object":
+        if "items" in schema:
+            if key in schema["items"]:
+                return schema["items"][key]
+        if "case" in schema:
+            for items in schema["case"].values():
+                if key in items:
+                    return items[key]
+        if "keys" in schema and schema["keys"]["type"] == "string":
+            return schema["values"]
+
+
+def _get_key_path_schema(schema: Schema, key: Key) -> Schema | None:
+    """Resolve a schema node for a full configuration key path."""
+    for k in key:
+        schema = _get_key_schema(schema, k)
+        if schema is None:
+            break
+    return schema
+
+
+def _check_keys(config: dict[tuple, Any], schema: Schema, name: str):
+    """Check that keys, which declare a list of child keys, don't have scalar
+    values set.
+
+    A fork is a python `dict`, so a list of child key names can be given
+    directly as a `list`, for example `{'backends': ['one']}`, or as a mapping
+    declaring the whole subtree, for example `{'backends': {'one': {...}}}`.
+    Setting a scalar value, e.g. `{'backends': 'one'}`, is most likely a
+    mistake, so an error is raised.
+    """
+    for key, value in config.items():
+        node = schema
+        for k in key:
+            node = _get_key_schema(node, k)
+            if node is None:
+                # Skip unknown keys, only keys known to the schema can have
+                # child keys.
+                break
+        else:
+            if node.get("type") == "object" and not isinstance(value, dict | list):
+                raise Exception(
+                    f"Invalid configuration value {value!r} for key {'.'.join(key)!r} in {name} config: "
+                    f"expected a mapping or a list of key names, but got a scalar value, "
+                    f"use a list instead, e.g. {'.'.join(key)}: ['one']."
+                )
+
+
+def _parse_object_key_values(config: dict, schema: Schema) -> dict:
+    """Parse values of object-type keys given as comma separated strings.
+
+    Keys with `type: object` schema (e.g. `backends`) hold a list of child key
+    names. Environment variables and command line arguments can only have
+    scalar values, so such lists are given as comma separated strings, for
+    example `SPINTA_BACKENDS=one,two`. This converts those strings to lists,
+    so `RawConfig` always receives object key values as declared in
+    `spinta/config.yml`, that is, as lists of child key names.
+
+    An empty string is converted to an empty list, which resets the list of
+    child keys. Keys unknown to the schema and keys declared as scalars are
+    left as is.
+
+    Keys can be full key paths given as tuples, like in a flattened config, or
+    dotted key names, like in command line arguments, before they are split
+    into key path tuples by `PyDict.read`.
+    """
+    result = {}
+    for key, value in config.items():
+        if isinstance(value, str):
+            path = key if isinstance(key, tuple) else tuple(key.split("."))
+            if path[:1] == ("environments",) and len(path) > 2:
+                # Environment specific keys, like `("environments", "test",
+                # "backends")`, don't map to the configuration schema
+                # directly, their schema is the same as the schema of the key
+                # without the environment prefix.
+                node = _get_key_path_schema(schema, path[2:])
+            else:
+                node = _get_key_path_schema(schema, path)
+            if node is not None and node.get("type") == "object":
+                value = [v.strip() for v in value.split(",") if v.strip()]
+        result[key] = value
+    return result
 
 
 def _traverse(value, path=()):
@@ -501,7 +675,7 @@ def _traverse(value, path=()):
         yield path, value
 
 
-def _get_inner_keys(config: Dict[tuple, Any], depth=1):
+def _get_inner_keys(config: dict[tuple, Any], depth=1):
     """Get inner keys for config.
 
     `config` is flattened dict, that looks like this:
@@ -589,14 +763,14 @@ class ResourceTuple(NamedTuple):
     # Resource URI, depends on type.
     external: str
     # Resource prepare formula.
-    prepare: Optional[str] = None
+    prepare: str | None = None
 
 
 def parse_resource_args(
     resource_type: str,
     resource_source: str,
-    formula: Optional[str] = None,
-) -> Optional[ResourceTuple]:
+    formula: str | None = None,
+) -> ResourceTuple | None:
     resource = ResourceTuple(resource_type, resource_source, formula)
     if resource.type is None and resource.external is None and not resource.prepare:
         return None
@@ -605,7 +779,7 @@ def parse_resource_args(
 
 def parse_manifest_path(
     rc: RawConfig,
-    path: Union[str, ManifestPath, ResourceTuple],
+    path: str | ManifestPath | ResourceTuple,
 ) -> ManifestPath:
     from spinta.manifests.components import ManifestPath
 
@@ -627,7 +801,7 @@ def check_if_manifest_valid(rc: RawConfig, manifest: str):
 def _get_resource_config(
     rc: RawConfig,
     resource: ResourceTuple,
-) -> Dict[str, str]:
+) -> dict[str, str]:
     if resource.external and resource.external in rc.get("backends", default={}):
         return {
             "type": resource.type,
@@ -644,18 +818,18 @@ def _get_resource_config(
 
 def configure_rc(
     rc: RawConfig,
-    manifests: List[Union[str, ManifestPath]] = None,
+    manifests: list[str | ManifestPath] = None,
     *,
     mode: Mode = Mode.internal,
-    check_names: Optional[bool] = None,
+    check_names: bool | None = None,
     backend_type: str | None = None,
     backend: str | None = None,
-    resources: List[ResourceTuple] = None,
+    resources: list[ResourceTuple] = None,
     dataset: str = None,
     manifest_type: str = "inline",
     ensure_backends=True,
 ) -> RawConfig:
-    config: Dict[str, Any] = {}
+    config: dict[str, Any] = {}
 
     if backend:
         # TODO: Parse backend string to detect type. Currently type is hardcoded

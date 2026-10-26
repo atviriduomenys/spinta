@@ -1,6 +1,6 @@
 import hashlib
 import json
-from typing import Any, List, Union
+from typing import Any
 
 import msgpack
 import sqlalchemy as sa
@@ -30,7 +30,7 @@ def get_data_checksum(data: dict, model: Model = None):
     return checksum
 
 
-def extract_state_page_keys(row: Union[dict, Row]):
+def extract_state_page_keys(row: dict | Row):
     result = []
 
     if isinstance(row, Row):
@@ -42,7 +42,7 @@ def extract_state_page_keys(row: Union[dict, Row]):
     return result
 
 
-def extract_state_page_id_key(row: Union[dict, Row]):
+def extract_state_page_id_key(row: dict | Row):
     result = []
 
     if isinstance(row, Row):
@@ -55,7 +55,7 @@ def extract_state_page_id_key(row: Union[dict, Row]):
     return result
 
 
-def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed: bool):
+def extract_dependant_nodes(context: Context, models: list[Model], filter_pushed: bool):
     extracted_models = [] if filter_pushed else models.copy()
     for model in models:
         if model.base:
@@ -80,7 +80,7 @@ def extract_dependant_nodes(context: Context, models: List[Model], filter_pushed
 
 
 def load_initial_page_data(
-    context: Context, metadata: sa.MetaData, models: List[Model], incremental: bool, override_page: dict
+    context: Context, metadata: sa.MetaData, models: list[Model], incremental: bool, override_page: dict
 ) -> dict:
     if not incremental:
         return {}

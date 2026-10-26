@@ -5,7 +5,7 @@ import json
 import uuid
 from collections.abc import Generator
 from copy import copy
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 import msgpack
@@ -65,7 +65,7 @@ class SqlAlchemyKeyMap(KeyMap):
             table = self._create_table(name)
         return table
 
-    def encode(self, name: str, value: object, primary_key=None) -> Optional[str]:
+    def encode(self, name: str, value: object, primary_key=None) -> str | None:
         valid_value = _valid_keymap_value(value)
         if not valid_value:
             return None
@@ -316,7 +316,7 @@ def _valid_keymap_value(value: object) -> bool:
     if value is None:
         return False
 
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         filtered = [v for v in value if v is not None]
         if len(filtered) == 0:
             return False
@@ -333,7 +333,7 @@ def _hash_value(value):
     if value is None:
         return None
 
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         value = [_encode_value(k) for k in value if k is not None]
         if len(value) == 0:
             return None

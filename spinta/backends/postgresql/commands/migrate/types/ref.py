@@ -1,5 +1,3 @@
-from typing import List
-
 import sqlalchemy as sa
 from sqlalchemy.engine.reflection import Inspector
 
@@ -138,7 +136,7 @@ def _migrate_scalar_to_ref_4(
     source_table: sa.Table,
     target_table_identifier: TableIdentifier,
     referenced_table_identifier: TableIdentifier,
-    columns: List[sa.Column],
+    columns: list[sa.Column],
     ref: Ref,
     ref_column: sa.Column,
     migration_ctx: PostgresqlMigrationContext,
@@ -204,7 +202,6 @@ def _migrate_scalar_to_ref_4(
             ref_column=ref_column,
             columns={key: column},
         ),
-        True,
     )
 
     # Drop old column after migration
@@ -217,9 +214,9 @@ def _migrate_scalar_to_ref_3(
     backend: PostgreSQL,
     source_table: sa.Table,
     target_table_identifier: TableIdentifier,
-    columns: List[sa.Column],
+    columns: list[sa.Column],
     ref: ExternalRef,
-    ref_columns: List[sa.Column],
+    ref_columns: list[sa.Column],
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
     handler: MigrationHandler,
@@ -287,7 +284,6 @@ def _migrate_scalar_to_ref_3(
             columns={ref_column.name: sa.Column(target, type_=ref_column.type)},
             target=target,
         ),
-        True,
     )
 
     # Drop old column after migration
@@ -301,7 +297,7 @@ def migrate(
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
-    old: List[sa.Column],
+    old: list[sa.Column],
     new: Ref,
     **kwargs,
 ):
@@ -418,7 +414,6 @@ def migrate(
                         ref_column=primary_column,
                         columns=column_mapping,
                     ),
-                    True,
                 )
 
                 # Drop old columns
@@ -491,7 +486,6 @@ def _handle_property_foreign_key_constraint(
                     old_constraint_name=constraint["name"],
                     new_constraint_name=foreign_key_name,
                 ),
-                foreign_key=True,
             )
             return
 
@@ -503,7 +497,6 @@ def _handle_property_foreign_key_constraint(
                 local_cols=[primary_column.name],
                 remote_cols=[_IDENTIFIABLE_REF_KEY],
             ),
-            foreign_key=True,
         )
         return
 
@@ -518,7 +511,6 @@ def _handle_property_foreign_key_constraint(
             ma.DropConstraintMigrationAction(
                 table_identifier=target_table_identifier, constraint_name=constraint["name"]
             ),
-            foreign_key=True,
         )
         handler.add_action(
             ma.CreateForeignKeyMigrationAction(
@@ -528,7 +520,6 @@ def _handle_property_foreign_key_constraint(
                 local_cols=[primary_column.name],
                 remote_cols=[_IDENTIFIABLE_REF_KEY],
             ),
-            foreign_key=True,
         )
 
 
@@ -538,7 +529,7 @@ def migrate(
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
-    old: List[sa.Column],
+    old: list[sa.Column],
     new: ExternalRef,
     **kwargs,
 ):
@@ -625,7 +616,6 @@ def migrate(
                         columns=column_mapping,
                         target=_IDENTIFIABLE_REF_KEY,
                     ),
-                    True,
                 )
 
                 # Drop old column

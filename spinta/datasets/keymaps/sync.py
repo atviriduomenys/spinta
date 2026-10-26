@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import datetime
-from collections.abc import Generator
-from typing import Iterable, List
+from collections.abc import Generator, Iterable
 
 import tqdm
 
@@ -42,17 +41,24 @@ def _fetch_changelog_data(
     offset = offset_cid
     while True:
         url = _build_changelog_url(server=server, model=model.model_type(), offset_cid=offset, limit=limit)
-        status_code, resp = get_request_with_retries(
+        result = get_request_with_retries(
             client, url, error_counter=error_counter, timeout=timeout, retries=retries, delay_range=delay_range
         )
-        if status_code != 200:
+        if not result.ok:
             cli_message(
                 f'ERROR: Failed to fetch changelog data for model {model.model_type()}. Using "{server}" url.',
                 progress_bar,
             )
             break
 
-        data = resp.get("_data")
+        result_data = result.data
+        if not isinstance(result_data, dict):
+            cli_message(
+                f"ERROR: Unknown data format from response {type(result_data)}, expected dictionary", progress_bar
+            )
+            break
+
+        data = result_data.get("_data")
         if not data:
             break
 
@@ -122,7 +128,7 @@ def process_keymap_data(
 
 
 def sync_model_insert(
-    model: Model, identifiable: bool, row: dict, primary_keys: List[Property], counters: dict, dry_run: bool
+    model: Model, identifiable: bool, row: dict, primary_keys: list[Property], counters: dict, dry_run: bool
 ):
     id_ = row["_id"]
     values = _extract_row_data_from_keys(row, primary_keys)
@@ -218,7 +224,7 @@ def sync_keymap(
     keymap: KeyMap,
     client,
     server: str,
-    models: List[Model],
+    models: list[Model],
     error_counter: ErrorCounter,
     no_progress_bar: bool,
     reset_cid: bool,
@@ -297,7 +303,7 @@ def sync_keymap(
             counters["_total"].close()
 
 
-def remap_decoded_values(decoded: object, properties: List[str]):
+def remap_decoded_values(decoded: object, properties: list[str]):
     mapped = {}
     if not isinstance(decoded, list):
         decoded = [decoded]
@@ -322,7 +328,7 @@ def keymaps_affected_by_change(row: dict, model: Model) -> dict:
     return keymaps
 
 
-def _extract_row_data_from_keys(row: dict, keys: List[Property]) -> dict:
+def _extract_row_data_from_keys(row: dict, keys: list[Property]) -> dict:
     result = {}
     for key in keys:
         if key.name in row:

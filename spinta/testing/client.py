@@ -5,7 +5,8 @@ import datetime
 import pathlib
 import re
 import uuid
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from collections.abc import Callable
+from typing import Any
 from uuid import uuid4
 
 import httpx2
@@ -29,11 +30,11 @@ from spinta.testing.datasets import Sqlite
 
 
 def create_test_client(
-    rc_or_context: Union[RawConfig, TestContext],
+    rc_or_context: RawConfig | TestContext,
     request: FixtureRequest = None,
     *,
-    config: Dict[str, Any] = None,
-    scope: List[str] = None,
+    config: dict[str, Any] = None,
+    scope: list[str] = None,
     raise_server_exceptions: bool = True,
 ) -> TestClient:
     if isinstance(rc_or_context, RawConfig):
@@ -70,8 +71,8 @@ def create_remote_server(
     url: str = "https://example.com/",
     client: str = "client",
     secret: str = "secret",
-    scopes: List[str] = None,
-    credsfile: Union[bool, pathlib.Path] = None,
+    scopes: list[str] = None,
+    credsfile: bool | pathlib.Path = None,
 ) -> RemoteServer:
     def remote(request: PreparedRequest):
         path = request.url[len(url.rstrip("/")) :]
@@ -147,25 +148,25 @@ class RemoteServer:
 
 class TestClientResponse(httpx2.Response):
     template: str
-    context: Dict[str, Any]
+    context: dict[str, Any]
 
     # So pytest does not treat this as a test collection (since it starts with Test prefix)
     __test__ = False
 
 
 class TestClient(starlette.testclient.TestClient):
-    context: Union[Context, TestContext]
+    context: Context | TestContext
 
     def __init__(self, context, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.context = context
         self._scopes = []
 
-    def authmodel(self, model: str, actions: List[str], creds=None):
+    def authmodel(self, model: str, actions: list[str], creds=None):
         scopes = commands.get_model_scopes(self.context, model, actions)
         self.authorize(scopes, creds=creds)
 
-    def authorize(self, scopes: Optional[list] = None, creds=None, strict_set: bool = False):
+    def authorize(self, scopes: list | None = None, creds=None, strict_set: bool = False):
         # Calling `authorize` multiple times, will preserve previous scopes if strict_set is False.
         if strict_set:
             self._scopes = scopes if scopes is not None else []
@@ -210,10 +211,7 @@ class TestClient(starlette.testclient.TestClient):
 
 def get_html_tree(
     resp: requests.Response,
-) -> Union[
-    _Element,
-    lxml.html.HtmlMixin,
-]:
+) -> _Element | lxml.html.HtmlMixin:
     return lxml.html.fromstring(resp.text)
 
 
@@ -301,15 +299,15 @@ class CustomCallbackResponse(CallbackResponse):
     def __init__(
         self,
         method: str,
-        url: Union[re.Pattern[str], str],
+        url: re.Pattern[str] | str,
         callback: Callable[[Any], Any],
-        stream: Optional[bool] = None,
-        content_type: Optional[str] = "text/plain",
+        stream: bool | None = None,
+        content_type: str | None = "text/plain",
         **kwargs: Any,
     ) -> None:
         super().__init__(method, url, callback, stream, content_type, **kwargs)
 
-    def matches(self, request: "PreparedRequest") -> Tuple[bool, str]:
+    def matches(self, request: PreparedRequest) -> tuple[bool, str]:
         self.method = request.method
 
         if not self._url_matches(self.url, str(request.url)):

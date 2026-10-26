@@ -1,5 +1,3 @@
-from typing import List
-
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -25,7 +23,7 @@ def migrate(
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
-    old: List[sa.Column],
+    old: list[sa.Column],
     new: Text,
     **kwargs,
 ):

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
-from typing import Any, Dict, Optional, Set, Type
+from typing import Any
 
 from spinta.backends.constants import BackendFeatures, BackendOrigin, DistributionType
 from spinta.core.ufuncs import Env
@@ -17,11 +17,11 @@ class Backend:
     type: str
     name: str
     origin: BackendOrigin
-    features: Set[BackendFeatures] = set()
+    features: set[BackendFeatures] = set()
 
     # Original configuration values given in manifest, this is used to restore
     # manifest back to its original form.
-    config: Dict[str, Any]
+    config: dict[str, Any]
 
     available: bool = True
 
@@ -29,12 +29,12 @@ class Backend:
     # by default, '' is QueryBuilder
     query_builder_type: str = ""
     # Later on type should be changed to `QueryBuilder`
-    query_builder_class: Type[Env]
+    query_builder_class: type[Env]
 
     # Result builder's type in config.components['resultbuilders']
     # by default, '' is ResultBuilder
     result_builder_type: str = ""
-    result_builder_class: Type[ResultBuilder]
+    result_builder_class: type[ResultBuilder]
 
     # Some backends might only work with source given to models and some might not need it
     model_requires_source: bool = False
@@ -58,10 +58,11 @@ class Backend:
         return feature in self.features
 
 
-SelectTree = Optional[Dict[str, "SelectTree"]]
+SelectTree = dict[str, "SelectTree"] | None
 
 
 @dataclasses.dataclass
 class DistributionStrategy:
     distribution_type: DistributionType
     property: str | None = None
+    default: bool = False

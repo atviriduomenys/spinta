@@ -18,7 +18,7 @@ def fs():
 
 
 def test_csv_read(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("šalis,miestas\nlt,Vilnius\nlv,Ryga\nee,Talin").encode("utf-8"))
+    fs.pipe("cities.csv", ("šalis,miestas\nlt,Vilnius\nlv,Ryga\nee,Talin").encode())
 
     context, manifest = prepare_manifest(
         rc,
@@ -45,7 +45,7 @@ def test_csv_read(rc: RawConfig, fs: AbstractFileSystem):
 
 
 def test_csv_read_unknown_column(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("šalis,miestas\nlt,Vilnius\nlv,Ryga\nee,Talin").encode("utf-8"))
+    fs.pipe("cities.csv", ("šalis,miestas\nlt,Vilnius\nlv,Ryga\nee,Talin").encode())
 
     context, manifest = prepare_manifest(
         rc,
@@ -68,9 +68,9 @@ def test_csv_read_unknown_column(rc: RawConfig, fs: AbstractFileSystem):
 
 
 def test_csv_read_refs(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("countries.csv", ("kodas,pavadinimas\nlt,Lietuva\nlv,Latvija\nee,Estija").encode("utf-8"))
+    fs.pipe("countries.csv", (b"kodas,pavadinimas\nlt,Lietuva\nlv,Latvija\nee,Estija"))
 
-    fs.pipe("cities.csv", ("šalis,miestas\nlt,Vilnius\nlv,Ryga\nee,Talin").encode("utf-8"))
+    fs.pipe("cities.csv", ("šalis,miestas\nlt,Vilnius\nlv,Ryga\nee,Talin").encode())
 
     context, manifest = prepare_manifest(
         rc,
@@ -106,9 +106,9 @@ def test_csv_read_refs(rc: RawConfig, fs: AbstractFileSystem):
 
 
 def test_csv_read_multiple_models(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("countries.csv", ("kodas,pavadinimas,id\nlt,Lietuva,1\nlv,Latvija,2\nee,Estija,3").encode("utf-8"))
+    fs.pipe("countries.csv", (b"kodas,pavadinimas,id\nlt,Lietuva,1\nlv,Latvija,2\nee,Estija,3"))
 
-    fs.pipe("cities.csv", ("šalis,miestas\nlt,Vilnius\nlv,Ryga\nee,Talin").encode("utf-8"))
+    fs.pipe("cities.csv", ("šalis,miestas\nlt,Vilnius\nlv,Ryga\nee,Talin").encode())
 
     context, manifest = prepare_manifest(
         rc,
@@ -148,7 +148,7 @@ def test_csv_read_multiple_models(rc: RawConfig, fs: AbstractFileSystem):
 
 
 def test_text_read_from_external_source(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("countries.csv", ("šalislt\nlietuva\n").encode("utf-8"))
+    fs.pipe("countries.csv", ("šalislt\nlietuva\n").encode())
 
     context, manifest = prepare_manifest(
         rc,

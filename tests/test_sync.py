@@ -1,15 +1,20 @@
 import json
+from collections.abc import Iterator
 from http import HTTPStatus
 from pathlib import Path, PosixPath
-from typing import Iterator
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 import spinta
-from spinta.cli.helpers.sync.api_helpers import STATIC_BASE_PATH_TAIL
+from spinta.cli.helpers.sync.api_helpers import STATIC_BASE_PATH_TAIL, get_catalog_base_path
 from spinta.cli.helpers.sync.controllers.synchronization.manifest_catalog_to_agent import (
     execute_manifest_synchronization_catalog_to_agent,
+)
+from spinta.cli.helpers.sync.helpers import (
+    get_catalog_credentials_section,
+    read_catalog_credentials,
+    validate_credentials,
 )
 from spinta.client import RemoteClientCredentials
 from spinta.core.config import RawConfig
@@ -24,6 +29,73 @@ from tests.test_api import ensure_temp_context_and_app
 DATABASE_URL = "default"  # TODO: Replace when data source logic is introduced.
 
 
+@pytest.mark.parametrize(
+    "sections, expected",
+    [
+        (["katalogas", "default"], "katalogas"),
+        (["default"], "default"),
+        ([], "default"),
+    ],
+)
+def test_get_catalog_credentials_section(tmp_path: Path, sections: list[str], expected: str):
+    credentials_file = tmp_path / "credentials.cfg"
+    credentials_file.write_text("".join(f"[{section}]\nclient = spinta\n" for section in sections))
+    assert get_catalog_credentials_section(credentials_file) == expected
+
+
+@pytest.mark.parametrize(
+    "resource_server",
+    [
+        "https://data.gov.lt",
+        "https://data.gov.lt/",
+        "https://data.gov.lt/uapi",
+        "https://data.gov.lt/uapi/",
+    ],
+)
+def test_get_catalog_base_path(resource_server: str):
+    credentials = RemoteClientCredentials(
+        section="katalogas",
+        remote="katalogas",
+        client="client",
+        secret="secret",
+        server="https://auth.example.com",
+        resource_server_url=resource_server,
+        scopes="scope1",
+    )
+    assert get_catalog_base_path(credentials) == "https://data.gov.lt/uapi/datasets/gov/vssa/ror/dcat"
+
+
+@pytest.mark.parametrize(
+    "options, missing",
+    [
+        ("auth_server_url = https://auth.example.com\n", "resource_server_url"),
+        ("resource_server_url = https://data.gov.lt/uapi/\n", "auth_server_url"),
+        ("server = https://auth.example.com\nresource_server = https://data.gov.lt\n", None),
+    ],
+)
+def test_read_catalog_credentials_keeps_missing_urls_empty(tmp_path: Path, options: str, missing: str | None):
+    credentials_file = tmp_path / "credentials.cfg"
+    credentials_file.write_text(f"[katalogas]\n{options}client = spinta\nsecret = secret\nscopes = scope1\n")
+
+    credentials = read_catalog_credentials(credentials_file)
+
+    urls = {"auth_server_url": credentials.server, "resource_server_url": credentials.resource_server_url}
+    assert [name for name, url in urls.items() if not url] == ([missing] if missing else [])
+
+
+def test_read_catalog_credentials_legacy_server_is_also_resource_server(tmp_path: Path):
+    credentials_file = tmp_path / "credentials.cfg"
+    credentials_file.write_text(
+        "[default]\nserver = https://data.gov.lt\nclient = spinta\nsecret = secret\nscopes = s\n"
+    )
+
+    credentials = read_catalog_credentials(credentials_file)
+
+    assert credentials.server == "https://data.gov.lt"
+    assert credentials.resource_server_url == "https://data.gov.lt"
+    validate_credentials(credentials)
+
+
 @pytest.fixture
 def credentials() -> Iterator[RemoteClientCredentials]:
     credentials = RemoteClientCredentials(
@@ -32,10 +104,8 @@ def credentials() -> Iterator[RemoteClientCredentials]:
         client="client_id",
         secret="secret",
         server="https://example.com",
-        resource_server="https://example2.com",
+        resource_server_url="https://example2.com",
         scopes="scope1 scope2",
-        organization="vssa",
-        organization_type="gov",
     )
     with patch("spinta.cli.sync.get_configuration_credentials", return_value=credentials):
         yield credentials
@@ -43,7 +113,7 @@ def credentials() -> Iterator[RemoteClientCredentials]:
 
 @pytest.fixture
 def base_api_path(credentials: RemoteClientCredentials) -> str:
-    return f"{credentials.resource_server}{STATIC_BASE_PATH_TAIL}"
+    return f"{credentials.resource_server_url}{STATIC_BASE_PATH_TAIL}"
 
 
 @pytest.fixture
@@ -86,21 +156,21 @@ class TestSynchronization:
             json={"access_token": "test-token"},
         )
         mock_connection_check_post = requests_mock.post(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
             status_code=HTTPStatus.NO_CONTENT,
         )
         mock_data_service_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
             status_code=HTTPStatus.OK,
             json={"_data": [{"_id": 1}]},
         )
         mock_data_service_dataset_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
             status_code=HTTPStatus.OK,
             json={"_data": [{"_id": 2}]},
         )
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/2/dsa",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/2/dsa",
             status_code=HTTPStatus.OK,
             text=(
                 "id,dataset,resource,base,model,property,type,ref,source,source.type,prepare,origin,count,level,status,"
@@ -126,13 +196,13 @@ class TestSynchronization:
                 "data": {"spinta_version": [spinta.__version__]},
                 "method": "POST",
                 "params": {},
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
             }
         ]
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
                 "params": {"name": ["client"]},
                 "data": {},
             }
@@ -140,7 +210,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_dataset_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
                 "params": {"parent_id": ["1"]},
                 "data": {},
             }
@@ -148,7 +218,7 @@ class TestSynchronization:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/2/dsa",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/2/dsa",
                 "params": {},
                 "data": {},
             }
@@ -167,7 +237,7 @@ class TestSynchronization:
             json={"error": "unexpected error"},
         )
         mock_connection_check_post = requests_mock.post(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
             status_code=HTTPStatus.BAD_REQUEST,
             json={"error": "connection_error"},
         )
@@ -195,7 +265,7 @@ class TestSynchronization:
             client=None,
             secret=None,
             server=None,
-            resource_server=None,
+            resource_server_url=None,
             scopes=None,
             organization=None,
             organization_type=None,
@@ -206,6 +276,7 @@ class TestSynchronization:
 
         assert exception.value.status_code == HTTPStatus.BAD_REQUEST
         assert "Credentials.cfg is missing required configuration credentials." in exception.value.message
+        assert "resource_server_url, auth_server_url, client" in exception.value.message
 
     def test_failure_auth_server_returned_unexpected_response(
         self,
@@ -249,11 +320,11 @@ class TestSynchronization:
             json={"access_token": "test-token"},
         )
         mock_connection_check_post = requests_mock.post(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
             status_code=HTTPStatus.NO_CONTENT,
         )
         mock_data_service_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
             status_code=HTTPStatus.NOT_FOUND,
             json={"error": "data_service_not_found"},
         )
@@ -280,13 +351,13 @@ class TestSynchronization:
                 "data": {"spinta_version": [spinta.__version__]},
                 "method": "POST",
                 "params": {},
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
             }
         ]
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
                 "params": {"name": ["client"]},
                 "data": {},
             }
@@ -305,16 +376,16 @@ class TestSynchronization:
             json={"access_token": "test-token"},
         )
         mock_connection_check_post = requests_mock.post(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
             status_code=HTTPStatus.NO_CONTENT,
         )
         mock_data_service_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
             status_code=HTTPStatus.OK,
             json={"_data": [{"_id": 1}]},
         )
         mock_data_service_dataset_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
             status_code=HTTPStatus.OK,
             json={"_data": []},
         )
@@ -334,13 +405,13 @@ class TestSynchronization:
                 "data": {"spinta_version": [spinta.__version__]},
                 "method": "POST",
                 "params": {},
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Connection/check",
             }
         ]
         assert get_request_context(mock_data_service_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?name=client",
                 "params": {"name": ["client"]},
                 "data": {},
             }
@@ -348,7 +419,7 @@ class TestSynchronization:
         assert get_request_context(mock_data_service_dataset_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/?parent_id=1",
                 "params": {"parent_id": ["1"]},
                 "data": {},
             }
@@ -375,7 +446,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -402,7 +473,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -428,7 +499,7 @@ class TestSynchronizationPathCatalogToAgent:
         dataset_id = "2"
 
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -455,7 +526,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -490,7 +561,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -518,7 +589,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -551,7 +622,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -578,7 +649,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -619,7 +690,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -646,7 +717,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }
@@ -687,7 +758,7 @@ class TestSynchronizationPathCatalogToAgent:
 
         dataset_id = "2"
         mock_dataset_manifest_get = requests_mock.get(
-            f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+            f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
             status_code=HTTPStatus.OK,
             text=catalog_manifest_csv,
             headers={"Content-Type": "text/csv"},
@@ -714,7 +785,7 @@ class TestSynchronizationPathCatalogToAgent:
         assert get_request_context(mock_dataset_manifest_get) == [
             {
                 "method": "GET",
-                "url": f"{credentials.resource_server}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
+                "url": f"{credentials.resource_server_url}/uapi/datasets/gov/vssa/ror/dcat/Dataset/{dataset_id}/dsa",
                 "params": {},
                 "data": {},
             }

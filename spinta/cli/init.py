@@ -1,5 +1,3 @@
-from typing import Optional
-
 from typer import Argument
 from typer import Context as TyperContext
 
@@ -9,7 +7,7 @@ from spinta.manifests.tabular.helpers import write_tabular_manifest
 
 def init(
     ctx: TyperContext,
-    manifest: Optional[str] = Argument(None, help="path to a manifest"),
+    manifest: str | None = Argument(None, help="path to a manifest"),
 ):
     """Initialize a new manifest table
 

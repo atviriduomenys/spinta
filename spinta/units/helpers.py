@@ -153,9 +153,9 @@ def is_si_unit(unit: str) -> bool:
 
 
 def is_unit(dtype: DataType, unit: str) -> bool:
-    if isinstance(dtype, (Date, DateTime, Time)):
+    if isinstance(dtype, Date | DateTime | Time):
         return is_time_unit(unit)
-    if isinstance(dtype, (Integer, Number, Geometry)):
+    if isinstance(dtype, Integer | Number | Geometry):
         return is_si_unit(unit)
     return False
 

@@ -10,19 +10,21 @@ import os
 import pathlib
 import time
 import uuid
+import warnings
 from collections import defaultdict
 from functools import cached_property
 from itertools import chain
 from threading import Lock
-from typing import Any, List, Literal, Set, Tuple, Type, TypedDict, Union
+from typing import Any, Literal, TypedDict
 
 import requests
 import ruamel.yaml
-from authlib.oauth2 import OAuth2Error, OAuth2Request, rfc6749, rfc6750
+from authlib.oauth2 import OAuth2Error, OAuth2Request, rfc6749, rfc6750, rfc7662
 from authlib.oauth2.rfc6749 import OAuth2Payload, grants, list_to_scope
 from authlib.oauth2.rfc6749.errors import InvalidClientError
 from authlib.oauth2.rfc6749.util import scope_to_list
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
+from authlib.oauth2.rfc8414 import AuthorizationServerMetadata
 from cachetools import LRUCache, cached
 from cachetools.keys import hashkey
 from cryptography.hazmat.backends import default_backend
@@ -30,6 +32,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from joserfc import jwt
 from joserfc.errors import BadSignatureError, DecodeError, InvalidTokenError, JoseError
 from joserfc.jwk import RSAKey, import_key
+from joserfc.jwt import JWTClaimsRegistry
 from multipledispatch import dispatch
 from requests import RequestException
 from starlette.datastructures import FormData, Headers, QueryParams
@@ -54,11 +57,13 @@ from spinta.exceptions import (
     ModelNotFound,
     NoScopesForNamespaces,
     NoTokenValidationKey,
+    RequiredConfigParam,
 )
 from spinta.utils import passwords
 from spinta.utils.config import get_clients_path, get_helpers_path, get_id_path, get_keymap_path
 from spinta.utils.scopes import name_to_scope
 from spinta.utils.types import is_str_uuid
+from spinta.warnings import ScopeFormatDeprecationWarning
 
 log = logging.getLogger(__name__)
 yaml = ruamel.yaml.YAML(typ="safe")
@@ -77,6 +82,8 @@ WORLD_READABLE_FILE = 0o644  # rw-r--r-- (owner read/write, others read)
 CLIENT_FILE_CACHE_SIZE_LIMIT = 1000
 KEYMAP_CACHE_SIZE_LIMIT = 1
 DEFAULT_CLIENT_ID_CACHE_SIZE_LIMIT = 1
+# `credentials.cfg` section with the Catalog credentials; `default` is its old name.
+KATALOGAS_CREDENTIALS_SECTION = "katalogas"
 DEFAULT_CREDENTIALS_SECTION = "default"
 DEPRECATED_SCOPE_PREFIX = "spinta_"
 
@@ -86,7 +93,7 @@ DEPRECATED_SCOPE_PREFIX = "spinta_"
 ALLOWED_JWT_ALGORITHMS = ["RS256", "RS384", "RS512", "ES256", "ES384", "ES512"]
 
 # Scope types taken from authlib.oauth2.rfc6749.util.scope_to_list
-SCOPE_TYPE = Union[tuple, list, set, str, None]
+SCOPE_TYPE = tuple | list | set | str | None
 Kid = str  # key id
 
 
@@ -100,7 +107,7 @@ class JWK(TypedDict):
 
 
 class JWKS(TypedDict):
-    keys: List[JWK]
+    keys: list[JWK]
 
 
 class KeyType(enum.Enum):
@@ -115,6 +122,9 @@ class Scopes(enum.Enum):
 
     # Grants access to manipulate client files through API
     AUTH_CLIENTS = "auth_clients"
+
+    # Grants access to introspect access tokens issued to any client
+    AUTH_INTROSPECT = "auth_introspect"
 
     # Grants access to change its own client file backends
     CLIENT_BACKENDS_UPDATE_SELF = "client_backends_update_self"
@@ -144,7 +154,17 @@ class AuthorizationServer(rfc6749.AuthorizationServer):
             ),
         )
         self._context = context
-        self._private_key = load_key(context, KeyType.private, required=False)
+        self._private_key = None
+
+        config = self.context.get("config")
+        if not (config.token_validation_key or config.token_validation_keys_download_url):
+            self._private_key = load_key(context, KeyType.private, required=False)
+
+        self.register_endpoint(IntrospectionEndpoint)
+
+    @property
+    def context(self) -> Context:
+        return self._context
 
     def enabled(self) -> bool:
         return self._private_key is not None
@@ -186,10 +206,45 @@ class ResourceProtector(rfc6749.ResourceProtector):
     def __init__(
         self,
         context: Context,
-        Validator: Type[rfc6750.BearerTokenValidator],
+        Validator: type[rfc6750.BearerTokenValidator],
     ):
         super().__init__()
         self.register_token_validator(Validator(context))
+
+
+class IntrospectionEndpoint(rfc7662.IntrospectionEndpoint):
+    CLIENT_AUTH_METHODS = ["client_secret_basic"]
+    SUPPORTED_TOKEN_TYPES = ("access_token",)
+
+    def query_token(self, token_string: str, token_type_hint: str | None) -> Token | None:
+        protector: ResourceProtector = self.server.context.get("auth.resource_protector")
+        try:
+            return authenticate_token(protector, token_string, "bearer")
+        except (InvalidToken, JoseError):
+            return None
+
+    def check_params(self, request: OAuth2Request, client: Client) -> None:
+        super().check_params(request, client)
+        if not client_has_scope(self.server.context, client, Scopes.AUTH_INTROSPECT):
+            raise InsufficientScopeError()
+
+    def check_permission(self, token: Token, client: Client, request: OAuth2Request) -> bool:
+        # Client scope is enforced in check_params (403 if missing); no per-token limit.
+        return True
+
+    def introspect_token(self, token: Token) -> dict:
+        return {
+            "active": True,
+            "token_type": "Bearer",
+            "client_id": token.get_client_id(),
+            "scope": token.get_scope(),
+            "sub": token.get_sub(),
+            "aud": token.get_aud(),
+            "iss": token.get_iss(),
+            "exp": token.get_exp(),
+            "iat": token.get_iat(),
+            "jti": token.get_jti(),
+        }
 
 
 def load_all_public_keys(context: Context) -> list[RSAKey]:
@@ -264,6 +319,19 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
         self._default_public_key: RSAKey = load_key(context, KeyType.public)
         self._all_public_keys: list[RSAKey] = load_all_public_keys(context)
 
+    def _decode(self, token_string: str, key) -> dict:
+        claims = jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
+        config = self._context.get("config")
+        _require_auth_config(config)
+        JWTClaimsRegistry(
+            iss={"essential": True, "value": config.auth_server_id},
+            aud={"essential": True, "value": config.resource_server_id},
+            client_id={"essential": True},
+            exp={"essential": True},
+            iat={"essential": True},
+        ).validate(claims)
+        return claims
+
     def decode_token(self, token_string: str) -> dict:
         if not token_string:
             raise InvalidToken("Token string is required")
@@ -273,8 +341,9 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
             if kid := (token_header.get("kid") or token_header.get("key")):
                 for key in self._all_public_keys:
                     if key.kid and str(key.kid) == str(kid):
-                        return jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
-
+                        return self._decode(token_string, key)
+            if "alg" not in token_header:
+                raise InvalidToken(error="Token header missing 'alg'")
             token_kty = decode_kty_from_alg(token_header["alg"])
             for key in self._all_public_keys:
                 is_not_encryption_key = key.get("use") != "enc"
@@ -283,7 +352,7 @@ class BearerTokenValidator(rfc6750.BearerTokenValidator):
                 is_same_algorithm_type = key.key_type and key.key_type == token_kty
                 if is_not_encryption_key and (is_same_algorithm or is_same_algorithm_type):
                     try:
-                        return jwt.decode(token_string, key, algorithms=ALLOWED_JWT_ALGORITHMS).claims
+                        return self._decode(token_string, key)
                     except BadSignatureError:
                         continue
         except (JoseError, DecodeError, InvalidTokenError) as e:
@@ -298,7 +367,7 @@ class Client(rfc6749.ClientMixin):
     id: str
     name: str
     secret_hash: str
-    scopes: Set[str]
+    scopes: set[str]
     backends: dict[str, dict[str, Any]]
     contract_scopes: dict[str, list[str]]
 
@@ -350,7 +419,7 @@ class Client(rfc6749.ClientMixin):
         return passwords.verify(client_secret, self.secret_hash)
 
     def check_endpoint_auth_method(self, method: str, endpoint: str) -> bool:
-        if endpoint == "token":
+        if endpoint in ("token", "introspection"):
             return method == self.token_endpoint_auth_method
         return False
 
@@ -400,7 +469,7 @@ class Token(rfc6749.TokenMixin):
         self._token = validator.decode_token(token_string)
 
         self.expires_in = self._token["exp"] - self._token["iat"]
-        self.client_id = self.get_aud()
+        self.client_id = self.get_client_id()
 
         self._validator = validator
 
@@ -411,15 +480,19 @@ class Token(rfc6749.TokenMixin):
     def check_scope(self, scope: SCOPE_TYPE) -> bool:
         token_scopes = set(scope_to_list(self._token.get("scope", "")))
         if any(token_scope for token_scope in token_scopes if token_scope.startswith(DEPRECATED_SCOPE_PREFIX)):
-            log.warning(
-                "Deprecation warning: using 'spinta_*' scopes is deprecated and will be removed in a future version."
+            warnings.warn(
+                "using 'spinta_*' scopes is deprecated and will be removed in a future version."
+                " Use 'uapi:*' scopes instead, see:"
+                " https://ivpk.github.io/uapi/#section/Authorization/Scope",
+                ScopeFormatDeprecationWarning,
+                stacklevel=2,
             )
 
         if self.valid_scope(scope):
             return True
 
         # Scope is not valid. Raise an exception
-        client_id = self._token["aud"]
+        client_id = self.get_client_id()
 
         require_all_scopes = isinstance(scope, str)
         scope_list = [scope] if require_all_scopes else scope
@@ -439,16 +512,25 @@ class Token(rfc6749.TokenMixin):
 
     # No longer mandatory, but will keep it, since it is used in other places.
     def get_client_id(self) -> str:
-        return self.get_aud()
+        return self._token.get("client_id", "")
 
     def get_sub(self) -> str:  # User.
         return self._token.get("sub", "")
 
-    def get_aud(self) -> str:  # Client.
+    def get_aud(self) -> str | list[str]:  # Resource server (audience).
         return self._token.get("aud", "")
 
     def get_jti(self) -> str:
         return self._token.get("jti", "")
+
+    def get_iss(self) -> str:
+        return self._token.get("iss", "")
+
+    def get_exp(self) -> int | None:
+        return self._token.get("exp")
+
+    def get_iat(self) -> int | None:
+        return self._token.get("iat")
 
     # Currently required implementations for authlib >= 1.0
     # https://gist.github.com/lepture/506bfc29b827fae87981fc58eff2393e#token-model
@@ -457,7 +539,7 @@ class Token(rfc6749.TokenMixin):
         return self._token.get("scope", "")
 
     def check_client(self, client) -> bool:
-        return self.get_aud() == client.id
+        return self.get_client_id() == client.id
 
     def get_expires_in(self) -> int:
         return self.expires_in
@@ -722,7 +804,7 @@ def load_key(context: Context, key_type: KeyType, *, required: bool = True) -> R
     return import_key(key)
 
 
-def create_client_access_token(context: Context, client: Union[str, Client]):
+def create_client_access_token(context: Context, client: str | Client):
     private_key = load_key(context, KeyType.private)
     if isinstance(client, str):
         client = query_client(get_clients_path(context.get("config")), client)
@@ -730,14 +812,52 @@ def create_client_access_token(context: Context, client: Union[str, Client]):
     return create_access_token(context, private_key, client.id, expires_in, client.scopes)
 
 
+class ClientCredentialsServerMetadata(AuthorizationServerMetadata):
+    def validate_response_types_supported(self):
+        # RFC 8414 marks this REQUIRED, but a client_credentials-only server has
+        # no authorization endpoint and therefore no response types. Allow empty,
+        # keep the JSON-array type check.
+        response_types_supported = self.get("response_types_supported")
+        if response_types_supported and not isinstance(response_types_supported, list):
+            raise ValueError('"response_types_supported" MUST be JSON array')
+
+
+def get_authorization_server_metadata(context: Context) -> ClientCredentialsServerMetadata:
+    config = context.get("config")
+    _require_auth_config(config)
+    if not config.auth_server_url:
+        raise RequiredConfigParam(name="auth_server_url")
+    base = config.auth_server_url
+    return ClientCredentialsServerMetadata(
+        {
+            "issuer": config.auth_server_id,
+            "token_endpoint": f"{base}/auth/token",
+            "introspection_endpoint": f"{base}/auth/introspect",
+            "jwks_uri": f"{base}/.well-known/jwks.json",
+            "grant_types_supported": ["client_credentials"],
+            "response_types_supported": [],
+            "token_endpoint_auth_methods_supported": ["client_secret_basic"],
+            "introspection_endpoint_auth_methods_supported": ["client_secret_basic"],
+        }
+    )
+
+
+def _require_auth_config(config) -> None:
+    if not config.auth_server_id:
+        raise RequiredConfigParam(name="auth_server_id")
+    if not config.resource_server_id:
+        raise RequiredConfigParam(name="resource_server_id")
+
+
 def create_access_token(
     context: Context,
     private_key,
     client: str,
     expires_in: int = None,
-    scopes: Set[str] = None,
+    scopes: set[str] = None,
 ):
     config = context.get("config")
+    _require_auth_config(config)
 
     if expires_in is None:
         expires_in = int(datetime.timedelta(minutes=10).total_seconds())
@@ -752,9 +872,10 @@ def create_access_token(
     scopes = " ".join(sorted(scopes)) if scopes else ""
     jti = str(uuid.uuid4())
     payload = {
-        "iss": config.server_url,
+        "iss": config.auth_server_id,
         "sub": client,
-        "aud": client,
+        "aud": [config.resource_server_id],
+        "client_id": client,
         "iat": iat,
         "exp": exp,
         "scope": scopes,
@@ -771,7 +892,16 @@ def get_client_file_path(path: pathlib.Path, client: str) -> pathlib.Path:
     return client_file
 
 
-def check_scope(context: Context, scope: Union[Scopes, str]) -> bool:
+def client_has_scope(context: Context, client: Client, scope: Scopes | str) -> bool:
+    scopes = {
+        get_scope_name(context, None, scope, is_udts=False),
+        get_scope_name(context, None, scope, is_udts=True),
+    }
+
+    return bool(scopes & client.scopes)
+
+
+def check_scope(context: Context, scope: Scopes | str) -> bool:
     config = context.get("config")
     token = context.get("auth.token")
 
@@ -795,13 +925,15 @@ def has_scope(context: Context, scope: Scopes | str, raise_error: bool = True) -
 
 def get_scope_name(
     context: Context,
-    node: Union[Namespace, Model, Property],
-    action: Action,
+    node: Namespace | Model | Property | None,
+    action: Action | Scopes,
     is_udts: bool = False,
 ) -> str:
     config = context.get("config")
 
-    if isinstance(node, Namespace):
+    if node is None:
+        name = ""
+    elif isinstance(node, Namespace):
         name = node.name
     elif isinstance(node, Model):
         name = node.model_type()
@@ -852,7 +984,7 @@ def get_clients_list(path: pathlib.Path) -> list:
 
 def authorized(
     context: Context,
-    node: Union[Namespace, Model, Property],
+    node: Namespace | Model | Property,
     action: Action,
     *,
     throw: bool = False,
@@ -901,7 +1033,7 @@ def authorized(
 
     # Build scope names.
     scope_formatter = scope_formatter or config.scope_formatter
-    if not isinstance(action, (list, tuple)):
+    if not isinstance(action, list | tuple):
         action = [action]
     scopes = [
         scope_formatter(context, scope, act, is_udts) for act in action for scope in scopes for is_udts in [False, True]
@@ -928,7 +1060,7 @@ def gen_auth_server_keys(
     *,
     overwrite: bool = False,
     exist_ok: bool = False,
-) -> Tuple[pathlib.Path, pathlib.Path]:
+) -> tuple[pathlib.Path, pathlib.Path]:
     path = path / "keys"
     path.mkdir(exist_ok=True)
     os.chmod(path, OWNER_READABLE_DIR)
@@ -998,7 +1130,7 @@ def create_client_file(
     name: str,
     client_id: str,
     secret: str | None = None,
-    scopes: List[str] | None = None,
+    scopes: list[str] | None = None,
     backends: dict[str, dict[str, str]] | None = None,
     contract_scopes: dict[str, list[str]] | None = None,
     *,

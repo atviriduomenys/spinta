@@ -1,6 +1,5 @@
 import json
 import pathlib
-from typing import Type
 
 from ruamel.yaml import YAML
 
@@ -19,6 +18,7 @@ from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
+from spinta.utils.units import tobytes
 
 yaml = YAML(typ="safe")
 
@@ -57,7 +57,7 @@ def load(context: Context, config: Config) -> Config:
     # Load exporters.
     config.exporters = {}
     for name in rc.keys("exporters"):
-        exporter: Type[Format] = rc.get("exporters", name, cast=importstr)
+        exporter: type[Format] = rc.get("exporters", name, cast=importstr)
         config.exporters[name] = exporter()
 
     # Load accesslog
@@ -71,7 +71,8 @@ def load(context: Context, config: Config) -> Config:
         rc.get("data_path") or DEFAULT_DATA_PATH,
     )
     config.credentials_file = pathlib.Path(rc.get("credentials_file") or DEFAULT_CONFIG_PATH / "credentials.cfg")
-    config.server_url = rc.get("server_url")
+    config.resource_server_url = (rc.get("resource_server_url") or rc.get("server_url") or "").rstrip("/")
+    config.server_url = config.resource_server_url
     config.scope_prefix = rc.get("scope_prefix")
     config.scope_formatter = rc.get("scope_formatter", cast=importstr)
     config.scope_prefix_udts = rc.get("scope_prefix_udts")
@@ -92,7 +93,12 @@ def load(context: Context, config: Config) -> Config:
     config.http_basic_auth = rc.get("http_basic_auth", default=False, cast=asbool)
     config.token_validation_key = rc.get("token_validation_key", cast=json.loads) or None
     config.token_validation_keys_download_url = rc.get("token_validation_keys_download_url")
-    config.downloaded_public_keys_file = (
+    # token_issuer and resource_server are the 1.2.0 names, still read
+    token_issuer = rc.get("token_issuer")
+    config.auth_server_id = rc.get("auth_server_id") or token_issuer
+    config.auth_server_url = (rc.get("auth_server_url") or token_issuer or "").rstrip("/") or None
+    config.resource_server_id = rc.get("resource_server_id") or rc.get("resource_server")
+    config.downloaded_public_keys_file = pathlib.Path(
         rc.get("downloaded_public_keys_file") or DEFAULT_CONFIG_PATH / "downloaded-well-knows.json"
     )
     config.datasets = rc.get("datasets", default={})
@@ -133,6 +139,9 @@ def load(context: Context, config: Config) -> Config:
 
     config.http_strict_transport_security = rc.get("http_strict_transport_security", default="")
 
+    config.health_min_free_disk_space = rc.get("health", "min_free_disk_space", default=2048, cast=int)
+    config.health_min_free_memory = rc.get("health", "min_free_memory", default=256, cast=int)
+
     if config.token_validation_keys_download_url and config.token_validation_key:
         raise ValueError(
             "token_validation_keys_download_url and token_validation_keys_download_url are mutually exclusive and can't be used together. Use one."
@@ -151,8 +160,10 @@ def load(context: Context, config: Config) -> Config:
         cast=lambda strategy: DistributionStrategy(
             get_enum_by_value(DistributionType, strategy),
             property=rc.get("default_distribution_property", default=None),
+            default=True,
         ),
     )
+    config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default="10g")
 
     return config
 

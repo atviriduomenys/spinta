@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generator
+from collections.abc import Generator
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -626,13 +627,9 @@ class UndistributeTable(MigrationAction):
 class MigrationHandler:
     def __init__(self) -> None:
         self.migrations: list[MigrationAction] = []
-        self.foreign_key_migration: list[MigrationAction] = []
 
-    def add_action(self, action: MigrationAction, foreign_key: bool = False) -> "MigrationHandler":
-        if foreign_key:
-            self.foreign_key_migration.append(action)
-        else:
-            self.migrations.append(action)
+    def add_action(self, action: MigrationAction) -> "MigrationHandler":
+        self.migrations.append(action)
 
         return self
 
@@ -641,17 +638,10 @@ class MigrationHandler:
             if isinstance(migration, DropConstraintMigrationAction):
                 if migration.constraint_name == constraint_name:
                     return True
-        for migration in self.foreign_key_migration:
-            if isinstance(migration, DropConstraintMigrationAction):
-                if migration.constraint_name == constraint_name:
-                    return True
         return False
 
     def gather_migrations(self) -> Generator[MigrationAction, None, None]:
-        for migration in self.migrations:
-            yield migration
-        for migration in self.foreign_key_migration:
-            yield migration
+        yield from self.migrations
 
     def run_migrations(self, op: "Operations") -> None:
         for migration in self.gather_migrations():

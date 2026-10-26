@@ -1,0 +1,31 @@
+# External KeyCloak authorization server for local Spinta testing.
+#
+# Used by notes/auth/keycloak/test.nu:
+#
+#   docker compose -f docker-compose.keycloak.yml up -d
+#
+# Admin console: http://localhost:8080 (admin/admin)
+#
+# KeyCloak runs in dev mode with the embedded H2 database stored on a named
+# volume, so realm configuration survives container restarts. Delete the
+# volume to start from scratch:
+#
+#   docker compose -f docker-compose.keycloak.yml down -v
+#
+# Image version can be overridden via KEYCLOAK_VERSION environment variable.
+
+services:
+  keycloak:
+    image: "quay.io/keycloak/keycloak:${KEYCLOAK_VERSION:-26.7.3}"
+    command:
+      - start-dev
+    environment:
+      - KC_BOOTSTRAP_ADMIN_USERNAME=admin
+      - KC_BOOTSTRAP_ADMIN_PASSWORD=admin
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+
+volumes:
+  keycloak_data:

@@ -2,8 +2,8 @@ import json
 import os
 import pathlib
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 import pytest
 import sqlalchemy as sa
