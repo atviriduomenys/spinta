@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 from spinta.cli.helpers.message import cli_message
 from spinta.cli.helpers.push.components import PushState

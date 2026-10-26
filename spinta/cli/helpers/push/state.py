@@ -1,7 +1,7 @@
 import datetime
 import itertools
 import json
-from typing import Iterable, Iterator
+from collections.abc import Iterable, Iterator
 
 import sqlalchemy as sa
 

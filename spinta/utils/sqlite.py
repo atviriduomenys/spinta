@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from copy import copy
-from typing import TYPE_CHECKING, Callable, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.sqlite.base import SQLiteDialect
