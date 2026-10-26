@@ -120,9 +120,8 @@ Nested configuration files
 ==========================
 
 Configuration files can include other configuration files using the same
-setting. Included files are loaded in the order in which they are listed, then
-the file that includes them is loaded. Thus, a value in the including file
-overrides the same value in an included file.
+setting. Included files are loaded in the order in which they are listed, after
+the file that includes them is loaded.
 
 For example, this structure separates model-related settings from Citus
 distribution settings:
@@ -163,10 +162,10 @@ automatically generated distribution settings:
 The resulting loading order is:
 
 1. Spinta's built-in default settings.
-2. `models.yml`.
-3. `citus_generated.yml`.
+2. `config.yml`.
+3. `models.yml`.
 4. `citus.yml`.
-5. `config.yml`.
+5. `citus_generated.yml`.
 6. `.env`.
 7. Environment variables.
 8. Command-line settings.
@@ -223,13 +222,13 @@ The output will contain the combined settings, for example:
     citus.yml            models.dataset/Country.distribution.type      schema
     models.yml           models.dataset/City.backend                   default
     models.yml           models.dataset/City.properties.name           string
-    citus.yml            models.dataset/Place.distribution.type        copy
+    citus_generated.yml  models.dataset/Place.distribution.type        undistributed
     citus_generated.yml  models.dataset/Origin.distribution.type       copy
 
 In this example, the manually maintained distribution setting for
-`dataset/Country` supplements the model settings from `models.yml`. The `copy`
-setting for `dataset/Place` overrides the `undistributed` setting from
-`citus_generated.yml`, while `dataset/Origin` retains the generated `copy`
+`dataset/Country` supplements the model settings from `models.yml`. The `undistributed`
+setting for `dataset/Place` overrides the `copy` setting from
+`citus.yml`, while `dataset/Origin` retains the generated `copy`
 setting.
 
 Keymap
@@ -498,7 +497,7 @@ a mapping:
 .. code-block:: yaml
 
     distribute:
-      type: copey
+      type: copy
 
 None of the following forms are supported:
 

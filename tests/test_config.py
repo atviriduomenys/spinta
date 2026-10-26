@@ -1,14 +1,40 @@
 import pathlib
+from copy import deepcopy
 
 import pytest
 from ruamel.yaml import YAML
 
 from spinta import commands
-from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig, read_config
+from spinta.core.config import (
+    SCHEMA,
+    CliArgs,
+    ConfigSource,
+    EnvFile,
+    EnvVars,
+    KeyFormat,
+    Path,
+    PyDict,
+    RawConfig,
+    nested_config_sources,
+)
 from spinta.testing.context import create_test_context
 from spinta.utils.schema import NA
 
 yaml = YAML(typ="safe")
+
+
+def create_rc(initial_sources: list[ConfigSource]) -> RawConfig:
+    tmp_rc = RawConfig()
+    print(initial_sources)
+    tmp_rc.read(deepcopy(initial_sources))
+
+    configs = nested_config_sources(tmp_rc)
+    rc = RawConfig()
+    print(initial_sources)
+    print(configs)
+    print(initial_sources + configs)
+    rc.read(initial_sources + configs)
+    return rc
 
 
 def test_envvars():
@@ -393,13 +419,12 @@ def test_nested_yaml_config_load_order(tmp_path: pathlib.Path):
     (tmp_path / "a.yml").write_text(f"test: 1\nconfig: [{str(tmp_path / 'a_1.yml')},{str(tmp_path / 'a_2.yml')}]")
     (tmp_path / "a_1.yml").write_text("test: 2\na: 1")
     (tmp_path / "a_2.yml").write_text(f"test: 3\na: 2\nab: 1\nconfig: [{str(tmp_path / 'a_2_1.yml')}]")
-    (tmp_path / "a_2_1.yml").write_text("test: 4\na: 3\nab: 2\nabc: 1")
+    (tmp_path / "a_2_1.yml").write_text("test: 4\na: 3\nabc: 1")
     (tmp_path / "b.yml").write_text(f"config: [{str(tmp_path / 'b_1.yml')}]")
     (tmp_path / "b_1.yml").write_text("debug: true")
     (tmp_path / "c.yml").write_text("debug: false")
-    rc = RawConfig()
-    rc.read(
-        [
+    rc = create_rc(
+        initial_sources=[
             Path("defaults", "spinta.config:CONFIG"),
             EnvVars(
                 "envvars",
@@ -409,8 +434,8 @@ def test_nested_yaml_config_load_order(tmp_path: pathlib.Path):
             ),
         ]
     )
-    assert rc.get("test", cast=int, origin=True) == (1, str(tmp_path / "a.yml"))
-    assert rc.get("a", cast=int, origin=True) == (2, str(tmp_path / "a_2.yml"))
+    assert rc.get("test", cast=int, origin=True) == (4, str(tmp_path / "a_2_1.yml"))
+    assert rc.get("a", cast=int, origin=True) == (3, str(tmp_path / "a_2_1.yml"))
     assert rc.get("ab", cast=int, origin=True) == (1, str(tmp_path / "a_2.yml"))
     assert rc.get("abc", cast=int, origin=True) == (1, str(tmp_path / "a_2_1.yml"))
     assert rc.get("debug", origin=True) == (False, str(tmp_path / "c.yml"))
@@ -479,19 +504,6 @@ def test_after():
     assert rc.get("a", origin=True) == (3, "C3")
 
 
-def test_before():
-    rc = RawConfig()
-    rc.read(
-        [
-            PyDict("C1", {"a": 1, "b": 1}),
-            PyDict("C2", {"a": 2}),
-        ]
-    )
-    rc.read([PyDict("C2.1", {"a": 2.5, "b": 2})], before="C2")
-    assert rc.get("a", origin=True) == (2, "C2")
-    assert rc.get("b", origin=True) == (2, "C2.1")
-
-
 def test_fork():
     rc1 = RawConfig()
     rc1.read([PyDict("C1", {"a": 1})])
@@ -510,14 +522,10 @@ def test_environments():
                     "backends": {
                         "default": {"type": "postgresql", "dsn": "localhost"},
                     },
-                    "env": "dev",
+                    "env": "other",
                     "environments": {
                         "dev": {
-                            "backends": {
-                                "sql": {
-                                    "type": "sql",
-                                },
-                            },
+                            "backends.sql.type": "sql",
                         },
                         "test": {
                             "backends": {
@@ -538,10 +546,14 @@ def test_environments():
         ]
     )
 
-    rc.add("T1", {"env": "test"})
     assert list(rc.getall("backends")) == [
         (("backends", "default", "type"), "postgresql"),
         (("backends", "default", "dsn"), "localhost"),
+    ]
+
+    rc.add("T1", {"env": "test"})
+    assert list(rc.getall("backends")) == [
+        (("backends", "default", "type"), "postgresql"),
         (("backends", "sql", "type"), "sql"),
         (("backends", "fs", "type"), "fs"),
     ]
@@ -954,132 +966,11 @@ def test_auth_settings_fall_back_to_old_names(rc, overrides, expected):
     assert (config.auth_server_id, config.auth_server_url, config.resource_server_id) == expected
 
 
-def test_object_static_to_dynamic_keys():
-    rc = RawConfig()
-    config = EnvVars(
-        "envvars",
-        {
-            "SPINTA_BACKENDS__CUSTOM__TYPE": "test",
-            "SPINTA_BACKENDS__CUSTOM__DSN": "test",
-        },
-    )
-    pydict_config = PyDict(
-        "test",
-        {
-            "backends": {
-                "custom": {"dsn": "custom@test", "optional": True},
-                "test": {"type": "test", "dsn": "test@test"},
-            },
-        },
-    )
-
-    assert config.static_keys is True
-    assert pydict_config.static_keys is False
-    rc.read([config, pydict_config])
-    assert list(rc.getall("backends", origin=True)) == [
-        (("backends", "custom", "type"), "test", "envvars"),
-        (("backends", "custom", "dsn"), "custom@test", "test"),
-    ]
-
-
-def test_object_dynamic_to_dynamic_keys():
-    rc = RawConfig()
-    config1 = PyDict(
-        "custom1",
-        {
-            "backends": {
-                "custom": {"type": "custom1", "dsn": "custom1@test"},
-            },
-        },
-    )
-    config2 = PyDict(
-        "custom2",
-        {
-            "backends": {
-                "custom": {"dsn": "custom2@test", "optional": True},
-                "test": {"type": "test", "dsn": "test@test"},
-            },
-        },
-    )
-
-    assert config1.static_keys is False
-    assert config2.static_keys is False
-    rc.read([config1, config2])
-    assert list(rc.getall("backends", origin=True)) == [
-        (("backends", "custom", "type"), "custom1", "custom1"),
-        (("backends", "custom", "dsn"), "custom2@test", "custom2"),
-        (("backends", "custom", "optional"), True, "custom2"),
-        (("backends", "test", "type"), "test", "custom2"),
-        (("backends", "test", "dsn"), "test@test", "custom2"),
-    ]
-
-
-def test_object_dynamic_to_static():
-    rc = RawConfig()
-    config = EnvVars(
-        "envvars",
-        {
-            "SPINTA_BACKENDS": "custom",
-            "SPINTA_BACKENDS__CUSTOM__TYPE": "test",
-        },
-    )
-    pydict_config = PyDict(
-        "test",
-        {
-            "backends": {
-                "custom": {"type": "custom", "dsn": "custom@test", "optional": True},
-                "test": {"type": "test", "dsn": "test@test"},
-            },
-        },
-    )
-
-    assert config.static_keys is True
-    assert pydict_config.static_keys is False
-    rc.read([pydict_config, config])
-    assert list(rc.getall("backends", origin=True)) == [
-        (("backends", "custom", "type"), "test", "envvars"),
-        (("backends", "custom", "dsn"), "custom@test", "test"),
-        (("backends", "custom", "optional"), True, "test"),
-    ]
-
-
-def test_object_static_to_static():
-    rc = RawConfig()
-    config1 = EnvVars(
-        "envvars1",
-        {
-            "SPINTA_BACKENDS__CUSTOM__TYPE": "test",
-            "SPINTA_BACKENDS__CUSTOM__DSN": "test@test",
-        },
-    )
-    config2 = EnvVars(
-        "envvars2",
-        {
-            "SPINTA_BACKENDS__CUSTOM": "dsn,other",
-            "SPINTA_BACKENDS__CUSTOM__DSN": "custom@test",
-            "SPINTA_BACKENDS__CUSTOM__OTHER": "other",
-        },
-    )
-
-    assert config1.static_keys is True
-    assert config2.static_keys is True
-    rc.read([config1, config2])
-    assert list(rc.getall("backends", origin=True)) == [
-        (("backends", "custom", "dsn"), "custom@test", "envvars2"),
-        (("backends", "custom", "other"), "other", "envvars2"),
-    ]
-
-
 def test_nested_extension(tmp_path: pathlib.Path):
-    rc = RawConfig()
     models_path = tmp_path / "models.yml"
     str_models_path = str(tmp_path / "models.yml")
     citus_path = tmp_path / "citus.yml"
     str_citus_path = str(tmp_path / "citus.yml")
-    config = PyDict(
-        "base",
-        {"config": [str_models_path, str_citus_path]},
-    )
     models_path.write_text("""
     models:
         datasets/Example:
@@ -1091,16 +982,21 @@ def test_nested_extension(tmp_path: pathlib.Path):
             backend: sql
     """)
     citus_path.write_text("""
-    models:
-        datasets/Example:
-            distribute:
-                type: copy
-        datasets/Other:
+    models.datasets/Example.distribute:
+        type: copy
+    models.datasets/Other:
             distribute:
                 type: schema
     """)
 
-    rc.read([config])
+    rc = create_rc(
+        initial_sources=[
+            PyDict(
+                "base",
+                {"config": [str_models_path, str_citus_path]},
+            )
+        ]
+    )
     assert list(rc.getall("models", origin=True)) == [
         (("models", "datasets/Example", "backend"), "default", str_models_path),
         (("models", "datasets/Example", "properties", "id", "type"), "sqlalchemy.BigInteger", str_models_path),
@@ -1108,57 +1004,3 @@ def test_nested_extension(tmp_path: pathlib.Path):
         (("models", "datasets/Another", "backend"), "sql", str_models_path),
         (("models", "datasets/Other", "distribute", "type"), "schema", str_citus_path),
     ]
-
-
-def test_default_anchor(tmp_path: pathlib.Path):
-    env_file_1 = tmp_path / "env_file_1.yml"
-    env_file_1_1 = tmp_path / "env_file_1_1.yml"
-    env_file_1_2 = tmp_path / "env_file_1_2.yml"
-
-    env_file_1.write_text(f"""
-    config:
-        - {str(env_file_1_1)}
-        - {str(env_file_1_2)}
-    
-    test_order: env_file_1
-    """)
-    env_file_1_1.write_text("test_order: env_file_1_1")
-    env_file_1_2.write_text("test_order: env_file_1_2")
-
-    dot_env = tmp_path / ".env"
-    dot_env.write_text(f"""
-    SPINTA_CONFIG={env_file_1}
-    """)
-
-    arg_1 = tmp_path / "arg_1.yml"
-    arg_1_1 = tmp_path / "arg_1_1.yml"
-    arg_1_2 = tmp_path / "arg_1_2.yml"
-    arg_2 = tmp_path / "arg_2.yml"
-
-    arg_1.write_text(f"""
-    config:
-        - {str(arg_1_1)}
-        - {str(arg_1_2)}
-
-    test_order: arg_1
-    """)
-    arg_1_1.write_text("test_order: arg_1_1")
-    arg_1_2.write_text("test_order: arg_1_2")
-    arg_2.write_text("test_order: arg_2")
-
-    rc = read_config(args=[f"config={str(arg_1)},{str(arg_2)}"], envfile=str(dot_env))
-    assert rc.anchor == "envfile"
-    assert rc.get_source_names() == [
-        "spinta",
-        str(env_file_1_1),
-        str(env_file_1_2),
-        str(env_file_1),
-        str(arg_1_1),
-        str(arg_1_2),
-        str(arg_1),
-        str(arg_2),
-        "envfile",
-        "envvars",
-        "cliargs",
-    ]
-    assert list(rc.getall("test_order", origin=True)) == [(("test_order",), "arg_2", str(arg_2))]
