@@ -1,7 +1,7 @@
 import datetime
 import itertools
 import json
-from typing import Iterable, Iterator, List
+from typing import Iterable, Iterator
 
 import sqlalchemy as sa
 
@@ -20,7 +20,7 @@ from spinta.utils.sqlite import migrate_table
 def init_push_state(
     context: Context,
     dburi: str,
-    models: List[Model],
+    models: list[Model],
 ) -> PushState:
     state = PushState(dburi)
 
@@ -56,7 +56,7 @@ def init_push_state(
 
 def reset_pushed(
     context: Context,
-    models: List[Model],
+    models: list[Model],
     push_state: PushState,
 ):
     conn = push_state.db.conn
@@ -186,7 +186,7 @@ def save_page_values(conn: sa.engine.Connection, table: sa.Table, model: Model, 
     page_values = json.dumps(page_values)
 
     if exists:
-        conn.execute(table.update().where((table.c.model == model_name)).values(value=page_values))
+        conn.execute(table.update().where(table.c.model == model_name).values(value=page_values))
     else:
         conn.execute(
             table.insert().values(

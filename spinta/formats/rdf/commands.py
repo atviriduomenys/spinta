@@ -1,7 +1,7 @@
 import base64
 import datetime
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from geoalchemy2.elements import WKBElement
 from lxml import etree
@@ -43,6 +43,7 @@ from spinta.types.datatype import (
 from spinta.types.geometry.components import Geometry
 from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_page_values
+from spinta.utils.response import async_response_iterator
 from spinta.utils.schema import NotAvailable
 
 RDF = "rdf"
@@ -87,7 +88,7 @@ def _update_required_prefixes(prefixes: dict) -> dict:
     return updated_prefixes
 
 
-def _get_attribute_name(name: str, prefix: str, available_prefixes: dict) -> Union[str, QName]:
+def _get_attribute_name(name: str, prefix: str, available_prefixes: dict) -> str | QName:
     if prefix and available_prefixes.get(prefix):
         attribute_name = QName(available_prefixes.get(prefix), name)
     else:
@@ -98,10 +99,10 @@ def _get_attribute_name(name: str, prefix: str, available_prefixes: dict) -> Uni
 def _get_attributes(
     model: Model,
     data: dict,
-    about_name: Union[str, QName],
-    type_name: Union[str, QName],
-    revision_name: Union[str, QName],
-) -> Tuple[dict, dict]:
+    about_name: str | QName,
+    type_name: str | QName,
+    revision_name: str | QName,
+) -> tuple[dict, dict]:
     attributes = {}
     uri_prop = model.uri_prop
     about_uri = False
@@ -126,7 +127,7 @@ def _get_attributes(
     return data, attributes
 
 
-def _get_prefix_and_name(uri: str) -> Tuple[str, str]:
+def _get_prefix_and_name(uri: str) -> tuple[str, str]:
     prefix = name = None
     if uri and ":" in uri:
         prefix = uri.split(":")[0]
@@ -137,12 +138,12 @@ def _get_prefix_and_name(uri: str) -> Tuple[str, str]:
 
 
 def _create_element(
-    name: Union[str, QName],
+    name: str | QName,
     text: str = None,
     base: str = None,
     nsmap: dict = None,
     attributes: dict = None,
-    children: List[Element] = None,
+    children: list[Element] = None,
 ) -> Element:
     if attributes is None:
         attributes = {}
@@ -208,13 +209,13 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
 ):
     headers = headers or {}
     headers["Content-Disposition"] = f'attachment; filename="{model.basename}.rdf"'
 
     return StreamingResponse(
-        _stream(context, request, model, action, data),
+        async_response_iterator(_stream(context, request, model, action, data)),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,
@@ -232,19 +233,19 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
 ):
     headers = headers or {}
     headers["Content-Disposition"] = f'attachment; filename="{ns.basename}.rdf"'
     return StreamingResponse(
-        _stream_namespace(context, request, ns, action, data),
+        async_response_iterator(_stream_namespace(context, request, ns, action, data)),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,
     )
 
 
-async def _stream(context: Context, request: Request, model: Model, action: Action, data):
+def _stream(context: Context, request: Request, model: Model, action: Action, data):
     namespaces = []
     prefixes = _get_available_prefixes(context, model)
     root_name = _get_attribute_name(RDF.upper(), RDF, prefixes)
@@ -265,7 +266,7 @@ async def _stream(context: Context, request: Request, model: Model, action: Acti
     yield f"</{root_name}>\n"
 
 
-async def _stream_namespace(context: Context, request: Request, ns: Namespace, action: Action, data):
+def _stream_namespace(context: Context, request: Request, ns: Namespace, action: Action, data):
     namespaces = []
     models = commands.traverse_ns_models(
         context,
@@ -317,7 +318,7 @@ def prepare_data_for_response(
     *,
     action: Action,
     select: SelectTree,
-    prop_names: List[str],
+    prop_names: list[str],
 ) -> dict:
     value = value.copy()
     reserved = get_model_reserved_props(action, page_in_data(value))
@@ -356,7 +357,7 @@ def prepare_dtype_for_response(
     dtype: DataType,
     value: None,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -370,7 +371,7 @@ def prepare_dtype_for_response(
     dtype: DataType,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -384,7 +385,7 @@ def prepare_dtype_for_response(
     dtype: PageType,
     value: list,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -398,7 +399,7 @@ def prepare_dtype_for_response(
     dtype: Date,
     value: datetime.date,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -412,7 +413,7 @@ def prepare_dtype_for_response(
     dtype: Time,
     value: datetime.time,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -426,7 +427,7 @@ def prepare_dtype_for_response(
     dtype: DateTime,
     value: datetime.datetime,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -440,7 +441,7 @@ def prepare_dtype_for_response(
     dtype: Number,
     value: Decimal,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -449,7 +450,7 @@ def prepare_dtype_for_response(
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, Ref, (dict, str, type(None)))
 def prepare_dtype_for_response(
-    context: Context, fmt: Rdf, dtype: Ref, value, *, data: Dict[str, Any], action: Action, select: dict = None
+    context: Context, fmt: Rdf, dtype: Ref, value, *, data: dict[str, Any], action: Action, select: dict = None
 ):
     super_ = commands.prepare_dtype_for_response[Context, Format, Ref, type(value)]
     data_dict = super_(context, fmt, dtype, value, data=data, action=action, select=select)
@@ -513,7 +514,7 @@ def prepare_dtype_for_response(
     dtype: File,
     value: NotAvailable,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -525,9 +526,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Rdf,
     dtype: File,
-    value: Dict[str, Any],
+    value: dict[str, Any],
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -540,14 +541,14 @@ def prepare_dtype_for_response(
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, Text, str)
 def prepare_dtype_for_response(
-    context: Context, fmt: Rdf, dtype: Text, value: str, *, data: Dict[str, Any], action: Action, select: dict = None
+    context: Context, fmt: Rdf, dtype: Text, value: str, *, data: dict[str, Any], action: Action, select: dict = None
 ):
     return _create_element(name=data["_elem_name"], text=str(value))
 
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, Text, dict)
 def prepare_dtype_for_response(
-    context: Context, fmt: Rdf, dtype: Text, value: dict, *, data: Dict[str, Any], action: Action, select: dict = None
+    context: Context, fmt: Rdf, dtype: Text, value: dict, *, data: dict[str, Any], action: Action, select: dict = None
 ):
     result = []
     for key, item in value.items():
@@ -567,7 +568,7 @@ def prepare_dtype_for_response(
     dtype: ExternalRef,
     value: dict,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -631,7 +632,7 @@ def prepare_dtype_for_response(
     dtype: Geometry,
     value: BaseGeometry,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -646,7 +647,7 @@ def prepare_dtype_for_response(
     dtype: Geometry,
     value: WKBElement,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -661,7 +662,7 @@ def prepare_dtype_for_response(
     dtype: BackRef,
     value: dict,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -674,7 +675,7 @@ def prepare_dtype_for_response(
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, BackRef, str)
 def prepare_dtype_for_response(
-    context: Context, fmt: Rdf, dtype: BackRef, value: str, *, data: Dict[str, Any], action: Action, select: dict = None
+    context: Context, fmt: Rdf, dtype: BackRef, value: str, *, data: dict[str, Any], action: Action, select: dict = None
 ):
     # TODO: implement appropriate prepare support to handle BackRef dtype with str value
     return _create_element(name=data["_elem_name"], text=str(value))
@@ -687,7 +688,7 @@ def prepare_dtype_for_response(
     dtype: ArrayBackRef,
     value: tuple,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -705,7 +706,7 @@ def prepare_dtype_for_response(
     dtype: ArrayBackRef,
     value: list,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -715,7 +716,7 @@ def prepare_dtype_for_response(
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, JSON, (object, type(None), NotAvailable))
 def prepare_dtype_for_response(
-    context: Context, fmt: Rdf, dtype: JSON, value: object, *, data: Dict[str, Any], action: Action, select: dict = None
+    context: Context, fmt: Rdf, dtype: JSON, value: object, *, data: dict[str, Any], action: Action, select: dict = None
 ):
     if value is None or isinstance(value, NotAvailable):
         return None
@@ -726,7 +727,7 @@ def prepare_dtype_for_response(
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, Object, dict)
 def prepare_dtype_for_response(
-    context: Context, fmt: Rdf, dtype: Object, value: dict, *, data: Dict[str, Any], action: Action, select: dict = None
+    context: Context, fmt: Rdf, dtype: Object, value: dict, *, data: dict[str, Any], action: Action, select: dict = None
 ):
     # TODO: implement appropriate prepare support to handle Object dtype with dict value
     return _create_element(name=data["_elem_name"], text=str(value))
@@ -739,7 +740,7 @@ def prepare_dtype_for_response(
     dtype: Binary,
     value: bytes,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -751,9 +752,9 @@ def prepare_dtype_for_response(
     context: Context,
     fmt: Rdf,
     dtype: Array,
-    value: List[Any],
+    value: list[Any],
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -766,7 +767,7 @@ def prepare_dtype_for_response(
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, Array, tuple)
 def prepare_dtype_for_response(
-    context: Context, fmt: Rdf, dtype: Array, value: tuple, *, data: Dict[str, Any], action: Action, select: dict = None
+    context: Context, fmt: Rdf, dtype: Array, value: tuple, *, data: dict[str, Any], action: Action, select: dict = None
 ):
     # TODO: implement appropriate prepare support to handle Array dtype with tuple value
     return _create_element(name=data["_elem_name"], text=str(value))
@@ -779,7 +780,7 @@ def prepare_dtype_for_response(
     dtype: Inherit,
     value: object,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -797,7 +798,7 @@ def prepare_dtype_for_response(
     dtype: Inherit,
     value: dict,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -807,7 +808,7 @@ def prepare_dtype_for_response(
 
 @commands.prepare_dtype_for_response.register(Context, Rdf, UUID, (object, type(None), NotAvailable))
 def prepare_dtype_for_response(
-    context: Context, fmt: Rdf, dtype: UUID, value: object, *, data: Dict[str, Any], action: Action, select: dict = None
+    context: Context, fmt: Rdf, dtype: UUID, value: object, *, data: dict[str, Any], action: Action, select: dict = None
 ):
     if value is None or isinstance(value, NotAvailable):
         return None
@@ -822,7 +823,7 @@ def prepare_dtype_for_response(
     dtype: Denorm,
     value: Any,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):

@@ -3,8 +3,7 @@ import dataclasses
 import datetime
 import pathlib
 import sys
-from collections.abc import Generator
-from typing import AsyncIterator, Iterator
+from collections.abc import AsyncIterator, Generator, Iterator
 
 import tqdm
 from multipledispatch import dispatch

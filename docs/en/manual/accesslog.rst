@@ -237,3 +237,43 @@ Count number of objects processed by month::
 
 In most cases you need to add `select(.type=="request")` or
 `select(.type=="response")` in order to avoid dublication.
+
+
+.. _deprecation-warnings:
+
+Deprecation warnings
+====================
+
+.. versionadded:: 1.2.0
+
+Deprecation notices, for example the notice about the deprecated
+`spinta_*` scope prefix, are emitted via the Python `warnings` module (not
+via the logging system), so they are deduplicated and can be controlled
+with standard Python mechanisms.
+
+Because these warnings use the `DeprecationWarning` category, they are
+hidden by default: they are shown only when running in `__main__` or when
+`PYTHONDEVMODE=1` is set. Use `-W default::DeprecationWarning` to make them
+visible::
+
+    -W default::DeprecationWarning spinta run
+
+or via the environment::
+
+    PYTHONWARNINGS="ignore::DeprecationWarning" spinta run
+
+Note, that `PYTHONWARNINGS` and the `-W` interpreter option only work with
+the bundled `DeprecationWarning` category. Spinta-specific warning classes,
+like `spinta.warnings.SpintaDeprecationWarning`, can only be used in tools
+that apply warning filters when Spinta is already importable, for example
+with pytest::
+
+    pytest -W "error::spinta.warnings.SpintaDeprecationWarning"
+
+or in `pyproject.toml`::
+
+    [tool.pytest.ini_options]
+    filterwarnings = ["error::spinta.warnings.SpintaDeprecationWarning"]
+
+Warnings that are not filtered out are routed into the log file under the
+`py.warnings` logger, enabled by `logging.captureWarnings`.

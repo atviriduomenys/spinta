@@ -1,5 +1,5 @@
 from copy import copy
-from typing import TYPE_CHECKING, Callable, Dict, Optional, Protocol
+from typing import TYPE_CHECKING, Callable, Protocol
 
 import sqlalchemy as sa
 from sqlalchemy.dialects.sqlite.base import SQLiteDialect
@@ -223,12 +223,7 @@ def migrate_table(
     inspector: Inspector,
     table: sa.Table,
     *,
-    renames: Optional[
-        Dict[
-            str,  # old column name
-            str,  # new column name
-        ]
-    ] = None,
+    renames: dict[str, str] | None = None,
     copy: bool = False,
 ) -> None:
     from alembic.migration import MigrationContext
@@ -287,7 +282,7 @@ def _migrate_with_alter_table(
     inspector: Inspector,
     op: "Operations",
     table: sa.Table,
-    renames: Optional[Dict[str, str]],
+    renames: dict[str, str] | None,
 ) -> None:
     # https://alembic.sqlalchemy.org/en/latest/ops.html
     cols = inspector.get_columns(table.name)
@@ -314,7 +309,7 @@ def _migrate_with_insert_from_select(
     inspector: Inspector,
     op: "Operations",
     table: sa.Table,
-    renames: Optional[Dict[str, str]],
+    renames: dict[str, str] | None,
 ) -> None:
     old_indexes = inspector.get_indexes(table.name)
     for index in old_indexes:

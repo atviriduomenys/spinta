@@ -1,5 +1,4 @@
 from functools import lru_cache
-from typing import Optional, Union
 from urllib.parse import urlencode
 
 import shapely
@@ -42,7 +41,7 @@ def get_crs_bounding_area(srid: int) -> shapely.geometry.Polygon:
     return shapely.geometry.box(minx=south, maxx=north, miny=west, maxy=east)
 
 
-def get_osm_link(value: BaseGeometry, srid: Optional[Union[int, Geometry]]) -> Optional[str]:
+def get_osm_link(value: BaseGeometry, srid: int | Geometry | None) -> str | None:
     if isinstance(srid, Geometry):
         if srid.srid is None:
             raise SRIDNotSetForGeometry(srid, property=srid.prop)
@@ -67,7 +66,7 @@ def get_osm_link(value: BaseGeometry, srid: Optional[Union[int, Geometry]]) -> O
     return f"{OPENSTREETMAP_URL}/?{params}#map=19/{lat}/{lon}"
 
 
-def get_display_value(shape) -> Union[object, str]:
+def get_display_value(shape) -> object | str:
     if isinstance(shape, Point):
         value = shape.wkt
     else:

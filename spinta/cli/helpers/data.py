@@ -1,7 +1,8 @@
 import logging
 import pathlib
 import types
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Tuple
+from collections.abc import Iterable, Iterator
+from typing import Any
 
 import tqdm
 
@@ -17,7 +18,7 @@ from spinta.ufuncs.querybuilder.helpers import add_page_expr
 from spinta.utils.aiotools import alist
 from spinta.utils.itertools import peek
 
-ModelRow = Tuple[Model, Dict[str, Any]]
+ModelRow = tuple[Model, dict[str, Any]]
 
 log = logging.getLogger(__name__)
 
@@ -35,14 +36,14 @@ def _get_row_count(context: components.Context, model: components.Model, page_da
 
 def count_rows(
     context: Context,
-    models: List[Model],
+    models: list[Model],
     limit: int | None = None,
     *,
     initial_page_data: dict | None = None,
     stop_on_error: bool = False,
     error_counter: ErrorCounter | None = None,
     no_progress_bar: bool = False,
-) -> Dict[str, int]:
+) -> dict[str, int]:
     counts = {}
     if initial_page_data is None:
         initial_page_data = {}
@@ -75,7 +76,7 @@ def read_model_data(
     params: QueryParams | None = None,
     page: Page | None = None,
     query: Expr | None = None,
-) -> Iterable[Dict[str, Any]]:
+) -> Iterable[dict[str, Any]]:
     if limit is not None:
         if query is None:
             query = Expr("limit", limit)
@@ -124,8 +125,8 @@ def filter_dict_by_keys(keys: list, data: dict) -> dict:
 
 def iter_model_rows(
     context: Context,
-    models: List[Model],
-    counts: Dict[str, int],
+    models: list[Model],
+    counts: dict[str, int],
     limit: int | None = None,
     *,
     stop_on_error: bool = False,
@@ -143,8 +144,8 @@ def iter_model_rows(
 async def process_stream(
     source: str,
     stream: DataStream,
-    exporter: Optional[Format] = None,
-    path: Optional[pathlib.Path] = None,
+    exporter: Format | None = None,
+    path: pathlib.Path | None = None,
 ) -> None:
     if exporter:
         # TODO: Probably exporters should support async generators.

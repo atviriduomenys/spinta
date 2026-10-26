@@ -1,5 +1,5 @@
 from collections import abc
-from typing import Any, Union
+from typing import Any
 
 from multipledispatch import dispatch
 
@@ -16,7 +16,7 @@ ResultBuilderGetter = abc.Callable[[], ResultBuilder]
 
 
 def _resolve_expr(
-    context: Context, row: Any, sel: Selected, result_builder_getter: Union[ResultBuilderGetter, ResultBuilder]
+    context: Context, row: Any, sel: Selected, result_builder_getter: ResultBuilderGetter | ResultBuilder
 ) -> Any:
     if sel.item is None:
         val = None
@@ -106,7 +106,7 @@ def _get_row_value(
     row: Any,
     sel: Any,
     check_enums: bool,
-    result_builder_getter: Union[ResultBuilderGetter, ResultBuilder],
+    result_builder_getter: ResultBuilderGetter | ResultBuilder,
 ):
     if isinstance(sel, Selected):
         if isinstance(sel.prep, Expr):

@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from spinta import exceptions
 from spinta.typing import ObjectData
@@ -9,7 +8,7 @@ log = logging.getLogger(__name__)
 
 def report_error(
     exc: Exception,
-    data: Optional[ObjectData] = None,
+    data: ObjectData | None = None,
     *,
     stop_on_error: bool = True,
 ) -> Exception:

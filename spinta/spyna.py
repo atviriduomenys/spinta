@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import List, Optional, TypedDict
+from typing import TypedDict
 
 import lark
 
@@ -23,15 +23,23 @@ GRAMMAR = r"""
 specialarglist: specialarg ("," specialarg)* [","]
 countfunc: COUNT
 limitfunc: LIMIT "=" specialarglist
+pagefunc: PAGE PAGE_TOKEN
 
 COUNT: "_count"
 SELECT: "_select"
 SORT: "_sort"
 LIMIT: "_limit"
+// With its `=`, so that `_page` alone, `select(_page)` for one, is still a name.
+// A stopgap, as the other UAPI terminals here are: #2023 moves the simplified
+// syntax out of the Spyna grammar into a parser of its own.
+PAGE.2: /_page=/
+// A page token as `encode_page_values` writes it, URL safe Base64 with its
+// `=` padding, which is written as it is rather than quoted.
+PAGE_TOKEN: /[A-Za-z0-9_-]+={0,2}/
 
 sortfunc: SORT "=" specialarglist
 selectfunc: SELECT "=" specialarglist
-?atom: "(" group? ")" | "[" list? "]" | func | limitfunc | countfunc | selectfunc | sortfunc| value | name
+?atom: "(" group? ")" | "[" list? "]" | func | limitfunc | pagefunc | countfunc | selectfunc | sortfunc| value | name
 group: test ("," test)* [","]
 list: test ("," test)* [","]
 ?trailer: "[" filter? "]" | method | attr | gtmethod | gemethod | ltmethod | lemethod | swmethod | comethod
@@ -80,10 +88,10 @@ _parser = lark.Lark(GRAMMAR, parser="lalr")
 
 class SpynaAST(TypedDict):
     name: str
-    args: List[SpynaAST]
+    args: list[SpynaAST]
 
 
-def parse(rql) -> Optional[SpynaAST]:
+def parse(rql) -> SpynaAST | None:
     if not isinstance(rql, str):
         return rql
 
@@ -248,6 +256,9 @@ class Visitor:
 
     def limitfunc(self, _, __, args: lark.Tree) -> dict:
         return {"name": "limit", "args": self._args(*args.children)}
+
+    def pagefunc(self, _, __, token: lark.Token) -> dict:
+        return {"name": "page", "args": [token.value]}
 
     def gtmethod_comp(self, _, arg: dict, expr: lark.Tree) -> dict:
         return {

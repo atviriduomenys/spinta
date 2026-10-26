@@ -1,5 +1,5 @@
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 import sqlalchemy as sa
 from multipledispatch import dispatch

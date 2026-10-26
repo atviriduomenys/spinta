@@ -1,8 +1,7 @@
 import asyncio
 import dataclasses
 import datetime
-from collections.abc import Iterator
-from typing import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 
 import sqlalchemy as sa
 import tqdm

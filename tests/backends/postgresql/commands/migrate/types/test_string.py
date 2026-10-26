@@ -424,7 +424,7 @@ def test_migrate_string_custom_length(migration_db: Engine, rc: RawConfig, cli: 
         "BEGIN;\n"
         "\n"
         'ALTER TABLE "migrate/example"."Test" ALTER COLUMN text TYPE VARCHAR(10) USING '
-        'CAST("migrate/example"."Test".text AS VARCHAR(10));\n'
+        "CAST(text AS VARCHAR(10));\n"
         "\n"
         "COMMIT;\n"
         "\n"

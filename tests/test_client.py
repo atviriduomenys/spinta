@@ -1,6 +1,7 @@
 import configparser
 from pathlib import Path
 from textwrap import dedent
+from urllib.parse import parse_qs
 
 import pytest
 from responses import POST, RequestsMock
@@ -145,3 +146,120 @@ def test_add_client_credentials_kwargs(tmp_path: Path, scopes: list):
 def test_get_client_credentials_remote(name: str, remote: str):
     creds = get_client_credentials(None, name, check=False)
     assert creds.remote == remote
+
+
+def test_get_client_credentials_new_keys(tmp_path: Path):
+    credsfile = Path(tmp_path / "credentials.cfg")
+    credsfile.write_text(
+        dedent("""
+    [katalogas]
+    auth_server_url = https://auth.example.com
+    server = https://old-auth.example.com
+    resource_server_url = https://data.gov.lt/uapi/
+    resource_server = https://old.data.gov.lt/uapi/
+    resource_server_id = https://data.gov.lt/uapi/
+    client = spinta
+    secret = verysecret
+    scopes = uapi:/:getall
+    """)
+    )
+    creds = get_client_credentials(credsfile, "katalogas")
+    assert creds.server == "https://auth.example.com"
+    assert creds.resource_server_url == "https://data.gov.lt/uapi/"
+    assert creds.resource_server_id == "https://data.gov.lt/uapi/"
+
+
+def test_get_client_credentials_old_keys(tmp_path: Path):
+    credsfile = Path(tmp_path / "credentials.cfg")
+    credsfile.write_text(
+        dedent("""
+    [default]
+    server = https://auth.example.com
+    resource_server = https://data.gov.lt
+    client = spinta
+    secret = verysecret
+    scopes = uapi:/:getall
+    """)
+    )
+    creds = get_client_credentials(credsfile, "default")
+    assert creds.server == "https://auth.example.com"
+    assert creds.resource_server_url == "https://data.gov.lt"
+    assert creds.resource_server_id is None
+
+
+def test_get_client_credentials_percent_encoded_resource_server_id(tmp_path: Path):
+    credsfile = Path(tmp_path / "credentials.cfg")
+    credsfile.write_text(
+        dedent("""
+    [default]
+    server = https://auth.example.com
+    resource_server_id = urn:example:tenant%2Fname
+    client = spinta
+    secret = verysecret
+    scopes = uapi:/:getall
+    """)
+    )
+    creds = get_client_credentials(credsfile, "default")
+    assert creds.resource_server_id == "urn:example:tenant%2Fname"
+
+
+@pytest.mark.parametrize(
+    "auth_option, resource_option",
+    [("auth_server_url", "resource_server_url"), ("server", "resource_server")],
+)
+def test_get_client_credentials_percent_encoded_urls(tmp_path: Path, auth_option: str, resource_option: str):
+    credsfile = Path(tmp_path / "credentials.cfg")
+    credsfile.write_text(
+        dedent(f"""
+    [katalogas]
+    {auth_option} = https://auth.example.com/tenant%2Fname
+    {resource_option} = https://data.gov.lt/tenant%2Fname/uapi/
+    client = spinta
+    secret = verysecret
+    scopes = uapi:/:getall
+    """)
+    )
+    creds = get_client_credentials(credsfile, "katalogas")
+    assert creds.server == "https://auth.example.com/tenant%2Fname"
+    assert creds.resource_server_url == "https://data.gov.lt/tenant%2Fname/uapi/"
+
+
+@pytest.mark.parametrize("resource_server_id", [None, "https://data.gov.lt/uapi/"])
+def test_get_access_token_sends_resource(responses: RequestsMock, tmp_path: Path, resource_server_id):
+    credsfile = Path(tmp_path / "credentials.cfg")
+    resource_line = f"resource_server_id = {resource_server_id}" if resource_server_id else ""
+    credsfile.write_text(
+        dedent(f"""
+    [katalogas]
+    auth_server_url = https://auth.example.com
+    {resource_line}
+    client = spinta
+    secret = verysecret
+    scopes = uapi:/:getall
+    """)
+    )
+    responses.add(POST, "https://auth.example.com/auth/token", json={"access_token": "TOKEN"})
+
+    get_access_token(get_client_credentials(credsfile, "katalogas"))
+
+    body = parse_qs(responses.calls[0].request.body)
+    assert body.get("resource") == ([resource_server_id] if resource_server_id else None)
+
+
+def test_get_access_token_auth_server_url_with_trailing_slash(responses: RequestsMock, tmp_path: Path):
+    credsfile = Path(tmp_path / "credentials.cfg")
+    credsfile.write_text(
+        dedent("""
+    [katalogas]
+    auth_server_url = https://auth.example.com/
+    resource_server_id = https://data.gov.lt/uapi/
+    client = spinta
+    secret = verysecret
+    scopes = uapi:/:getall
+    """)
+    )
+    responses.add(POST, "https://auth.example.com/auth/token", json={"access_token": "TOKEN"})
+
+    get_access_token(get_client_credentials(credsfile, "katalogas"))
+
+    assert responses.calls[0].request.url == "https://auth.example.com/auth/token"

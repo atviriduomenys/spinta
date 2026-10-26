@@ -1,9 +1,9 @@
 import csv
 import pathlib
 import sys
+from collections.abc import Iterator
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from typing import Iterator
 
 import sqlalchemy as sa
 from multipledispatch import dispatch

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 import pydoc
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union, cast, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 
 from spinta import commands, exceptions
 from spinta.auth import authorized
@@ -156,7 +156,10 @@ def load(
     )
     load_level(context, model, model.level)
     load_status(model, model.status)
-    load_visibility(model, model.visibility)
+    # What the manifest gave, not the attribute: the node loader has already put the
+    # schema default into it when none was given, and `given` would record that
+    # default as given. Enum items and scopes pass the given value the same way.
+    load_visibility(model, data.get("visibility"))
 
     load_model_properties(context, model, Property, data.get("properties"))
 
@@ -399,6 +402,9 @@ def load(
 ) -> Property:
     config = context.get("config")
     prop.type = "property"
+    # Read before `load_node`, which hands back only what its schema did not take,
+    # `visibility` not among it, and puts the schema default into the attribute.
+    given_visibility = data.get("visibility")
     prop, data = load_node(context, prop, data, mixed=True)
     prop = cast(Property, prop)
 
@@ -425,7 +431,7 @@ def load(
     # prop.given.status = prop.status
     # prop.status = load_enum_type_item(prop, prop.status, Status)
     load_status(prop, prop.status)
-    load_visibility(prop, prop.visibility)
+    load_visibility(prop, given_visibility)
 
     if data["type"] is None:
         raise UnknownPropertyType(prop, type=data["type"])
@@ -456,7 +462,7 @@ def load(
     #         if '.id' not in prop.name:
     #             prop.model.unique = [list(map(lambda val: val.replace(
     #                 prop.name, prop.name + '._id'), val)) for val in prop.model.unique]
-    unit: Optional[str] = prop.enum
+    unit: str | None = prop.enum
     if unit is None:
         prop.given.enum = None
         prop.given.unit = None
@@ -477,9 +483,9 @@ def load(
 
 def _link_prop_enum(
     prop: Property,
-) -> Optional[EnumValue]:
+) -> EnumValue | None:
     if prop.given.enum:
-        enums: List[Enums] = (
+        enums: list[Enums] = (
             [prop.enums]
             + [prop.model.ns.enums]
             + [ns.enums for ns in prop.model.ns.parents()]
@@ -693,7 +699,7 @@ def authorize(context: Context, action: Action, prop: Property):
 
 @overload
 @commands.get_error_context.register(Model)
-def get_error_context(model: Model, *, prefix="this") -> Dict[str, str]:
+def get_error_context(model: Model, *, prefix="this") -> dict[str, str]:
     context = commands.get_error_context(model.manifest, prefix=f"{prefix}.manifest")
     context["schema"] = f"{prefix}.get_eid_for_error_context()"
     context["model"] = f"{prefix}.name"
@@ -706,7 +712,7 @@ def get_error_context(model: Model, *, prefix="this") -> Dict[str, str]:
 
 @overload
 @commands.get_error_context.register(Property)
-def get_error_context(prop: Property, *, prefix="this") -> Dict[str, str]:
+def get_error_context(prop: Property, *, prefix="this") -> dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f"{prefix}.model")
     context["property"] = f"{prefix}.place"
     context["attribute"] = f"{prefix}.external.name"
@@ -715,7 +721,7 @@ def get_error_context(prop: Property, *, prefix="this") -> Dict[str, str]:
 
 @overload
 @commands.get_error_context.register(Page)
-def get_error_context(prop: Page, *, prefix="this") -> Dict[str, str]:
+def get_error_context(prop: Page, *, prefix="this") -> dict[str, str]:
     context = commands.get_error_context(prop.model, prefix=f"{prefix}.model")
     context["page"] = f"{prefix}.get_repr_for_error()"
     return context
@@ -795,7 +801,7 @@ def create_page(page_info: PageInfo, data: dict) -> Page:
 
 
 @commands.create_page.register(PageInfo, (list, set, tuple))
-def create_page(page_info: PageInfo, data: Union[list, set, tuple]) -> Page:
+def create_page(page_info: PageInfo, data: list | set | tuple) -> Page:
     page = commands.create_page(page_info)
     page.update_values_from_list(data)
     return page

@@ -1,5 +1,3 @@
-from typing import Optional
-
 METADATA = {
     "id": None,
     "pk": "id",
@@ -15,7 +13,7 @@ class Data:
     This wrapper separates metadata from real data.
     """
 
-    def __init__(self, payload: Optional[dict] = None):
+    def __init__(self, payload: dict | None = None):
         self.__dict__["payload"] = payload or {}
 
     def __getattr__(self, name):

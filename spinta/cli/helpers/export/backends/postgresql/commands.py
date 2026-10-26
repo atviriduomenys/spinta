@@ -1,7 +1,7 @@
 import datetime
 import pathlib
+from collections.abc import Iterator
 from contextlib import AsyncExitStack
-from typing import Iterator
 
 import aiofiles
 

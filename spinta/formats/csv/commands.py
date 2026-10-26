@@ -1,6 +1,7 @@
 import csv
 import pathlib
-from typing import Any, Dict, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from starlette.requests import Request
 from starlette.responses import Response, StreamingResponse
@@ -15,7 +16,7 @@ from spinta.manifests.tabular.components import ManifestRow
 from spinta.manifests.tabular.constants import DATASET
 from spinta.manifests.tabular.helpers import datasets_to_tabular, write_csv
 from spinta.utils.nestedstruct import flatten, sepgetter
-from spinta.utils.response import aiter
+from spinta.utils.response import async_response_iterator
 
 
 @commands.render.register(Context, Request, Model, Csv)
@@ -27,14 +28,14 @@ def render(
     *,
     action: Action,
     params: UrlParams,
-    data: Iterator[Dict[str, Any]],
+    data: Iterator[dict[str, Any]],
     status_code: int = 200,
-    headers: Dict[str, str] = None,
+    headers: dict[str, str] = None,
 ) -> Response:
     headers = headers or {}
     headers["Content-Disposition"] = f'attachment; filename="{model.basename}.csv"'
     return StreamingResponse(
-        aiter(_render_model_csv(context, model, action, params, data)),
+        async_response_iterator(_render_model_csv(context, model, action, params, data)),
         status_code=status_code,
         media_type=fmt.content_type,
         headers=headers,
@@ -50,7 +51,7 @@ def render(
     action: Action = None,
     params: UrlParams = None,
     status_code: int = 200,
-    headers: Dict[str, str] = None,
+    headers: dict[str, str] = None,
     path: str = None,
 ) -> Response:
     rows = datasets_to_tabular(context, manifest)
@@ -59,7 +60,7 @@ def render(
         headers = headers or {}
         headers["Content-Disposition"] = f'attachment; filename="{manifest.name}.csv"'
         return StreamingResponse(
-            aiter(_render_manifest_csv(rows)),
+            async_response_iterator(_render_manifest_csv(rows)),
             status_code=status_code,
             media_type=fmt.content_type,
             headers=headers,
@@ -81,7 +82,7 @@ def _render_model_csv(
     model: Model,
     action: Action,
     params: UrlParams,
-    data: Iterator[Dict[str, Any]],
+    data: Iterator[dict[str, Any]],
 ):
     rows = flatten(data, sepgetter(model))
     # Rename _page to _page.next

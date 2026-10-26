@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from spinta.core.ufuncs import Env, Expr
 from spinta.datasets.components import Dataset
@@ -19,4 +19,4 @@ class ParamLoader(Env):
     dataset: Dataset
 
 
-ResolvedParams = Dict[str, Any]
+ResolvedParams = dict[str, Any]

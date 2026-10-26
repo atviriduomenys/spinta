@@ -1,6 +1,5 @@
 import subprocess
 import sys
-from typing import Optional
 
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
@@ -9,7 +8,7 @@ from spinta import commands
 from spinta.components import Context, Model, UrlParams
 from spinta.core.enums import Action
 from spinta.formats.ascii.components import Ascii
-from spinta.utils.response import aiter, peek_and_stream
+from spinta.utils.response import async_response_iterator, peek_and_stream
 
 
 @commands.render.register(Context, Request, Model, Ascii)
@@ -23,7 +22,7 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
 ):
     return _render(
         context,
@@ -59,7 +58,7 @@ def _render(
         max_col_width = 42
 
     return StreamingResponse(
-        aiter(
+        async_response_iterator(
             peek_and_stream(
                 fmt(
                     context,

@@ -1,4 +1,4 @@
-from typing import Any, Dict, Optional
+from typing import Any
 
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
@@ -8,7 +8,7 @@ from spinta.components import Context, Node, UrlParams
 from spinta.core.enums import Action
 from spinta.formats.json.components import Json
 from spinta.types.text.components import Text
-from spinta.utils.response import aiter, peek_and_stream
+from spinta.utils.response import async_response_iterator, peek_and_stream
 
 
 @commands.render.register(Context, Request, Node, Json)
@@ -22,7 +22,7 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
 ):
     return _render(
         context,
@@ -51,7 +51,7 @@ def _render(
         # a list or a generator of dicts.
         assert not isinstance(data, dict), data
         return StreamingResponse(
-            aiter(peek_and_stream(fmt(data))),
+            async_response_iterator(peek_and_stream(fmt(data))),
             status_code=status_code,
             media_type=fmt.content_type,
             headers=headers,
@@ -69,7 +69,7 @@ def prepare_dtype_for_response(
     dtype: Text,
     value: dict,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):

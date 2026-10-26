@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List
+from collections.abc import Iterable
 
 import requests
 import sqlalchemy as sa
@@ -17,10 +17,10 @@ from spinta.exceptions import InfiniteLoopWithPagination, TooShortPageSize
 def get_rows_with_errors(
     client: requests.Session,
     server: str,
-    models: List[Model],
+    models: list[Model],
     context: Context,
     push_state: PushState,
-    counts: Dict[str, int],
+    counts: dict[str, int],
     retry: int,
     timeout: tuple[float, float],
     no_progress_bar: bool = False,
@@ -39,12 +39,11 @@ def get_rows_with_errors(
     )
     if not no_progress_bar:
         rows = tqdm.tqdm(rows, f"RETRY #{retry}", ascii=True, total=sum(counts.values()))
-    for row in rows:
-        yield row
+    yield from rows
 
 
 def get_rows_with_errors_counts(
-    models: List[Model],
+    models: list[Model],
     push_state: PushState,
 ) -> dict:
     counts = {}
@@ -59,10 +58,10 @@ def get_rows_with_errors_counts(
 def _iter_rows_with_errors(
     client: requests.Session,
     server: str,
-    models: List[Model],
+    models: list[Model],
     context: Context,
     push_state: PushState,
-    counts: Dict[str, int],
+    counts: dict[str, int],
     timeout: tuple[float, float],
     no_progress_bar: bool = False,
     error_counter: ErrorCounter = None,

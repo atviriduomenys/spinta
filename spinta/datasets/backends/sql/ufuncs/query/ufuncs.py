@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List, Tuple, TypeVar, Union, overload
+from typing import Any, TypeVar, overload
 
 import sqlalchemy as sa
 from sqlalchemy.sql.functions import Function
@@ -88,7 +88,7 @@ COMPARE = [
 T = TypeVar("T")
 
 
-def _prepare_value(prop: Property, value: T) -> Union[T, List[T]]:
+def _prepare_value(prop: Property, value: T) -> T | list[T]:
     return prepare_enum_value(prop, value)
 
 
@@ -106,7 +106,7 @@ def compare(env: SqlQueryBuilder, op: str, attr: GetAttr, value: Any):
 
 
 @ufunc.resolver(SqlQueryBuilder, Bind, list, names=COMPARE)
-def compare(env: SqlQueryBuilder, op: str, field: Bind, value: List[Any]):
+def compare(env: SqlQueryBuilder, op: str, field: Bind, value: list[Any]):
     prop = env.resolve_property(field)
     value = list(flatten(_prepare_value(prop, v) for v in value))
     return env.call(op, prop.dtype, value)
@@ -123,7 +123,7 @@ def compare(
     env: SqlQueryBuilder,
     op: str,
     fpr: ForeignProperty,
-    value: List[Any],
+    value: list[Any],
 ):
     value = list(flatten(_prepare_value(fpr.right.prop, v) for v in value))
     return env.call(op, fpr, fpr.right, value)
@@ -166,13 +166,13 @@ def compare(env: SqlQueryBuilder, op: str, func: Function, value: Any):
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType, list)
-def eq(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
+def eq(env: SqlQueryBuilder, dtype: DataType, value: list[Any]):
     column = env.backend.get_column(env.table, dtype.prop)
     return column.in_(value)
 
 
 @ufunc.resolver(SqlQueryBuilder, Text, list)
-def eq(env: SqlQueryBuilder, dtype: Text, value: List[Any]):
+def eq(env: SqlQueryBuilder, dtype: Text, value: list[Any]):
     column = get_language_column(env, dtype)
     return column.in_(value)
 
@@ -185,13 +185,13 @@ def eq(env: SqlQueryBuilder, fpr: ForeignProperty, dtype: DataType, value: list)
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType, list)
-def ne(env: SqlQueryBuilder, dtype: DataType, value: List[Any]):
+def ne(env: SqlQueryBuilder, dtype: DataType, value: list[Any]):
     column = env.backend.get_column(env.table, dtype.prop)
     return ~column.in_(value)
 
 
 @ufunc.resolver(SqlQueryBuilder, Text, list)
-def ne(env: SqlQueryBuilder, dtype: Text, value: List[Any]):
+def ne(env: SqlQueryBuilder, dtype: Text, value: list[Any]):
     column = get_language_column(env, dtype)
     return ~column.in_(value)
 
@@ -201,7 +201,7 @@ def ne(
     env: SqlQueryBuilder,
     fpr: ForeignProperty,
     dtype: DataType,
-    value: List[Any],
+    value: list[Any],
 ):
     table = env.joins.get_table(env, fpr)
     column = env.backend.get_column(table, fpr.right.prop)
@@ -209,7 +209,7 @@ def ne(
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
-def ne(env: SqlQueryBuilder, fpr: ForeignProperty, value: List[Any]):
+def ne(env: SqlQueryBuilder, fpr: ForeignProperty, value: list[Any]):
     table = env.joins.get_table(env, fpr)
     column = env.backend.get_column(table, fpr.right.prop)
     return ~column.in_(value)
@@ -284,7 +284,7 @@ def or_(env: SqlQueryBuilder, expr: Expr):
 
 
 @ufunc.resolver(SqlQueryBuilder, Expr, name="list")
-def list_(env: SqlQueryBuilder, expr: Expr) -> List[Any]:
+def list_(env: SqlQueryBuilder, expr: Expr) -> list[Any]:
     args, kwargs = expr.resolve(env)
     return list(args)
 
@@ -567,7 +567,7 @@ def select(env: SqlQueryBuilder, dtype: Array):
 
 
 @ufunc.resolver(SqlQueryBuilder, Page)
-def select(env: SqlQueryBuilder, page: Page) -> List[sa.Column]:
+def select(env: SqlQueryBuilder, page: Page) -> list[sa.Column]:
     table = env.backend.get_table(env.model)
     return_selected = []
     for item in page.by.values():
@@ -628,7 +628,7 @@ def join_table_on(env: SqlQueryBuilder, prop: Property) -> Any:
 
 
 @ufunc.resolver(SqlQueryBuilder, DataType)
-def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Tuple[Any]:
+def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> tuple[Any]:
     table = env.table
     if table is None:
         table = env.backend.get_table(dtype.prop.model)
@@ -637,7 +637,7 @@ def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Tuple[Any]:
 
 
 @ufunc.resolver(SqlQueryBuilder, Text)
-def join_table_on(env: SqlQueryBuilder, dtype: Text) -> Tuple[Any]:
+def join_table_on(env: SqlQueryBuilder, dtype: Text) -> tuple[Any]:
     column = get_language_column(env, dtype)
     return column
 
@@ -663,7 +663,7 @@ def join_table_on(env: SqlQueryBuilder, dtype: DataType) -> Any:
 def join_table_on(
     env: SqlQueryBuilder,
     dtype: Ref,
-) -> Tuple[Any]:
+) -> tuple[Any]:
     original_model = dtype.prop.model
     original_table = env.backend.get_table(original_model)
 
@@ -702,7 +702,7 @@ def join_table_on(
     env: SqlQueryBuilder,
     dtype: DataType,
     prep: tuple,
-) -> Tuple[Any]:
+) -> tuple[Any]:
     return tuple(env.call("join_table_on", v) for v in prep)
 
 
@@ -749,7 +749,7 @@ def sort(env: SqlQueryBuilder, expr: Expr):
     env.sort = []
     for key in args:
         result = env.call("sort", key)
-        if isinstance(result, (list, set, tuple)):
+        if isinstance(result, list | set | tuple):
             env.sort += result
         else:
             env.sort.append(result)

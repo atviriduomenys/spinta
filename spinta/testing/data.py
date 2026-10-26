@@ -3,8 +3,9 @@ from __future__ import annotations
 import base64
 import json
 import operator
+from collections.abc import Callable
 from textwrap import indent
-from typing import Any, Callable, Dict, List, NamedTuple, Optional, Union, cast
+from typing import Any, NamedTuple, cast
 
 import httpx2
 import requests
@@ -21,11 +22,11 @@ def get_keys_for_row(keys, row: dict):
 
 
 def listdata(
-    resp: Union[httpx2.Response, List[Dict[str, Any]]],
-    *keys: Union[str, Callable[[], bool]],
-    sort: Union[bool, str] = True,
+    resp: httpx2.Response | list[dict[str, Any]],
+    *keys: str | Callable[[], bool],
+    sort: bool | str = True,
     full: bool = False,  # returns dicts instead of tuples
-) -> List[tuple]:
+) -> list[tuple]:
     """Return data from a given Response object.
 
     Only non reserved fields are returned.
@@ -94,7 +95,7 @@ def listdata(
         assert "header" in context, pformat(context)
         header = context["header"]
         keys = keys or [k for k in header if not k.startswith("_")]
-        data = [{k: v.value for k, v in zip(header, row)} for row in cast(List[List[Cell]], context["data"])]
+        data = [{k: v.value for k, v in zip(header, row)} for row in cast(list[list[Cell]], context["data"])]
 
     else:
         data = resp.json()
@@ -134,9 +135,9 @@ def listdata(
     return data
 
 
-def pushdata(app: TestClient, *args) -> Union[dict, list]:
+def pushdata(app: TestClient, *args) -> dict | list:
     model: str
-    data: Union[list, dict]
+    data: list | dict
     if len(args) == 2:
         model, data = args
     else:
@@ -163,18 +164,18 @@ def pushdata(app: TestClient, *args) -> Union[dict, list]:
 class Data(NamedTuple):
     id: str
     rev: str
-    data: Dict[str, Any]
+    data: dict[str, Any]
 
     @property
     def sid(self):
         if self.id:
             return self.id[:8]
 
-    def update(self, data: Dict[str, Any]) -> Data:
+    def update(self, data: dict[str, Any]) -> Data:
         return Data(id=self.id, rev=self.rev, data={**self.data, **data})
 
 
-def _obj_from_dict(data: Dict[str, Any]) -> Data:
+def _obj_from_dict(data: dict[str, Any]) -> Data:
     return Data(
         id=data.pop("_id", None),
         rev=data.pop("_revision", None),
@@ -186,13 +187,13 @@ def send(
     app: TestClient,
     model: str,
     action: str,
-    obj: Optional[Union[Data, Dict[str, Any]]] = None,
-    data: Optional[Dict[str, Any]] = None,
+    obj: Data | dict[str, Any] | None = None,
+    data: dict[str, Any] | None = None,
     *,
-    select: Optional[List[str]] = None,
-    sort: Optional[Union[bool, str]] = None,
-    full: Optional[bool] = None,  # returns dicts instead of tuples
-) -> Union[Data, List[Data]]:
+    select: list[str] | None = None,
+    sort: bool | str | None = None,
+    full: bool | None = None,  # returns dicts instead of tuples
+) -> Data | list[Data]:
     if obj is not None and isinstance(obj, dict):
         obj = _obj_from_dict(obj)
 

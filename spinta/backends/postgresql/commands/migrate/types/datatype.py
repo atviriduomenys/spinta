@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List
-
 import geoalchemy2.types
 import sqlalchemy as sa
 from typer import echo
@@ -78,7 +76,7 @@ def migrate(
     backend: PostgreSQL,
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
-    old: List[sa.Column],
+    old: list[sa.Column],
     new: DataType,
     **kwargs,
 ):
@@ -362,7 +360,7 @@ def migrate(
     migration_ctx: PostgresqlMigrationContext,
     property_ctx: PropertyMigrationContext,
     old: NotAvailable,
-    new: List[sa.Column],
+    new: list[sa.Column],
     **kwargs,
 ):
     for column in new:

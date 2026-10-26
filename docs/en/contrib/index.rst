@@ -17,3 +17,4 @@ project.
    manifests
    git-flow
    issues
+   specifications

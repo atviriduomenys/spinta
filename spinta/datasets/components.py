@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import sqlalchemy as sa
 from sqlalchemy.engine.base import Engine
@@ -31,15 +31,15 @@ class Dataset(MetaData):
     level: Level = 3
     access: Access = Access.private
     website: str = None
-    resources: Dict[str, Resource] = None
-    source: Optional[str] = None  # metadata source
+    resources: dict[str, Resource] = None
+    source: str | None = None  # metadata source
     title: str
     description: str
     count: int | None = None
     given: DatasetGiven
     lang: LangData = None
     ns: Namespace = None
-    prefixes: Dict[str, UriPrefix]
+    prefixes: dict[str, UriPrefix]
 
     schema = {
         "type": {"type": "string", "required": True},
@@ -110,11 +110,11 @@ class Resource(External):
     access: Access
     external: str
     prepare: Expr
-    models: Dict[str, Model]
+    models: dict[str, Model]
     given: ResourceGiven
     lang: LangData = None
-    comments: List[Comment] = None
-    params: List[Param]
+    comments: list[Comment] = None
+    params: list[Param]
     source_params: set
     source_type: str
 
@@ -170,16 +170,16 @@ class Param(ExtraMetaData):
     title: str
     description: str
     # Formatted values
-    sources: List[Any]
-    formulas: List[Expr]
+    sources: list[Any]
+    formulas: list[Expr]
     dependencies: set
     soap_body: dict[str, Any]  # Used to store result of input() function
     soap_body_value_type: str = "string"  # Type that soap body value will be converted to
     http_header: dict  # Used to store results of header() function
 
     # Given values
-    source: List[Any]
-    prepare: List[Any]
+    source: list[Any]
+    prepare: list[Any]
 
     schema = {
         "type": {"type": "string"},
@@ -201,15 +201,15 @@ class Entity(External):
     #      which then is converted into `Entity` with `Dataset` and `Resource`
     #      types.
     dataset: Dataset  # dataset
-    resource: Optional[Resource]  # resource
+    resource: Resource | None  # resource
     model: Model  # model
-    pkeys: List[Property]  # model.ref
+    pkeys: list[Property]  # model.ref
     # This is set to True if primary key is not given. Anf if primary key is not
     # given, then `pkeys` will be set to all properties.
     unknown_primary_key: bool = False
     name: str  # model.source
     prepare: Expr  # model.prepare
-    params: List[Param]
+    params: list[Param]
     schema = {
         "model": {"parent": True},
         "dataset": {"type": "ref", "ref": "context.nodes.dataset"},

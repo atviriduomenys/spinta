@@ -7,6 +7,13 @@ from spinta.components import Config
 
 
 def setup_logging(config: Config) -> logging.Logger:
+    # Route unfiltered warnings (including deprecation warnings enabled via
+    # PYTHONWARNINGS or -W) into the logging system, under the `py.warnings`
+    # logger, so they end up in the log file as well. Warnings that are
+    # filtered out by the warnings module never reach this, so enabling this
+    # does not undo the per-location deduplication done by `warnings.warn`.
+    logging.captureWarnings(True)
+
     # Get the current directory or a suitable place in the user's environment
     log_dir = config.file_log_path
     os.makedirs(log_dir, exist_ok=True)

@@ -3,13 +3,14 @@ from __future__ import annotations
 import collections
 import inspect
 import pathlib
-from typing import Any, Callable, Dict, List, Tuple, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 from multipledispatch.dispatcher import Dispatcher, str_signature
 
 F = TypeVar("F", bound=Callable[[], Any])
 
-_commands: Dict[str, Command] = {}
+_commands: dict[str, Command] = {}
 
 
 def command(
@@ -69,7 +70,7 @@ class Command(Dispatcher):
             _print_method(base, func_, self.name, arg_names, args, mark)
 
 
-def _extend_duplicate_names(argslist: List[Tuple[type]]) -> Dict[type, str]:
+def _extend_duplicate_names(argslist: list[tuple[type]]) -> dict[type, str]:
     argnames = collections.defaultdict(set)
     for args in argslist:
         for arg in args:

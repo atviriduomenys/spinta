@@ -1,5 +1,5 @@
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Iterable, List
 
 import httpx2
 import jsonpatch
@@ -121,7 +121,7 @@ def get_error_codes(response):
     return [err["code"] for err in response["errors"]]
 
 
-def get_error_context(response, error_code, ctx_keys: List[str] = None):
+def get_error_context(response, error_code, ctx_keys: list[str] = None):
     assert response["errors"]
     for err in response["errors"]:
         # FIXME: probably shouldn't return the context of the first found error
@@ -160,7 +160,7 @@ class RowIds:
         return self.idsr[i]
 
     def _cast(self, ids):
-        if isinstance(ids, (requests.models.Response, httpx2.Response)):
+        if isinstance(ids, requests.models.Response | httpx2.Response):
             resp = ids
             assert resp.status_code == 200, resp.json()
             ids = resp.json()

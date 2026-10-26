@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generator
+from collections.abc import Generator
+from typing import TYPE_CHECKING
 
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
@@ -640,8 +641,7 @@ class MigrationHandler:
         return False
 
     def gather_migrations(self) -> Generator[MigrationAction, None, None]:
-        for migration in self.migrations:
-            yield migration
+        yield from self.migrations
 
     def run_migrations(self, op: "Operations") -> None:
         for migration in self.gather_migrations():
