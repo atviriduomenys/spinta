@@ -14,12 +14,11 @@ def config(
     ctx: TyperContext,
     name: list[str] | None = Argument(None),
     fmt: KeyFormat = KeyFormat.cfg,
-    all_sources: bool = Option(False, help="Show values from all sources and not only effective one"),
 ):
     """Show current configuration values"""
     context = configure_context(ctx.obj)
     rc = context.get("rc")
-    rc.dump(*name if name else [], fmt=fmt, all_sources=all_sources)
+    rc.dump(*name if name else [], fmt=fmt)
 
 
 def check(
