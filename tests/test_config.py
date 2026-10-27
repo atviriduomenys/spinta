@@ -1,12 +1,36 @@
+import pathlib
+from copy import deepcopy
+
 import pytest
 from ruamel.yaml import YAML
 
 from spinta import commands
-from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
+from spinta.core.config import (
+    SCHEMA,
+    CliArgs,
+    ConfigSource,
+    EnvFile,
+    EnvVars,
+    KeyFormat,
+    Path,
+    PyDict,
+    RawConfig,
+    nested_config_sources,
+)
 from spinta.testing.context import create_test_context
 from spinta.utils.schema import NA
 
 yaml = YAML(typ="safe")
+
+
+def create_rc(initial_sources: list[ConfigSource]) -> RawConfig:
+    tmp_rc = RawConfig()
+    tmp_rc.read(deepcopy(initial_sources))
+
+    configs = nested_config_sources(tmp_rc)
+    rc = RawConfig()
+    rc.read(initial_sources + configs)
+    return rc
 
 
 def test_envvars():
@@ -157,7 +181,7 @@ def test_update_config_from_env():
     ]
 
 
-def test_update_config_from_env_file(tmp_path):
+def test_update_config_from_env_file(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text(
         "# comment line\n\nSPINTA_BACKENDS__DEFAULT__TYPE=foo\nSPINTA_BACKENDS__NEW__TYPE=bar\n",
@@ -294,7 +318,7 @@ def test_custom_env_different_env_name():
     assert rc.get("backends", "default", "dsn") == "bar"
 
 
-def test_custom_env_from_envfile(tmp_path):
+def test_custom_env_from_envfile(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text(
         "SPINTA_ENV=testing\nSPINTA_BACKENDS__DEFAULT__DSN=foo\nSPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n"
@@ -309,7 +333,7 @@ def test_custom_env_from_envfile(tmp_path):
     assert rc.get("backends", "default", "dsn") == "bar"
 
 
-def test_custom_env_from_envfile_only(tmp_path):
+def test_custom_env_from_envfile_only(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text("SPINTA_ENV=testing\nSPINTA_TESTING__BACKENDS__DEFAULT__DSN=bar\n")
     rc = RawConfig()
@@ -322,7 +346,7 @@ def test_custom_env_from_envfile_only(tmp_path):
     assert rc.get("backends", "default", "dsn") == "bar"
 
 
-def test_custom_env_from_envfile_fallback(tmp_path):
+def test_custom_env_from_envfile_fallback(tmp_path: pathlib.Path):
     envfile = tmp_path / ".env"
     envfile.write_text("SPINTA_ENV=testing\nSPINTA_BACKENDS__DEFAULT__DSN=bar\n")
     rc = RawConfig()
@@ -359,7 +383,7 @@ def test_custom_config():
     assert rc.get("backends", "custom", "dsn") == "config"
 
 
-def test_yaml_config(tmp_path):
+def test_yaml_config(tmp_path: pathlib.Path):
     (tmp_path / "a.yml").write_text("wait: 1\nbackends: {default: {dsn: test}}")
     (tmp_path / "b.yml").write_text("wait: 2\ndebug: true")
     envvars = {
@@ -385,6 +409,32 @@ def test_yaml_config(tmp_path):
     assert rc.get("wait", cast=int) == 2
     assert rc.get("backends", "default", "dsn") == "test"
     assert rc.get("debug") is False
+
+
+def test_nested_yaml_config_load_order(tmp_path: pathlib.Path):
+    (tmp_path / "a.yml").write_text(f"test: 1\nconfig: [{str(tmp_path / 'a_1.yml')},{str(tmp_path / 'a_2.yml')}]")
+    (tmp_path / "a_1.yml").write_text("test: 2\na: 1")
+    (tmp_path / "a_2.yml").write_text(f"test: 3\na: 2\nab: 1\nconfig: [{str(tmp_path / 'a_2_1.yml')}]")
+    (tmp_path / "a_2_1.yml").write_text("test: 4\na: 3\nabc: 1")
+    (tmp_path / "b.yml").write_text(f"config: [{str(tmp_path / 'b_1.yml')}]")
+    (tmp_path / "b_1.yml").write_text("debug: true")
+    (tmp_path / "c.yml").write_text("debug: false")
+    rc = create_rc(
+        initial_sources=[
+            Path("defaults", "spinta.config:CONFIG"),
+            EnvVars(
+                "envvars",
+                {
+                    "SPINTA_CONFIG": f"{str(tmp_path / 'a.yml')},{str(tmp_path / 'b.yml')},{str(tmp_path / 'c.yml')}",
+                },
+            ),
+        ]
+    )
+    assert rc.get("test", cast=int, origin=True) == (4, str(tmp_path / "a_2_1.yml"))
+    assert rc.get("a", cast=int, origin=True) == (3, str(tmp_path / "a_2_1.yml"))
+    assert rc.get("ab", cast=int, origin=True) == (1, str(tmp_path / "a_2.yml"))
+    assert rc.get("abc", cast=int, origin=True) == (1, str(tmp_path / "a_2_1.yml"))
+    assert rc.get("debug", origin=True) == (False, str(tmp_path / "c.yml"))
 
 
 def test_custom_config_fron_environ():
@@ -466,21 +516,12 @@ def test_environments():
                 "defaults",
                 {
                     "backends": {
-                        "default": {
-                            "type": "postgresql",
-                        },
+                        "default": {"type": "postgresql", "dsn": "localhost"},
                     },
-                    "env": "dev",
+                    "env": "other",
                     "environments": {
                         "dev": {
-                            "backends": {
-                                "sql": {
-                                    "type": "sql",
-                                },
-                                "fs": {
-                                    "type": "fs",
-                                },
-                            },
+                            "backends.sql.type": "sql",
                         },
                         "test": {
                             "backends": {
@@ -501,6 +542,11 @@ def test_environments():
         ]
     )
 
+    assert list(rc.getall("backends")) == [
+        (("backends", "default", "type"), "postgresql"),
+        (("backends", "default", "dsn"), "localhost"),
+    ]
+
     rc.add("T1", {"env": "test"})
     assert list(rc.getall("backends")) == [
         (("backends", "default", "type"), "postgresql"),
@@ -510,8 +556,9 @@ def test_environments():
 
     rc.add("T2", {"env": "dev"})
     assert list(rc.getall("backends")) == [
+        (("backends", "default", "type"), "postgresql"),
+        (("backends", "default", "dsn"), "localhost"),
         (("backends", "sql", "type"), "sql"),
-        (("backends", "fs", "type"), "fs"),
     ]
 
 
@@ -913,3 +960,43 @@ def test_auth_settings_fall_back_to_old_names(rc, overrides, expected):
     config = context.get("config")
     commands.load(context, config)
     assert (config.auth_server_id, config.auth_server_url, config.resource_server_id) == expected
+
+
+def test_nested_extension(tmp_path: pathlib.Path):
+    models_path = tmp_path / "models.yml"
+    str_models_path = str(tmp_path / "models.yml")
+    citus_path = tmp_path / "citus.yml"
+    str_citus_path = str(tmp_path / "citus.yml")
+    models_path.write_text("""
+    models:
+        datasets/Example:
+            backend: default
+            properties:
+                id:
+                    type: sqlalchemy.BigInteger
+        datasets/Another:
+            backend: sql
+    """)
+    citus_path.write_text("""
+    models.datasets/Example.distribute:
+        type: copy
+    models.datasets/Other:
+            distribute:
+                type: schema
+    """)
+
+    rc = create_rc(
+        initial_sources=[
+            PyDict(
+                "base",
+                {"config": [str_models_path, str_citus_path]},
+            )
+        ]
+    )
+    assert list(rc.getall("models", origin=True)) == [
+        (("models", "datasets/Example", "backend"), "default", str_models_path),
+        (("models", "datasets/Example", "properties", "id", "type"), "sqlalchemy.BigInteger", str_models_path),
+        (("models", "datasets/Example", "distribute", "type"), "copy", str_citus_path),
+        (("models", "datasets/Another", "backend"), "sql", str_models_path),
+        (("models", "datasets/Other", "distribute", "type"), "schema", str_citus_path),
+    ]

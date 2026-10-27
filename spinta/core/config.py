@@ -7,6 +7,7 @@ import os
 import pathlib
 import sys
 import typing
+from collections.abc import Iterator
 from typing import Any, NamedTuple
 
 from ruamel.yaml import YAML
@@ -66,11 +67,11 @@ def read_config(args=None, envfile=None):
 
     tmp_rc = RawConfig()
     tmp_rc.read(_make_sources())
-    configs = tmp_rc.get("config", cast=list, default=[])
+    configs = nested_config_sources(tmp_rc)
     if configs:
         final_sources = [
             Path("spinta", "spinta.config:CONFIG"),
-            *[Path(c, c) for c in configs],
+            *configs,
             EnvFile("envfile", envfile or ".env"),
             EnvVars("envvars", os.environ),
             CliArgs("cliargs", args or []),
@@ -80,6 +81,24 @@ def read_config(args=None, envfile=None):
         return rc
     else:
         return tmp_rc
+
+
+def nested_config_sources(rc: RawConfig) -> list[ConfigSource]:
+    def _gather_config_sources(rc_: RawConfig) -> Iterator[str]:
+        configs = rc_.get("config", cast=list, default=[])
+        for config in configs:
+            if config in visited_configs:
+                continue
+
+            tmp_rc = RawConfig()
+            tmp_rc.read([Path(config, config)])
+            visited_configs.add(config)
+            yield config
+            yield from _gather_config_sources(tmp_rc)
+
+    visited_configs = set(rc.get_source_names())
+    additional_sources = list(_gather_config_sources(rc))
+    return [Path(c, c) for c in additional_sources]
 
 
 class KeyFormat(str, enum.Enum):

@@ -18,7 +18,7 @@ def config(
     """Show current configuration values"""
     context = configure_context(ctx.obj)
     rc = context.get("rc")
-    rc.dump(*name, fmt=fmt)
+    rc.dump(*name if name else [], fmt=fmt)
 
 
 def check(
