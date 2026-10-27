@@ -25,14 +25,10 @@ yaml = YAML(typ="safe")
 
 def create_rc(initial_sources: list[ConfigSource]) -> RawConfig:
     tmp_rc = RawConfig()
-    print(initial_sources)
     tmp_rc.read(deepcopy(initial_sources))
 
     configs = nested_config_sources(tmp_rc)
     rc = RawConfig()
-    print(initial_sources)
-    print(configs)
-    print(initial_sources + configs)
     rc.read(initial_sources + configs)
     return rc
 
