@@ -30,6 +30,7 @@ Improvements:
   recommended ``{config_path}/config.yaml`` file, and the configuration syntax,
   including simple and complex values and merge and reset semantics. A new
   page describes keymap configuration (`#1990`_).
+- Added support for nested config source loading (`#1990`_).
 
 Bug fixes:
 
