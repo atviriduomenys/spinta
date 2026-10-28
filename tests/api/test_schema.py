@@ -169,7 +169,9 @@ def test_schema_invalid_dataset_name(
     app = create_test_client(context)
     app.authorize(scopes)
 
-    resp = app.post("/api/schema/error/1/:schema")
+    # `1` is a valid namespace segment (UDTS data service version), so use a
+    # name that is still invalid: a segment with a leading zero.
+    resp = app.post("/api/schema/error/01/:schema")
     assert error(resp, status=400) == "InvalidName"
 
 
