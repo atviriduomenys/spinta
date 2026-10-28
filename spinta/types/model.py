@@ -71,12 +71,6 @@ def _parse_distribution_strategy(
     model: Model,
     distribute: dict,
 ) -> DistributionStrategy:
-    if len(distribute) == 1:
-        distribute_type_str, value = next(iter(distribute.items()))
-        if value is NA:
-            distribute_type = get_enum_by_value(DistributionType, distribute_type_str)
-            return DistributionStrategy(distribute_type)
-
     distribute_type_str = distribute.get("type", None)
     if distribute_type_str is None:
         raise MissingConfigurationParameter(
@@ -355,31 +349,28 @@ def configure(context: Context, prop: Property):
         return
 
     prop_config = rc.to_dict(*prop_path)
-
     prop_config = flat_dicts_to_nested(prop_config)
+
+    if not prop_config:
+        return
+
     if backend := prop_config.get("backend"):
         prop.backend = backend
 
     if prop_type := prop_config.get("type"):
-        custom_type = None
-        if isinstance(prop_type, str):
-            custom_type = pydoc.locate(prop_type)
-            if custom_type is None:
-                raise InvalidCustomPropertyTypeConfiguration(prop, custom_property_type=prop_type)
-        elif isinstance(prop_type, list | dict):
-            values = {key: rc.get(*prop_path, "type", key) for key in prop_type}
-            prop_type = values.pop("name", None)
-            if prop_type is None:
-                raise MissingConfigurationParameter(
-                    prop, config_type="Property", config_object=prop.place, missing_params="type.name"
-                )
+        values = {key: rc.get(*prop_path, "type", key) for key in prop_type}
+        prop_type = values.pop("name", None)
+        if prop_type is None:
+            raise MissingConfigurationParameter(
+                prop, config_type="Property", config_object=prop.place, missing_params="type.name"
+            )
 
-            try:
-                custom_type = pydoc.locate(prop_type)(**values)
-                if custom_type is None:
-                    raise Exception
-            except Exception:
-                raise InvalidCustomPropertyTypeWithArgsConfiguration(prop, custom_property_type=prop_type, args=values)
+        try:
+            custom_type = pydoc.locate(prop_type)(**values)
+            if custom_type is None:
+                raise Exception
+        except Exception:
+            raise InvalidCustomPropertyTypeWithArgsConfiguration(prop, custom_property_type=prop_type, args=values)
         if custom_type:
             # Since this is called before load, it expects dict data that will be converted to Attribute
             if not hasattr(prop, "external"):
