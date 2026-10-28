@@ -24,7 +24,6 @@ from spinta.dimensions.scope.components import Scope
 from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
     InlineEnumWithName,
-    InvalidCustomPropertyTypeConfiguration,
     InvalidCustomPropertyTypeWithArgsConfiguration,
     KeymapNotSet,
     MissingConfigurationParameter,
