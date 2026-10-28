@@ -1199,12 +1199,6 @@ class MissingPostgresqlComments(UpgradeError):
 class InvalidCustomPropertyTypeConfiguration(UserError):
     template = """
         Unable to import custom property type: {custom_property_type!r}.
-    """
-
-
-class InvalidCustomPropertyTypeWithArgsConfiguration(UserError):
-    template = """
-        Unable to import custom property type: {custom_property_type!r}.
         
         Using args: {args}.
     """

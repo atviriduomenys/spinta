@@ -68,6 +68,31 @@ def test_configure_unknown_property(tmp_path, rc):
         commands.check(context, manifest)
 
 
+def test_configure_requires_name(tmp_path, rc):
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "properties": {
+                        "code": {
+                            "type": "string",
+                        },
+                    },
+                },
+            },
+        },
+    )
+    context, manifest = load_manifest_and_context(
+        rc,
+        manifest=_GENERIC_COUNTRY_MANIFEST,
+        tmp_path=tmp_path,
+    )
+    with pytest.raises(
+        MissingConfigurationParameter, match="Property 'code' configuration is missing parameter: 'type.name'"
+    ):
+        commands.check(context, manifest)
+
+
 def test_configure_invalid_type_import(tmp_path, rc):
     rc = rc.fork(
         {
@@ -75,7 +100,9 @@ def test_configure_invalid_type_import(tmp_path, rc):
                 "datasets/gov/example/Country": {
                     "properties": {
                         "code": {
-                            "type": "unknown_import",
+                            "type": {
+                                "name": "unknown_import",
+                            },
                         },
                     },
                 },

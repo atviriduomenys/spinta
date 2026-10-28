@@ -24,7 +24,7 @@ from spinta.dimensions.scope.components import Scope
 from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
     InlineEnumWithName,
-    InvalidCustomPropertyTypeWithArgsConfiguration,
+    InvalidCustomPropertyTypeConfiguration,
     KeymapNotSet,
     MissingConfigurationParameter,
     ModelNotFound,
@@ -369,7 +369,7 @@ def configure(context: Context, prop: Property):
             if custom_type is None:
                 raise Exception
         except Exception:
-            raise InvalidCustomPropertyTypeWithArgsConfiguration(prop, custom_property_type=prop_type, args=values)
+            raise InvalidCustomPropertyTypeConfiguration(prop, custom_property_type=prop_type, args=values)
         if custom_type:
             # Since this is called before load, it expects dict data that will be converted to Attribute
             if not hasattr(prop, "external"):
