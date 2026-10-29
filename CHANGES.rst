@@ -30,6 +30,9 @@ Improvements:
   recommended ``{config_path}/config.yaml`` file, and the configuration syntax,
   including simple and complex values and merge and reset semantics. A new
   page describes keymap configuration (`#1990`_).
+- Enforced `#1990`_ changes to existing scripts and implementations (`#2077`_).
+
+.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 
 Bug fixes:
 
