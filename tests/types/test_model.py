@@ -82,15 +82,15 @@ def test_configure_requires_name(tmp_path, rc):
             },
         },
     )
-    context, manifest = load_manifest_and_context(
-        rc,
-        manifest=_GENERIC_COUNTRY_MANIFEST,
-        tmp_path=tmp_path,
-    )
+
     with pytest.raises(
         MissingConfigurationParameter, match="Property 'code' configuration is missing parameter: 'type.name'"
     ):
-        commands.check(context, manifest)
+        load_manifest_and_context(
+            rc,
+            manifest=_GENERIC_COUNTRY_MANIFEST,
+            tmp_path=tmp_path,
+        )
 
 
 def test_configure_invalid_type_import(tmp_path, rc):
