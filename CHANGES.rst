@@ -52,6 +52,14 @@ Bug fixes:
 1.3.1 (2026-10-22)
 =====================
 
+New features:
+
+- ``spinta inspect`` reads ``xs:key`` from XSD schemas and writes the key
+  fields to the model's ``ref`` column. Composite keys are supported
+  (`#1472`_).
+
+.. _#1472: https://github.com/atviriduomenys/spinta/issues/1472
+
 Improvements:
 
 - Added `UP` ruff ruleset, which forces new code to utilize modern python syntax (`#2071`_).
