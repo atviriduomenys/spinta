@@ -41,7 +41,7 @@ def split_xml_documents(content: str) -> list[str]:
 def main() -> None:
     os.makedirs(OUTPUT_FOLDER, exist_ok=True)
 
-    with open(INPUT_FILE, "r", encoding="utf-8") as file:
+    with open(INPUT_FILE, encoding="utf-8") as file:
         content = file.read()
 
     documents = split_xml_documents(content)

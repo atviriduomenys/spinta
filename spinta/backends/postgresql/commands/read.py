@@ -1,4 +1,5 @@
-from typing import Iterator, overload
+from collections.abc import Iterator
+from typing import overload
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
@@ -44,7 +45,7 @@ def getall(
     extra_properties: dict[str, Property] = None,
     **kwargs,
 ) -> Iterator[ObjectData]:
-    assert isinstance(query, (Expr, type(None))), query
+    assert isinstance(query, Expr | type(None)), query
     connection = context.get("transaction").connection
 
     if default_expand:

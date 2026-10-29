@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Iterator, List, Optional, Type, TypeVar, Union, overload
+from collections.abc import Iterator
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from starlette.requests import Request
 from starlette.responses import Response
@@ -266,7 +267,7 @@ def prepare(context: Context, backend: Backend, dtype: Model, **kwargs) -> None:
 
 
 @overload
-def prepare(context: Context, backend: Backend, dtype: Property, **kwargs) -> Union[List[T], T, None]:
+def prepare(context: Context, backend: Backend, dtype: Property, **kwargs) -> list[T] | T | None:
     """Prepare model property
 
     This command should call prepare[Context, Backend, DataType].
@@ -276,7 +277,7 @@ def prepare(context: Context, backend: Backend, dtype: Property, **kwargs) -> Un
 
 
 @overload
-def prepare(context: Context, backend: Backend, dtype: DataType, **kwargs) -> Union[List[T], T, None]:
+def prepare(context: Context, backend: Backend, dtype: DataType, **kwargs) -> list[T] | T | None:
     """Prepare model property data type
 
     Returns list of columns, single column or None.
@@ -320,7 +321,7 @@ def prepare_for_write(context: Context, prop: DataType, backend: Backend, patch_
 
 @overload
 def prepare_for_write(
-    context: Context, model: Model, backend: Backend, patch_: Dict[str, Any], action: Action, params: UrlParams
+    context: Context, model: Model, backend: Backend, patch_: dict[str, Any], action: Action, params: UrlParams
 ):
     """Convert Python-native Model patch data to backend-native patch"""
 
@@ -355,7 +356,7 @@ def prepare_for_write(
 @command()
 def prepare_for_write(
     context: Context,
-    dtype: Union[Model, Property, DataType],
+    dtype: Model | Property | DataType,
     backend: Backend,
     patch_: Any,
     **kwargs,
@@ -475,7 +476,7 @@ def delete_many():
 def getone(
     context: Context,
     request: Request,
-    node: Union[Node, Namespace],
+    node: Node | Namespace,
     *,
     action: Action,
     params: UrlParams,
@@ -553,7 +554,7 @@ def getfile():
 @overload
 def getall(
     context: Context,
-    model: Union[Model, Namespace],
+    model: Model | Namespace,
     request: Request,
     *,
     action: Action,
@@ -614,9 +615,9 @@ def getall(
     ns: Namespace,
     *,
     query: Expr = None,
-    action: Optional[Action] = None,
-    dataset_: Optional[str] = None,
-    resource: Optional[str] = None,
+    action: Action | None = None,
+    dataset_: str | None = None,
+    resource: str | None = None,
     **kwargs,
 ):
     pass
@@ -704,7 +705,7 @@ def render(
     action: Action = None,
     params: UrlParams = None,
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
     path: str = None,
 ):
     """Render manifest structure to the client."""
@@ -721,7 +722,7 @@ def render(
     params: UrlParams,
     data: Iterator[ComplexCell],
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
 ):
     """Render model data to the client."""
 
@@ -885,8 +886,8 @@ def cast_backend_to_python(*args, **kwargs):
 def inspect(
     context: Context,
     backend: Backend,
-    manifest: Optional[Manifest],
-    source: Optional[Any],
+    manifest: Manifest | None,
+    source: Any | None,
 ) -> Iterator[ManifestSchema]:
     """Inspect manifest schema."""
 
@@ -895,8 +896,8 @@ def inspect(
 def inspect(
     context: Context,
     backend: Backend,
-    dataset: Optional[Dataset],
-    source: Optional[Any],
+    dataset: Dataset | None,
+    source: Any | None,
 ) -> Iterator[ManifestSchema]:
     """Inspect dataset schema."""
 
@@ -905,8 +906,8 @@ def inspect(
 def inspect(
     context: Context,
     backend: Backend,
-    resource: Optional[Resource],
-    source: Optional[Any],
+    resource: Resource | None,
+    source: Any | None,
 ) -> Iterator[ManifestSchema]:
     """Inspect dataset resource schema."""
 
@@ -915,8 +916,8 @@ def inspect(
 def inspect(
     context: Context,
     backend: Backend,
-    model: Optional[Model],
-    source: Optional[Any],
+    model: Model | None,
+    source: Any | None,
 ) -> Iterator[ManifestSchema]:
     """Inspect model schema."""
 
@@ -925,8 +926,8 @@ def inspect(
 def inspect(
     context: Context,
     backend: Backend,
-    prop: Optional[Property],
-    source: Optional[Any],
+    prop: Property | None,
+    source: Any | None,
 ) -> NodeSchema:
     """Inspect model property schema."""
 
@@ -935,8 +936,8 @@ def inspect(
 def inspect(
     context: Context,
     backend: Backend,
-    dtype: Optional[DataType],
-    source: Optional[Any],
+    dtype: DataType | None,
+    source: Any | None,
 ) -> NodeSchema:
     """Inspect property data type schema."""
 
@@ -1105,7 +1106,7 @@ def get_node(context: Context, manifest: Manifest, obj_type: str, obj: str, **kw
 
 
 @command()
-def get_nodes(context: Context, manifest: Manifest, obj_type: str, **kwargs) -> Dict[str, Node]:
+def get_nodes(context: Context, manifest: Manifest, obj_type: str, **kwargs) -> dict[str, Node]:
     """Return all nodes from manifest"""
 
 
@@ -1125,7 +1126,7 @@ def get_model(context: Context, manifest: Manifest, model: str, **kwargs) -> Mod
 
 
 @command()
-def get_models(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Model]:
+def get_models(context: Context, manifest: Manifest, **kwargs) -> dict[str, Model]:
     """Return all models from manifest"""
 
 
@@ -1135,7 +1136,7 @@ def set_model(context: Context, manifest: Manifest, model_name: str, model: Mode
 
 
 @command()
-def set_models(context: Context, manifest: Manifest, models: Dict[str, Model], **kwargs):
+def set_models(context: Context, manifest: Manifest, models: dict[str, Model], **kwargs):
     """Sets all model to manifest"""
 
 
@@ -1157,7 +1158,7 @@ def has_namespace(context: Context, manifest: Manifest, namespace: str, **kwargs
 
 
 @command()
-def get_namespaces(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Namespace]:
+def get_namespaces(context: Context, manifest: Manifest, **kwargs) -> dict[str, Namespace]:
     """Return all namespaces from manifest"""
 
 
@@ -1182,7 +1183,7 @@ def get_dataset(context: Context, manifest: Manifest, dataset: str, **kwargs) ->
 
 
 @command()
-def get_datasets(context: Context, manifest: Manifest, **kwargs) -> Dict[str, Dataset]:
+def get_datasets(context: Context, manifest: Manifest, **kwargs) -> dict[str, Dataset]:
     """Return all datasets from manifest"""
 
 
@@ -1293,7 +1294,7 @@ def validate_export_output(**kwargs):
 
 
 @overload
-def backend_to_manifest_type(context: Context, backend: str) -> Type[Manifest]:
+def backend_to_manifest_type(context: Context, backend: str) -> type[Manifest]:
     """
     Attempts to convert backend type string to Backend and then
     attempts to map backend to it's appropriate manifest type.
@@ -1301,14 +1302,14 @@ def backend_to_manifest_type(context: Context, backend: str) -> Type[Manifest]:
 
 
 @overload
-def backend_to_manifest_type(context: Context, backend: Backend) -> Type[Manifest]:
+def backend_to_manifest_type(context: Context, backend: Backend) -> type[Manifest]:
     """
     Attempts to map backend to it's appropriate manifest type.
     """
 
 
 @command()
-def backend_to_manifest_type(**kwargs) -> Type[Manifest]:
+def backend_to_manifest_type(**kwargs) -> type[Manifest]:
     """
     Attempts to map backend to it's appropriate manifest type.
     Mainly used for `inspect` mapping.

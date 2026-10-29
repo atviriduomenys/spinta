@@ -1,5 +1,4 @@
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
@@ -25,7 +24,7 @@ from spinta.testing.manifest import bootstrap_manifest
         -1000,
     ],
 )
-def test_integer(manifest_type: str, tmp_path: Path, rc: RawConfig, value: Optional[int]):
+def test_integer(manifest_type: str, tmp_path: Path, rc: RawConfig, value: int | None):
     context = bootstrap_manifest(
         rc,
         """

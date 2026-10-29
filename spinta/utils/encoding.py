@@ -13,7 +13,7 @@ def encode_base32(value: Any) -> str:
     A composite key is written as CBOR first, so that the parts stay apart, and
     the padding is dropped, because the value is given in a path.
     """
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         data = cbor_dumps(list(value))
     else:
         data = str(value).encode("utf-8")

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Iterator, List
+from collections.abc import Iterator
+from typing import Any
 
 from spinta.components import Context, Model
 from spinta.core.ufuncs import Expr
@@ -13,7 +14,7 @@ def _recursive_iter_params(
     context: Context,
     model: Model,
     manifest: Manifest,
-    params: List[Param],
+    params: list[Param],
     values: ResolvedParams,
     query: Expr | None,
 ) -> Iterator[ResolvedParams]:
@@ -58,7 +59,7 @@ def _recursive_iter_params(
 
 
 def iterparams(
-    context: Context, model: Model, manifest: Manifest, params: List[Param] = [], query: Expr | None = None
+    context: Context, model: Model, manifest: Manifest, params: list[Param] = [], query: Expr | None = None
 ) -> Iterator[ResolvedParams]:
     values = {}
 

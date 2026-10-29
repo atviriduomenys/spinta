@@ -1,6 +1,5 @@
 import subprocess
 import sys
-from typing import Optional
 
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
@@ -23,7 +22,7 @@ def render(
     params: UrlParams,
     data,
     status_code: int = 200,
-    headers: Optional[dict] = None,
+    headers: dict | None = None,
 ):
     return _render(
         context,

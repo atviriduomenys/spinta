@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Union
+from typing import Any
 
 from spinta.backends.constants import BackendFeatures
 from spinta.components import Page, Property, UrlParams
@@ -117,7 +117,7 @@ def _get_null_action(by: str, needs_null: bool = False):
 
 def get_pagination_compare_query(
     model_page: Page,
-) -> Union[Expr, None]:
+) -> Expr | None:
     filtered = model_page
     item_count = len(filtered.by.keys())
     where_list = []
@@ -180,7 +180,7 @@ def process_literal_value(value: Any) -> Any:
 def denorm_to_foreign_property(dtype: Denorm) -> ForeignProperty | Property:
     ref = dtype.prop.parent
     root_parent = ref
-    if isinstance(ref, Property) and isinstance(ref.dtype, (Ref, BackRef)):
+    if isinstance(ref, Property) and isinstance(ref.dtype, Ref | BackRef):
         fpr = None
         if ref.dtype.inherited:
             parent_list = []
@@ -188,7 +188,7 @@ def denorm_to_foreign_property(dtype: Denorm) -> ForeignProperty | Property:
             while (
                 root_ref_parent
                 and isinstance(root_ref_parent, Property)
-                and isinstance(root_ref_parent.dtype, (Ref, BackRef))
+                and isinstance(root_ref_parent.dtype, Ref | BackRef)
             ):
                 parent_list.append(root_ref_parent)
                 if not root_ref_parent.dtype.inherited:

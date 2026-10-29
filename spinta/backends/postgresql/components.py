@@ -1,7 +1,6 @@
 import contextlib
 import itertools
 import uuid
-from typing import Dict, List, Union
 
 import sqlalchemy as sa
 from sqlalchemy.engine import Engine
@@ -34,7 +33,7 @@ class PostgreSQL(Backend):
 
     engine: Engine = None
     schema: sa.MetaData = None
-    tables: Dict[str, sa.Table] = None
+    tables: dict[str, sa.Table] = None
 
     query_builder_type = "postgresql"
     result_builder_type = "postgresql"
@@ -98,7 +97,7 @@ class PostgreSQL(Backend):
     def add_table(
         self,
         table: sa.Table,
-        node: Union[Model, Property],
+        node: Model | Property,
         ttype: TableType = TableType.MAIN,
     ):
         table_identifier = get_table_identifier(node, ttype)
@@ -108,7 +107,7 @@ class PostgreSQL(Backend):
 
     def get_table(
         self,
-        node: Union[Model, Property],
+        node: Model | Property,
         ttype: TableType = TableType.MAIN,
         *,
         fail: bool = True,
@@ -122,7 +121,7 @@ class PostgreSQL(Backend):
 
     def get_column(
         self, table: sa.Table, prop: Property, *, select=False, override_table: bool = True, **kwargs
-    ) -> Union[sa.Column, List[sa.Column]]:
+    ) -> sa.Column | list[sa.Column]:
         if prop.list is not None and override_table:
             table = self.get_table(prop.list, TableType.LIST)
         column = commands.get_column(self, prop, table=table, **kwargs)
@@ -130,7 +129,7 @@ class PostgreSQL(Backend):
 
     def get_refprop_columns(
         self, table: sa.Table, prop: Property, model: Model, *, select=False, override_table: bool = True, **kwargs
-    ) -> Union[sa.Column, List[sa.Column]]:
+    ) -> sa.Column | list[sa.Column]:
         columns = commands.get_column(self, prop, model, table=table, **kwargs)
         return columns
 

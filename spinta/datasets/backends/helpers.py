@@ -1,5 +1,6 @@
 import pathlib
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 from spinta import commands, spyna
 from spinta.auth import authorized
@@ -88,7 +89,7 @@ def flatten_keymap_encoding_values(data: object):
         if len(data) == 1:
             return flatten_keymap_encoding_values(list(data.values())[0])
         return flatten_keymap_encoding_values(list(data.values()))
-    elif isinstance(data, (list, tuple)):
+    elif isinstance(data, list | tuple):
         return list(flatten_keymap_encoding_values(item) for item in data)
     return data
 

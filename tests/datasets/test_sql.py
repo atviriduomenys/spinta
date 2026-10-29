@@ -1,7 +1,6 @@
 import logging
 import pathlib
 import re
-from typing import Dict, Tuple
 
 import pytest
 import sqlalchemy as sa
@@ -2819,7 +2818,7 @@ def _prep_error_handling(
     rc: RawConfig,
     responses: RequestsMock,
     *,
-    response: Tuple[int, Dict[str, str], str] = None,
+    response: tuple[int, dict[str, str], str] = None,
     exception: Exception = None,
 ) -> RawConfig:
     create_tabular_manifest(
@@ -2941,7 +2940,7 @@ def test_error_handling_io_error(
         sqlite,
         rc,
         responses,
-        exception=IOError("I/O error."),
+        exception=OSError("I/O error."),
     )
 
     # Push data from local to remote.

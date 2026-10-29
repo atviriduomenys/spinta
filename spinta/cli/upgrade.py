@@ -1,6 +1,5 @@
 import logging
 import sys
-from typing import List, Optional
 
 from typer import Argument, Option, echo
 from typer import Context as TyperContext
@@ -19,7 +18,7 @@ log = logging.getLogger(__name__)
 
 def upgrade(
     ctx: TyperContext,
-    scripts: Optional[List[str]] = Argument(
+    scripts: list[str] | None = Argument(
         None,
         help=(
             f"""

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import dataclasses
 from builtins import staticmethod
-from typing import IO, TYPE_CHECKING, Any, Dict, List, Optional, Tuple, TypedDict, Union
+from typing import IO, TYPE_CHECKING, Any, TypedDict
 
 from spinta.components import Component, Model, Namespace, Store
 from spinta.core.enums import Access, Mode
@@ -16,9 +16,9 @@ if TYPE_CHECKING:
 
 
 class MetaDataContainer(TypedDict):
-    ns: Dict[str, Namespace]
-    dataset: Dict[str, Dataset]
-    model: Dict[str, Model]
+    ns: dict[str, Namespace]
+    dataset: dict[str, Dataset]
+    model: dict[str, Model]
 
 
 def get_manifest_object_names():
@@ -39,15 +39,15 @@ class Manifest(Component):
     _objects: MetaDataContainer | None = None
     path: str | None = None
     access: Access = Access.private
-    prefixes: Dict[str, UriPrefix]
+    prefixes: dict[str, UriPrefix]
     enums: Enums
 
     # Backends defined in the manifest.
-    backends: Optional[Dict[str, Backend]] = None
+    backends: dict[str, Backend] | None = None
 
     # List of other source manifests used to populate nodes into the main
     # manifest.
-    sync: List[Manifest]
+    sync: list[Manifest]
 
     mode: Mode = Mode.internal
 
@@ -65,7 +65,7 @@ class Manifest(Component):
     def __repr__(self):
         return f"<{type(self).__module__}.{type(self).__name__}(name={self.name!r})>"
 
-    def __eq__(self, other: Union[Manifest, str]):
+    def __eq__(self, other: Manifest | str):
         if isinstance(other, str):
             # A hack for tests, to make possible things like:
             #     assert manifest == """d | r | m | ..."""
@@ -82,8 +82,8 @@ class Manifest(Component):
         return self._objects
 
 
-NodeSchema = Optional[Dict[str, Any]]
-ManifestSchema = Tuple[Any, NodeSchema]
+NodeSchema = dict[str, Any] | None
+ManifestSchema = tuple[Any, NodeSchema]
 
 
 @dataclasses.dataclass
@@ -91,5 +91,5 @@ class ManifestPath:
     type: str = "tabular"
     name: str | None = None
     path: str | None = None
-    file: Optional[IO] = None
+    file: IO | None = None
     prepare: str | None = None

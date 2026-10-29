@@ -1,10 +1,46 @@
 Changes
 #######
 
-1.3.0 (unreleased)
+1.4.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Keys that hold a list of names, such as ``backends``, no longer accept a
+  single scalar value in configuration files. ``backends: one`` now fails with
+  an error, use ``backends: [one]`` instead. Comma separated names in
+  environment variables, ``.env`` files and command line arguments, such as
+  ``SPINTA_BACKENDS=one,two``, still work (`#1990`_).
+- Setting a configuration key to an empty value removes all of its subkeys,
+  and setting it to a list of names keeps only the listed subkeys. For example
+  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one`` now also hides subkeys set in
+  lower priority sources: a ``keymaps.default`` set in a configuration file is
+  ignored when ``SPINTA_KEYMAPS=other`` is set. If you relied on such values,
+  remove the override or list the subkeys you want to keep (`#1990`_).
+
+Improvements:
+
+- ``spinta config`` output has a new ``Env`` column, showing which environment
+  (``environments.<env>``) provided each value (`#1990`_).
+- Custom property types in manifests can be configured with parameters given
+  as a mapping, for example ``type: {name: sqlalchemy.types.BigInteger}``, in
+  addition to a list of parameter names (`#1990`_).
+- Configuration documentation was rewritten. It describes the configuration
+  sources and their precedence, the ``config_path`` directory with the
+  recommended ``{config_path}/config.yaml`` file, and the configuration syntax,
+  including simple and complex values and merge and reset semantics. A new
+  page describes keymap configuration (`#1990`_).
+- Dataset names may contain a path segment that is a non-negative integer
+  without leading zeros, for example ``datasets/gov/vk/vis/udts/1/vis``, where
+  the integer is the UDTS data service version. Such names are no longer
+  rejected by name checks (`#2080`_).
+
 Bug fixes:
+
+- Fixed ``RawConfig`` modifying the global ``spinta.config:CONFIG`` dictionary
+  it reads from. The ``environments`` section was removed after the first read,
+  so later configuration reads in the same process lost environment specific
+  settings, such as test backend DSNs (`#1990`_).
 
 - Resource parameters defined with ``query()`` in ``prepare`` are now sent to
   the data source with ``dask/csv``, ``dask/json``, ``dask/xml`` and
@@ -30,6 +66,66 @@ Bug fixes:
 
 - A ``query()`` resource parameter without a default that is not linked to any
   property with ``param()`` makes the manifest invalid (`#2066`_).
+
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
+.. _#2080: https://github.com/atviriduomenys/spinta/issues/2080
+.. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
+
+1.3.1 (2026-10-22)
+=====================
+
+Improvements:
+
+- Added `UP` ruff ruleset, which forces new code to utilize modern python syntax (`#2071`_).
+
+.. _#2071: https://github.com/atviriduomenys/spinta/issues/2071
+
+Bug fixes:
+
+- Fixed PostgreSQL column type and geometry migrations failing on Citus distributed tables due to table-qualified column references (`#2027`_).
+
+.. _#2027: https://github.com/atviriduomenys/spinta/issues/2027
+
+- Hashed requirements files for stable releases again include optional extras
+  (``uvicorn``, ``gunicorn``, ``alembic``); files for 1.1.0, 1.2.0, 1.3.0 and ``spinta-latest.txt`` were regenerated.
+
+1.3.0 (2026-10-19)
+=====================
+
+Backwards incompatible:
+
+- Tokens Spinta issues now carry ``aud`` as a list, ``[resource_server_id]``:
+  Spinta issues tokens only for itself (`katalogas#2799`_).
+
+New features:
+
+- Renamed the authorization configuration parameters added in 1.2.0, to keep
+  identifiers apart from URLs (`katalogas#2799`_):
+
+  - ``token_issuer`` is now ``auth_server_id`` (the ``iss`` claim) and
+    ``auth_server_url`` (the base of the endpoints advertised in the
+    authorization server metadata).
+  - ``resource_server`` is now ``resource_server_id`` (the ``aud`` claim).
+
+  The old names are still read when the new ones are not set.
+- Added ``resource_server_url``, the public URL of this resource server.
+  ``server_url`` is its old name and is still read (`katalogas#2799`_).
+- ``credentials.cfg``: ``spinta sync`` reads the ``[katalogas]`` section, or
+  the old ``[default]`` one. ``auth_server_url`` and ``resource_server_url``
+  replace ``server`` and ``resource_server``, which are still read.
+  ``resource_server_id`` is sent as the ``resource`` of the token request.
+  ``organization`` and ``organization_type`` are no longer required
+  (`katalogas#2799`_).
+
+.. _katalogas#2799: https://github.com/atviriduomenys/katalogas/issues/2799
+
+Bug fixes:
+
+- Generated OpenAPI specifications describe ``_base``, which a search answers
+  with, so a gateway refusing undescribed properties accepts the answer
+  (`#2063`_).
+
+.. _#2063: https://github.com/atviriduomenys/spinta/issues/2063
 
 
 1.2.0 (2026-10-14)
@@ -69,6 +165,60 @@ Backwards incompatible:
     ``x-spinta-context`` extension and the agent's own ``/auth/token`` path
     are gone.
   - ``traceparent`` and ``tracestate`` headers are no longer required.
+- Access tokens are now validated against their ``iss`` (issuer), ``aud``
+  (audience), ``client_id``, ``exp`` (expiration) and ``iat`` (issued-at) claims
+  at decode time: a token is rejected unless its ``iss`` equals the
+  authorization server identifier, its ``aud`` contains this resource server,
+  and it carries ``client_id``, ``exp`` (not expired) and ``iat``. A validated
+  token must now carry a ``client_id`` claim identifying the client; tokens
+  without it (minted before this change, or by an issuer that omits it) are
+  rejected with ``401`` instead of failing later during client lookup.
+  Previously the ``iss`` claim was never checked, so a signature-valid token
+  from a different issuer was accepted; and a token missing ``exp`` or ``iat``
+  raised an unguarded ``KeyError`` (HTTP 500) instead of a clean ``401``.
+  (Expiry itself was already
+  enforced by the bearer-token validator.) (`#631`_).
+- Added the ``token_issuer`` configuration parameter — the identifier of the
+  authorization server, used as the ``iss`` claim of tokens Spinta issues and
+  the value it requires when validating them. It is **required whenever Spinta
+  issues or validates an access token** (acting as its own authorization server
+  or validating an external one) and has no default; the requirement is enforced
+  when a token is issued or validated, not at startup, so operations that never
+  touch tokens (e.g. inspecting a manifest) are unaffected. There is deliberately
+  no fallback to ``server_url``, because ``server_url`` is the public URL (often
+  a gateway) and is not a valid issuer identity. Set it to the authorization
+  server's identifier — the external issuer's ``iss`` when validating tokens
+  minted elsewhere (via ``token_validation_key`` or
+  ``token_validation_keys_download_url``), or this server's own authorization
+  identity when it issues its own tokens (`#631`_).
+- Added the ``resource_server`` configuration parameter — the identifier of
+  this resource server, used as the ``aud`` (audience) claim of tokens Spinta
+  issues and required to be present in tokens it validates. It is **required
+  whenever Spinta issues or validates an access token** (enforced at that point,
+  not at startup) and has no default (no fallback to ``server_url``, which may be
+  a gateway in front of this resource server). Previously the ``aud`` claim was
+  incorrectly set to the client id, conflating the audience with the client;
+  ``aud`` is now the resource server and the client is carried in a separate
+  ``client_id`` claim. A token whose ``aud`` does not contain ``resource_server`` is
+  rejected (`#631`_).
+- The RFC 8414 authorization-server metadata
+  (``GET /.well-known/oauth-authorization-server``) builds its endpoint URLs
+  (``token_endpoint``, ``introspection_endpoint``, ``jwks_uri``) from
+  ``token_issuer``, with any trailing slash stripped, rather than from
+  ``server_url`` or ``resource_server`` (`#631`_).
+- ``server_url`` is normalised (trailing slash stripped) when configuration is
+  loaded, so the ``Location`` header of created resources no longer contains a
+  double slash (`#631`_).
+- The authorization-server endpoints (``POST /auth/token``,
+  ``POST /auth/introspect`` and ``GET /.well-known/oauth-authorization-server``)
+  are now disabled when token validation is configured against an external
+  issuer (``token_validation_key`` or ``token_validation_keys_download_url`` is
+  set): Spinta cannot verify tokens it would sign, so it no longer acts as an
+  authorization server and these endpoints return ``NoAuthServer``. Previously
+  they responded whenever a private key was present, even in agent mode — but
+  any token minted there failed validation against the external key. Agent-mode
+  deployments must obtain tokens from the external authorization server instead
+  (`#631`_).
 
 Bug fixes:
 
@@ -135,7 +285,6 @@ Bug fixes:
 .. _#2020: https://github.com/atviriduomenys/spinta/issues/2020
 .. _#2047: https://github.com/atviriduomenys/spinta/issues/2047
 .. _#2055: https://github.com/atviriduomenys/spinta/issues/2055
-.. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
 
 Improvements:
 
@@ -149,9 +298,42 @@ Improvements:
   ``page('<token>')`` (`#2004`_, `#2023`_).
 - Added hyperlinks to `URL` datatype response fields inside html output (`#1058`_).
 - Improved push cli error handling, now `GET` requests inform user on what kind of error has occurred (`#2020`_).
+- Added an OAuth2 token introspection endpoint at ``POST /auth/introspect``
+  (`RFC 7662`). Clients authenticate with ``client_secret_basic`` and must have
+  the ``auth_introspect`` scope; the response reports ``active``, ``client_id``,
+  ``scope``, ``sub``, ``aud``, ``iss``, ``exp``, ``iat`` and ``jti`` for a valid
+  access token, and ``{"active": false}`` otherwise (`#631`_).
+- Added an authorization server metadata endpoint at
+  ``GET /.well-known/oauth-authorization-server`` (`RFC 8414`), advertising the
+  issuer, token, introspection and JWKS endpoint URLs, the supported
+  ``client_credentials`` grant and the supported client authentication methods
+  (`#631`_).
+- Added the ``auth_introspect`` scope, which grants a client permission to
+  introspect access tokens issued to any client (`#631`_).
+- Added a ``/health`` probe endpoint, following the UAPI ``health`` schema: a
+  ``healthy`` flag for the whole service and a ``dependencies`` list, where each
+  item has a ``name`` and its own ``healthy`` flag. The reported dependencies
+  are ``spinta`` itself, ``disk`` (enough free disk space on ``data_path``) and
+  ``memory`` (enough available RAM). Only these flags are reported: since the
+  probe is not authenticated, paths, free space and errors are written to the
+  log instead of to the response. Available memory is measured against the
+  limit of the control group the process belongs to, falling back to the memory
+  of the host when it is not limited, so that a container is not reported as
+  healthy right before being killed for using up the memory it was given. Note
+  that an unhealthy service is reported in the body, not in the status code: the
+  endpoint answers ``200`` with ``healthy: false``, because UAPI declares
+  ``503`` to be the ``ServiceNotAvailable`` error object. Consumers, including
+  container and load balancer probes, must therefore inspect ``healthy`` rather
+  than the status code. Thresholds are configurable via
+  ``health.min_free_disk_space`` (MB, defaults to ``2048``) and
+  ``health.min_free_memory`` (MB, defaults to ``256``). Like the other utility
+  routes, ``/health`` is matched before the catch-all route, so it shadows a
+  root level namespace or model named ``health``, if there is one (`#1873`_).
 
 .. _#1058: https://github.com/atviriduomenys/spinta/issues/1058
 .. _#2023: https://github.com/atviriduomenys/spinta/issues/2023
+.. _#631: https://github.com/atviriduomenys/dvms/issues/631
+.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
 
 New Features:
 
@@ -166,60 +348,6 @@ New Features:
 
 Backwards incompatible:
 
-- Access tokens are now validated against their ``iss`` (issuer), ``aud``
-  (audience), ``client_id``, ``exp`` (expiration) and ``iat`` (issued-at) claims
-  at decode time: a token is rejected unless its ``iss`` equals the
-  authorization server identifier, its ``aud`` contains this resource server,
-  and it carries ``client_id``, ``exp`` (not expired) and ``iat``. A validated
-  token must now carry a ``client_id`` claim identifying the client; tokens
-  without it (minted before this change, or by an issuer that omits it) are
-  rejected with ``401`` instead of failing later during client lookup.
-  Previously the ``iss`` claim was never checked, so a signature-valid token
-  from a different issuer was accepted; and a token missing ``exp`` or ``iat``
-  raised an unguarded ``KeyError`` (HTTP 500) instead of a clean ``401``.
-  (Expiry itself was already
-  enforced by the bearer-token validator.) (`#631`_).
-- Added the ``token_issuer`` configuration parameter — the identifier of the
-  authorization server, used as the ``iss`` claim of tokens Spinta issues and
-  the value it requires when validating them. It is **required whenever Spinta
-  issues or validates an access token** (acting as its own authorization server
-  or validating an external one) and has no default; the requirement is enforced
-  when a token is issued or validated, not at startup, so operations that never
-  touch tokens (e.g. inspecting a manifest) are unaffected. There is deliberately
-  no fallback to ``server_url``, because ``server_url`` is the public URL (often
-  a gateway) and is not a valid issuer identity. Set it to the authorization
-  server's identifier — the external issuer's ``iss`` when validating tokens
-  minted elsewhere (via ``token_validation_key`` or
-  ``token_validation_keys_download_url``), or this server's own authorization
-  identity when it issues its own tokens (`#631`_).
-- Added the ``resource_server`` configuration parameter — the identifier of
-  this resource server, used as the ``aud`` (audience) claim of tokens Spinta
-  issues and required to be present in tokens it validates. It is **required
-  whenever Spinta issues or validates an access token** (enforced at that point,
-  not at startup) and has no default (no fallback to ``server_url``, which may be
-  a gateway in front of this resource server). Previously the ``aud`` claim was
-  incorrectly set to the client id, conflating the audience with the client;
-  ``aud`` is now the resource server and the client is carried in a separate
-  ``client_id`` claim. A token whose ``aud`` does not contain ``resource_server`` is
-  rejected (`#631`_).
-- The RFC 8414 authorization-server metadata
-  (``GET /.well-known/oauth-authorization-server``) builds its endpoint URLs
-  (``token_endpoint``, ``introspection_endpoint``, ``jwks_uri``) from
-  ``token_issuer``, with any trailing slash stripped, rather than from
-  ``server_url`` or ``resource_server`` (`#631`_).
-- ``server_url`` is normalised (trailing slash stripped) when configuration is
-  loaded, so the ``Location`` header of created resources no longer contains a
-  double slash (`#631`_).
-- The authorization-server endpoints (``POST /auth/token``,
-  ``POST /auth/introspect`` and ``GET /.well-known/oauth-authorization-server``)
-  are now disabled when token validation is configured against an external
-  issuer (``token_validation_key`` or ``token_validation_keys_download_url`` is
-  set): Spinta cannot verify tokens it would sign, so it no longer acts as an
-  authorization server and these endpoints return ``NoAuthServer``. Previously
-  they responded whenever a private key was present, even in agent mode — but
-  any token minted there failed validation against the external key. Agent-mode
-  deployments must obtain tokens from the external authorization server instead
-  (`#631`_).
 - Removed the internal ``mongo`` backend. It was intended as an internal
   storage for schemaless data sets, but that use case never materialized and
   the backend was unused. The ``mongo`` backend type, its ``pymongo``
@@ -256,18 +384,6 @@ Bug fixes:
 
 Improvements:
 
-- Added an OAuth2 token introspection endpoint at ``POST /auth/introspect``
-  (`RFC 7662`). Clients authenticate with ``client_secret_basic`` and must have
-  the ``auth_introspect`` scope; the response reports ``active``, ``client_id``,
-  ``scope``, ``sub``, ``aud``, ``iss``, ``exp``, ``iat`` and ``jti`` for a valid
-  access token, and ``{"active": false}`` otherwise (`#631`_).
-- Added an authorization server metadata endpoint at
-  ``GET /.well-known/oauth-authorization-server`` (`RFC 8414`), advertising the
-  issuer, token, introspection and JWKS endpoint URLs, the supported
-  ``client_credentials`` grant and the supported client authentication methods
-  (`#631`_).
-- Added the ``auth_introspect`` scope, which grants a client permission to
-  introspect access tokens issued to any client (`#631`_).
 - Added support for Python ``3.14``. Bumped ``sqlean-py`` to ``>=3.50.4.5``, which
   is the first release providing prebuilt wheels for CPython ``3.14`` (older
   releases failed to build from source on ``3.14``), and added ``3.14`` to the CI
@@ -278,29 +394,8 @@ Improvements:
   ``ALLOWED_JWT_ALGORITHMS`` allow-list (RSA and EC families, including the
   ``RS512`` used for access tokens) is now passed to token encode/decode.
 - Added support to citus distribution management using `spinta migrate` cli command (`#1915`_).
-- Added a ``/health`` probe endpoint, following the UAPI ``health`` schema: a
-  ``healthy`` flag for the whole service and a ``dependencies`` list, where each
-  item has a ``name`` and its own ``healthy`` flag. The reported dependencies
-  are ``spinta`` itself, ``disk`` (enough free disk space on ``data_path``) and
-  ``memory`` (enough available RAM). Only these flags are reported: since the
-  probe is not authenticated, paths, free space and errors are written to the
-  log instead of to the response. Available memory is measured against the
-  limit of the control group the process belongs to, falling back to the memory
-  of the host when it is not limited, so that a container is not reported as
-  healthy right before being killed for using up the memory it was given. Note
-  that an unhealthy service is reported in the body, not in the status code: the
-  endpoint answers ``200`` with ``healthy: false``, because UAPI declares
-  ``503`` to be the ``ServiceNotAvailable`` error object. Consumers, including
-  container and load balancer probes, must therefore inspect ``healthy`` rather
-  than the status code. Thresholds are configurable via
-  ``health.min_free_disk_space`` (MB, defaults to ``2048``) and
-  ``health.min_free_memory`` (MB, defaults to ``256``). Like the other utility
-  routes, ``/health`` is matched before the catch-all route, so it shadows a
-  root level namespace or model named ``health``, if there is one (`#1873`_).
 
-.. _#631: https://github.com/atviriduomenys/dvms/issues/631
 .. _#513: https://github.com/atviriduomenys/dvms/issues/513
-.. _#1873: https://github.com/atviriduomenys/spinta/issues/1873
 .. _#1996: https://github.com/atviriduomenys/spinta/issues/1996
 .. _#1556: https://github.com/atviriduomenys/spinta/issues/1556
 .. _#1915: https://github.com/atviriduomenys/spinta/issues/1915

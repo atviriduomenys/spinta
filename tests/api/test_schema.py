@@ -1,7 +1,6 @@
 import pathlib
 import uuid
 from pathlib import Path
-from typing import Union
 
 import pytest
 import sqlalchemy as sa
@@ -24,7 +23,7 @@ from tests.manifests.internal_sql.test_internal import compare_sql_to_required
 
 def boostrap_manifest_with_drop(
     rc: RawConfig,
-    manifest: Union[pathlib.Path, str],
+    manifest: pathlib.Path | str,
     *,
     request: FixtureRequest = None,
     load_internal: bool = True,
@@ -170,7 +169,9 @@ def test_schema_invalid_dataset_name(
     app = create_test_client(context)
     app.authorize(scopes)
 
-    resp = app.post("/api/schema/error/1/:schema")
+    # `1` is a valid namespace segment (UDTS data service version), so use a
+    # name that is still invalid: a segment with a leading zero.
+    resp = app.post("/api/schema/error/01/:schema")
     assert error(resp, status=400) == "InvalidName"
 
 

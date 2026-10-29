@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any
 
 from spinta import commands, spyna
 from spinta.components import Context, Model
@@ -40,7 +40,7 @@ def load_param_formulas_and_sources(
     param.sources = param_sources
 
 
-def load_params(context: Context, manifest: Manifest, param_data: Any, resource: Resource | None = None) -> List[Param]:
+def load_params(context: Context, manifest: Manifest, param_data: Any, resource: Resource | None = None) -> list[Param]:
     params = []
     if isinstance(param_data, dict):
         for key, data in param_data.items():
@@ -66,7 +66,7 @@ def load_params(context: Context, manifest: Manifest, param_data: Any, resource:
     return params
 
 
-def link_params(context: Context, manifest: Manifest, params: List[Param], dataset: Dataset = None):
+def link_params(context: Context, manifest: Manifest, params: list[Param], dataset: Dataset = None):
     param_loader = ParamLoader(context)
     param_loader.update(manifest=manifest, dataset=dataset)
     param_loader.resolve(Expr("resolve_param", params))

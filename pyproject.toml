@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "spinta"
-version = "1.3.0"
+version = "1.4.0"
 description = "A platform for describing, extracting, transforming, loading and serving open data."
 authors = ["Mantas Zimnickas <sirexas@gmail.com>"]
 license = "MIT"
@@ -172,6 +172,7 @@ plugins = "sqlmypy"
 
 [tool.ruff]
 line-length = 120
+target-version = "py310"  # Minimum supported Python version
 
 
 [tool.ruff.format]
@@ -180,5 +181,8 @@ quote-style = "double"
 
 [tool.ruff.lint]
 # I (isort) checks import sorting and grouping.
-extend-select = ["I"]
+extend-select = [
+    "I",
+    "UP", # Modernize Python syntax,
+]
 ignore = ["F811"]

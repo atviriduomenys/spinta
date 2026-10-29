@@ -6,7 +6,9 @@ from collections.abc import Callable
 try:
     from typing import Concatenate, ParamSpec
 except ImportError:
-    from typing_extensions import Concatenate, ParamSpec
+    from typing import Concatenate
+
+    from typing_extensions import ParamSpec
 
 from spinta.components import Context
 

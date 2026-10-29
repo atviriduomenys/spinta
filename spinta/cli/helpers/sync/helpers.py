@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+import configparser
 from io import StringIO
 from pathlib import Path
-from typing import Optional, Union
 
 from typer import Context as TyperContext
 from typer import echo
 
-from spinta.auth import DEFAULT_CREDENTIALS_SECTION
+from spinta.auth import DEFAULT_CREDENTIALS_SECTION, KATALOGAS_CREDENTIALS_SECTION
 from spinta.cli.helpers.store import load_manifest
 from spinta.cli.helpers.sync import ContentType
 from spinta.cli.manifest import _read_and_return_manifest
@@ -50,10 +50,10 @@ def load_configuration_values(context: Context) -> tuple[str, str]:
 def get_context_and_manifest(
     ctx: TyperContext,
     manifest: ManifestPath,
-    resource: Optional[tuple[str, str]],
+    resource: tuple[str, str] | None,
     formula: str,
-    backend: Optional[str],
-    auth: Optional[str],
+    backend: str | None,
+    auth: str | None,
     priority: str,
 ) -> tuple[Context, Manifest]:
     """Create a context and manifest for synchronization.
@@ -95,21 +95,43 @@ def prepare_local_manifest_file(manifest_path: str) -> None:
         raise ManifestFileInvalidPath(manifest_path=manifest_path)
 
 
+def get_catalog_credentials_section(credentials_file: Path) -> str:
+    """Return the `credentials.cfg` section with the Catalog credentials, `katalogas` or the old `default`."""
+    credentials = configparser.ConfigParser()
+    credentials.read(credentials_file)
+    if credentials.has_section(KATALOGAS_CREDENTIALS_SECTION):
+        return KATALOGAS_CREDENTIALS_SECTION
+    return DEFAULT_CREDENTIALS_SECTION
+
+
+def read_catalog_credentials(credentials_file: Path) -> RemoteClientCredentials:
+    """Read the Catalog credentials, leaving URLs the section does not give empty for validation."""
+    section = get_catalog_credentials_section(credentials_file)
+    credentials = get_client_credentials(credentials_file, section)
+    parser = configparser.ConfigParser()
+    parser.read(credentials_file)
+    options = set(parser.options(section))
+    # get_client_credentials falls back to URLs made from the section name, e.g. `https://katalogas`.
+    if not options & {"auth_server_url", "server"}:
+        credentials.server = None
+    # The old `server` alone stood for both, so `resource_server_url` keeps falling back to it.
+    if not options & {"resource_server_url", "resource_server", "server"}:
+        credentials.resource_server_url = None
+    return credentials
+
+
 def get_configuration_credentials(context: Context) -> RemoteClientCredentials:
     """Retrieve remote client credentials from configuration."""
     config: Config = context.get("config")
-    credentials: RemoteClientCredentials = get_client_credentials(config.credentials_file, DEFAULT_CREDENTIALS_SECTION)
-    return credentials
+    return read_catalog_credentials(config.credentials_file)
 
 
 def validate_credentials(credentials: RemoteClientCredentials) -> None:
     """Validates the credentials required for calls to the Catalog."""
     required = {
-        "resource_server": credentials.resource_server,
-        "server": credentials.server,
+        "resource_server_url": credentials.resource_server_url,
+        "auth_server_url": credentials.server,
         "client": credentials.client,
-        "organization_type": credentials.organization_type,
-        "organization": credentials.organization,
     }
 
     missing = [name for name, value in required.items() if not value]
@@ -140,7 +162,7 @@ def read_and_get_manifest(
     context: Context,
     manifest_type: str = "tabular",
     path: str | None = None,
-    contents: Union[str, list[str]] | None = None,
+    contents: str | list[str] | None = None,
 ):
     manifest_paths = []
 
@@ -195,7 +217,7 @@ def get_nested_attribute(entity: MetaData, attribute_path: str) -> str | None:
 
 def find_existing_entity(
     entity: MetaData, candidates: dict[str, MetaData], keys: tuple[str, str, str] = ("id", "name", "source")
-) -> Union[tuple[MetaData, str], tuple[None, None]]:
+) -> tuple[MetaData, str] | tuple[None, None]:
     for candidate_name, candidate in candidates.items():
         for key in keys:
             entity_value = get_nested_attribute(entity, key)

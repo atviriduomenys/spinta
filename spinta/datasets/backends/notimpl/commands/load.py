@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from spinta import commands
 from spinta.components import Context
@@ -9,6 +9,6 @@ from spinta.datasets.backends.notimpl.components import BackendNotImplemented
 def load(
     context: Context,
     backend: BackendNotImplemented,
-    config: Dict[str, Any],
+    config: dict[str, Any],
 ) -> None:
     pass

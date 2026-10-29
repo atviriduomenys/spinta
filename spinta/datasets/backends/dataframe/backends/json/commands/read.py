@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 import pathlib
-from typing import Any, Iterator
+from collections.abc import Iterator
+from typing import Any
 
 import requests
 from dask.bag import from_sequence

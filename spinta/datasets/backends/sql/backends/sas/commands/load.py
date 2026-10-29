@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Any, Dict
+from typing import Any
 
 import sqlalchemy as sa
 
@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @commands.load.register(Context, SAS, dict)
-def load(context: Context, backend: SAS, config: Dict[str, Any]):
+def load(context: Context, backend: SAS, config: dict[str, Any]):
     """
     Load and initialize the SAS backend.
 

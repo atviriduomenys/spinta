@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
-from typing import Dict
 
 import sqlalchemy as sa
 from multipledispatch import dispatch
@@ -31,7 +30,7 @@ class RenameMap:
     class _TableRename:
         old: TableIdentifier
         new: TableIdentifier | None
-        columns: Dict[str, str]
+        columns: dict[str, str]
 
         def get_new_table_identifier(self, fallback: bool = False) -> TableIdentifier | None:
             if self.new is None:
@@ -45,7 +44,7 @@ class RenameMap:
         def get_old_table_identifier(self) -> TableIdentifier:
             return self.old
 
-    tables: Dict[str, _TableRename]
+    tables: dict[str, _TableRename]
 
     def __init__(self, rename_src: str | dict):
         self.tables = {}
@@ -186,7 +185,7 @@ class RenameMap:
             if not os.path.exists(rename_src):
                 raise FileNotFound(file=rename_src)
 
-            with open(rename_src, "r") as f:
+            with open(rename_src) as f:
                 data = json.loads(f.read())
                 _parse_dict(data)
         else:

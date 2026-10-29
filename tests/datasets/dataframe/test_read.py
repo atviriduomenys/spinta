@@ -344,7 +344,7 @@ def test_xml_json_csv_combined_read_parametrize_advanced_iterate_pages(rc: RawCo
 
 
 def test_swap_ufunc(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("id,name\n1,test\n2,\n3,\n4,null").encode("utf-8"))
+    fs.pipe("cities.csv", (b"id,name\n1,test\n2,\n3,\n4,null"))
 
     context, manifest = prepare_manifest(
         rc,
@@ -377,7 +377,7 @@ def test_swap_ufunc(rc: RawConfig, fs: AbstractFileSystem):
 
 
 def test_count(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("id,name\n1,test\n2,\n3,\n4,null").encode("utf-8"))
+    fs.pipe("cities.csv", (b"id,name\n1,test\n2,\n3,\n4,null"))
 
     context, manifest = prepare_manifest(
         rc,
@@ -400,7 +400,7 @@ def test_count(rc: RawConfig, fs: AbstractFileSystem):
 
 
 def test_select_count(rc: RawConfig, fs: AbstractFileSystem):
-    fs.pipe("cities.csv", ("id,name\n1,test\n2,\n3,\n4,null").encode("utf-8"))
+    fs.pipe("cities.csv", (b"id,name\n1,test\n2,\n3,\n4,null"))
 
     context, manifest = prepare_manifest(
         rc,
@@ -423,7 +423,7 @@ def test_select_count(rc: RawConfig, fs: AbstractFileSystem):
 
 
 def test_identifiable_ref_primary_key(rc: RawConfig, fs: AbstractFileSystem, reset_keymap):
-    fs.pipe("data.csv", ("planet_code,country_code\nER,LT\nJP,EE\nMR,LV").encode("utf-8"))
+    fs.pipe("data.csv", (b"planet_code,country_code\nER,LT\nJP,EE\nMR,LV"))
     context, manifest = prepare_manifest(
         rc,
         """
@@ -479,7 +479,7 @@ def test_identifiable_ref_primary_key(rc: RawConfig, fs: AbstractFileSystem, res
 
 
 def test_unidentifiable_ref_primary_key(rc: RawConfig, fs: AbstractFileSystem, reset_keymap):
-    fs.pipe("data.csv", ("planet_code,country_code\nER,LT\nJP,EE\nMR,LV").encode("utf-8"))
+    fs.pipe("data.csv", (b"planet_code,country_code\nER,LT\nJP,EE\nMR,LV"))
     context, manifest = prepare_manifest(
         rc,
         """
@@ -531,7 +531,7 @@ def test_unidentifiable_ref_primary_key(rc: RawConfig, fs: AbstractFileSystem, r
 
 
 def test_identifiable_ref_primary_key_multiple(rc: RawConfig, fs: AbstractFileSystem, reset_keymap):
-    fs.pipe("data.csv", ("planet_code,country_code\nER,LT\nJP,EE\nMR,LV").encode("utf-8"))
+    fs.pipe("data.csv", (b"planet_code,country_code\nER,LT\nJP,EE\nMR,LV"))
     context, manifest = prepare_manifest(
         rc,
         """

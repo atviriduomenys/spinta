@@ -15,7 +15,7 @@ handles creation and related operations for all DCAT resource types.
 from __future__ import annotations
 
 from http import HTTPStatus
-from typing import Any, Optional
+from typing import Any
 
 import requests
 from requests.models import Response
@@ -55,7 +55,7 @@ def create_resource(
     base_path: str,
     headers: dict[str, str],
     resource_name: str,
-    parent_id: Optional[str] = None,
+    parent_id: str | None = None,
     resource_type: str = DEFAULT_RESOURCE,
     validate_response: bool = True,
 ) -> Response:

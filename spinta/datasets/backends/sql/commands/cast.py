@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 from spinta import commands
 from spinta.components import Context
@@ -9,7 +9,7 @@ from spinta.types.datatype import Array
 
 
 @commands.cast_backend_to_python.register(Context, Array, Sql, list)
-def cast_backend_to_python(context: Context, dtype: Array, backend: Sql, data: List[Any], **kwargs) -> List[Any]:
+def cast_backend_to_python(context: Context, dtype: Array, backend: Sql, data: list[Any], **kwargs) -> list[Any]:
     # Edge case, when using intermediate table with Sql backend, None values get returned as [None] instead of None
     if dtype.model is not None and len(data) == 1 and data[0] is None:
         return commands.cast_backend_to_python(context, dtype.items.dtype, backend, None, **kwargs)

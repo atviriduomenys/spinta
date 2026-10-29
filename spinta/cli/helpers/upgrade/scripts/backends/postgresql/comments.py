@@ -1,4 +1,4 @@
-from typing import Generator
+from collections.abc import Generator
 
 import sqlalchemy as sa
 from multipledispatch import dispatch

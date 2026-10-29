@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Dict, List, Union
+from typing import Any
 
 from spinta.backends import Backend
 from spinta.components import Model, Page, Property
@@ -29,10 +29,10 @@ class QueryPage:
 
 class QueryParams:
     prioritize_uri: bool = False
-    lang_priority: List[str] = None
+    lang_priority: list[str] = None
     expand: Expr = None
     default_expand: bool = False
-    lang: List = None
+    lang: list = None
     push: bool = False
     url_params: dict
     # Request-time values of source-less properties linked to resource params (`ParamProperty`).
@@ -74,7 +74,7 @@ class Selected:
         prop = self.prop.place if self.prop else "None"
         if isinstance(self.prep, Selected):
             return (f"{indent}Selected(item={self.item}, prop={prop}, prep=...)\n") + self.prep.debug(indent + "  ")
-        elif isinstance(self.prep, (tuple, list)):
+        elif isinstance(self.prep, tuple | list):
             return (f"{indent}Selected(item={self.item}, prop={prop}, prep={type(self.prep).__name__}...)\n") + "".join(
                 [p.debug(indent + "- ") if isinstance(p, Selected) else str(p) for p in self.prep]
             )
@@ -91,13 +91,13 @@ class QueryBuilder(Env):
     backend: Backend
     model: Model
     page: QueryPage
-    expand: List[Property] | Star | None = None
+    expand: list[Property] | Star | None = None
     query_params: QueryParams = None
     # `resolved` is used to map which prop.place properties are already
     # resolved, usually it maps to Selected, but different DataType's can return
     # different results.
-    resolved: Dict[str, Selected]
-    selected: Dict[str, Selected] = None
+    resolved: dict[str, Selected]
+    selected: dict[str, Selected] = None
 
     property_resolver: PropertyResolver = None
 
@@ -146,7 +146,7 @@ class NestedProperty(Func):
     # Used to mark object nesting
     # for example object -> datatype
 
-    left: Union[Object]
+    left: Object
     right: Any
 
 
