@@ -6,7 +6,11 @@ camel_cased_words = re.compile(r"([A-Z][a-z]+)")
 split_words_re = re.compile(r"[^a-zA-Z0-9]+")
 number_prefix_re = re.compile(r"^([0-9]+)")
 
-namespace_re = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*(?:/[a-z][a-z0-9]*(?:_[a-z0-9]+)*)*$")
+# A namespace path segment is either a code name or a non-negative integer
+# without leading zeros. Integer segments are used for UDTS data service
+# versions, for example ``datasets/gov/vk/vis/udts/1/vis``.
+_namespace_segment = r"(?:[a-z][a-z0-9]*(?:_[a-z0-9]+)*|0|[1-9][0-9]*)"
+namespace_re = re.compile(rf"^{_namespace_segment}(?:/{_namespace_segment})*$")
 model_re = re.compile(r"^[A-Z][A-Za-z0-9]*$")
 property_re = re.compile(r"^[a-z][a-z0-9]*(?:_[a-z0-9]+)*_?$")
 

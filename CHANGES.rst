@@ -30,9 +30,11 @@ Improvements:
   recommended ``{config_path}/config.yaml`` file, and the configuration syntax,
   including simple and complex values and merge and reset semantics. A new
   page describes keymap configuration (`#1990`_).
+- Dataset names may contain a path segment that is a non-negative integer
+  without leading zeros, for example ``datasets/gov/vk/vis/udts/1/vis``, where
+  the integer is the UDTS data service version. Such names are no longer
+  rejected by name checks (`#2080`_).
 - Enforced `#1990`_ changes to existing scripts and implementations (`#2077`_).
-
-.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 
 Bug fixes:
 
@@ -42,6 +44,8 @@ Bug fixes:
   settings, such as test backend DSNs (`#1990`_).
 
 .. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
+.. _#2080: https://github.com/atviriduomenys/spinta/issues/2080
+.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 
 1.3.1 (2026-10-22)
 =====================
