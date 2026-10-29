@@ -132,7 +132,7 @@ def test_admin_model_limit_skip_too_small(
     else:
         data = yml.load(result.stdout)
 
-    assert data == {"models": {"datasets/limit/cli/req/Country": {"limit": 7}}}
+    assert data == {"models.datasets/limit/cli/req/Country.limit": 7}
 
 
 @pytest.mark.parametrize("output", [None, "limits.yml", "limits.yaml"])
@@ -185,10 +185,8 @@ def test_admin_model_limit(
         data = yml.load(result.stdout)
 
     assert data == {
-        "models": {
-            "datasets/limit/cli/req/Country": {"limit": 7},
-            "datasets/limit/cli/req/City": {"limit": 6},
-        },
+        "models.datasets/limit/cli/req/Country.limit": 7,
+        "models.datasets/limit/cli/req/City.limit": 6,
     }
 
 
@@ -252,6 +250,4 @@ def test_admin_model_limit_large_row(model_limit_context: Context, cli: SpintaCl
     assert resp.status_code == 201
 
     result = cli.invoke(model_limit_context.get("rc"), ["admin", Script.MODEL_LIMIT.value])
-    assert YAML(typ="safe").load(result.stdout) == {
-        "models": {"datasets/limit/cli/req/Country": {"limit": 1}},
-    }
+    assert YAML(typ="safe").load(result.stdout) == {"models.datasets/limit/cli/req/Country.limit": 1}

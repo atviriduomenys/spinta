@@ -2,7 +2,6 @@ import json
 import pathlib
 import sys
 from contextlib import nullcontext
-from typing import Optional
 
 import sqlalchemy as sa
 import tqdm
@@ -139,7 +138,7 @@ def adjust_bytes(backend: Backend, model: Model, totals: dict, count: int) -> di
     return result
 
 
-def _extract_column_byte_data(backend: PostgreSQL, prop: Property, data: dict) -> (str, Optional[int]):
+def _extract_column_byte_data(backend: PostgreSQL, prop: Property, data: dict) -> (str, int | None):
     table = backend.get_table(prop.model)
     column = backend.get_column(table, prop)
     data = data.get(column.name, None)
@@ -205,9 +204,7 @@ def generate_model_limits(
         for model in models:
             limit = extract_limit(context, model)
             if limit is not None:
-                data[model.model_type()] = {
-                    "limit": limit,
-                }
+                data[f"models.{model.model_type()}.limit"] = limit
                 cli_message(f"\t{model.model_type()} - {limit}", progress_bar=counter)
             else:
                 cli_message(f"\t{model.model_type()} - Skipped", progress_bar=counter)
@@ -217,4 +214,4 @@ def generate_model_limits(
 
     output_stream = nullcontext(sys.stdout) if output_path is None else output_path.open("w")
     with output_stream as out:
-        yaml.dump({"models": data} if data else {}, out)
+        yaml.dump(data, out)
