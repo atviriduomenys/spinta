@@ -56,7 +56,7 @@ Jei gausite versiją — servisas veikia ir žetonas galioja. Tada galima tęsti
 Toliau siųskite užklausą į serverį:
 
 ```bash
-curl "$SERVER/datasets/gov/vssa/demo/demo_udts/rctest/Country?_limit=5" -H "$AUTH" | jq '.'
+curl "$SERVER/datasets/gov/vssa/demo/demo_udts/1/rctest/Country?_limit=5" -H "$AUTH" | jq '.'
 ```
 
 Turėtumėte gauti tokį atsakymą:
@@ -65,7 +65,7 @@ Turėtumėte gauti tokį atsakymą:
 {
   "_data": [
     {
-      "_type": "datasets/gov/vssa/demo/demo_udts/rctest/Country",
+      "_type": "datasets/gov/vssa/demo/demo_udts/1/rctest/Country",
       "_id": "88ea6c29-57a3-4dda-aa1b-ab550972bee4",
       "_revision": null,
       "_base": null,
@@ -73,7 +73,7 @@ Turėtumėte gauti tokį atsakymą:
       "title": "Lietuva"
     },
     {
-      "_type": "datasets/gov/vssa/demo/demo_udts/rctest/Country",
+      "_type": "datasets/gov/vssa/demo/demo_udts/1/rctest/Country",
       "_id": "967247a7-4d6a-478f-8675-7a6aee530c63",
       "_revision": null,
       "_base": null,
@@ -127,7 +127,7 @@ Kliento kūrimas ir scope aprašyti puslapyje [Autentifikacija ir autorizacija](
 **1. Užklausa be žetono** – agentas turi atsisakyti grąžinti duomenis:
 
 ```bash
-curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/rctest/Country?_limit=5" | jq '.'
+curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/1/rctest/Country?_limit=5" | jq '.'
 ```
 
 ```json
@@ -150,7 +150,7 @@ Jei be žetono grąžinami duomenys, manifeste duomenims palikta prieinamumo lyg
 **2. Užklausa su žetonu** – grąžinami duomenys:
 
 ```bash
-curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/rctest/Country?_limit=5" -H "$AUTH" | jq '.'
+curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/1/rctest/Country?_limit=5" -H "$AUTH" | jq '.'
 ```
 
 Atsakymas – kaip aukščiau pateiktame pavyzdyje.
@@ -158,14 +158,14 @@ Atsakymas – kaip aukščiau pateiktame pavyzdyje.
 **3. Užklausa į duomenų rinkinį** – grąžinamas rinkinio modelių sąrašas:
 
 ```bash
-curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/rctest" -H "$AUTH" | jq '.'
+curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/1/rctest" -H "$AUTH" | jq '.'
 ```
 
 ```json
 {
   "_data": [
     {
-      "name": "datasets/gov/vssa/demo/demo_udts/rctest/Country",
+      "name": "datasets/gov/vssa/demo/demo_udts/1/rctest/Country",
       "title": "Šalys",
       "description": ""
     }
@@ -174,7 +174,7 @@ curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/rctest" -H "$AUTH" | jq '.'
 ```
 
 Jei rinkinyje yra vidinių rinkinių, jų sąrašą gausite kelio gale pridėję `/:ns`, pvz.,
-`"$SERVER/datasets/gov/vssa/demo/demo_udts/rctest/:ns"`.
+`"$SERVER/datasets/gov/vssa/demo/demo_udts/1/rctest/:ns"`.
 
 :::{note}
 **DVMS projekto dalyviams.** Šių trijų patikrinimų ekrano nuotraukos (testavimo ir gamybinio

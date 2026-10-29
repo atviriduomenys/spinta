@@ -55,10 +55,10 @@ pirmiausia jį [atnaujinkite](atnaujinimas.md).
 Duomenų paslaugą apibrėžia kelio priekinė dalis:
 
 ```
-https://{domain}/datasets/{form}/{org}/{is}/{service}[/{version}]/{dataset}/{model}
-                 └───────────── duomenų paslauga ─────────────┘ └── turinys ──┘
+https://{domain}/datasets/{form}/{org}/{is}/{service}/{version}/{dataset}/{model}
+                 └───────────── duomenų paslauga ─────────────┘ └─── turinys ───┘
 
-/datasets/gov/rc/jadis/jadis_udts  /  at280_israsas/DalyvioAsmensIsrasas
+/datasets/gov/rc/jadis/jadis_udts/1  /  at280_israsas/DalyvioAsmensIsrasas
 ```
 
 Kelio segmentai ir dažniausios klaidos aprašyti skyriuje
@@ -69,7 +69,7 @@ Importuojant OAS į vartus:
 | OAS | Vartuose (Gravitee) |
 |---|---|
 | `servers[0].url` adresas, pvz., `https://apigw.gov.lt` | Vartų adresas, kuriuo kreipiasi gavėjai |
-| `servers[0].url` kelias, pvz., `/datasets/gov/vssa/demo/demo_udts` | API **context-path** |
+| `servers[0].url` kelias, pvz., `/datasets/gov/vssa/demo/demo_udts/1` | API **context-path** |
 | `paths`, pvz., `/rctest/Country`, `/rctest/Country/{id}` | API endpoint'ai, santykiniai su context-path |
 | – (OAS nėra) | **Backend** – agento adresas, į kurį vartai persiunčia užklausas, pvz., `https://spinta.institucija.lt`; nustatomas diegiant |
 | Schemos, parametrai | Užklausų ir atsakymų tikrinimas (OpenAPI Specification Validation) |
@@ -77,10 +77,10 @@ Importuojant OAS į vartus:
 Gavėjo užklausa keliauja taip:
 
 ```
-GET https://apigw.gov.lt/datasets/gov/vssa/demo/demo_udts/rctest/Country
-    └── vartų adresas ─┘└──────── context-path ─────────┘└─ endpoint ─┘
+GET https://apigw.gov.lt/datasets/gov/vssa/demo/demo_udts/1/rctest/Country
+    └─ vartų adresas ──┘└───────── context-path ──────────┘└─ endpoint ──┘
                          ↓ vartai
-GET https://spinta.institucija.lt/datasets/gov/vssa/demo/demo_udts/rctest/Country
+GET https://spinta.institucija.lt/datasets/gov/vssa/demo/demo_udts/1/rctest/Country
 ```
 
 **Išimtys – agento endpoint'ai.** `/version`, `/health` ir `/token` OAS aprašyti paslaugos
@@ -89,9 +89,9 @@ Vartai juos nukreipia atskiromis (Dynamic Routing) taisyklėmis:
 
 | Gavėjas kreipiasi | Vartai nukreipia į |
 |---|---|
-| `…/demo_udts/version` | agento `/version` |
-| `…/demo_udts/health` | agento `/health` |
-| `…/demo_udts/token` | žetono išdavimo adresą (agento `/auth/token` arba autorizacijos serverį – pagal vartų konfigūraciją) |
+| `…/demo_udts/1/version` | agento `/version` |
+| `…/demo_udts/1/health` | agento `/health` |
+| `…/demo_udts/1/token` | žetono išdavimo adresą (agento `/auth/token` arba autorizacijos serverį – pagal vartų konfigūraciją) |
 
 Todėl paslaugoje negali būti duomenų rinkinio ar modelio, pavadinto `version`, `health` ar
 `token`, tiesiai po paslaugos keliu.
@@ -132,11 +132,11 @@ spinta udts oas manifest.csv --list
 ```{code-block} text
 :caption: Pavyzdinės išvesties paaiškinimas
 
-datasets/gov/rc/jadis/jadis_udts                  ← paslauga (jos kelias – --path reikšmė)
-  datasets/gov/rc/jadis/jadis_udts/at280_adresai  ← šios paslaugos duomenų rinkinys
-  datasets/gov/rc/jadis/jadis_udts/at280_israsas  ← šios paslaugos duomenų rinkinys
-datasets/gov/rc/ntr/ntr_udts                      ← kita paslauga
-  datasets/gov/rc/ntr/ntr_udts/n249_israsas       ← jos duomenų rinkinys
+datasets/gov/rc/jadis/jadis_udts/1                  ← paslauga (jos kelias – --path reikšmė)
+  datasets/gov/rc/jadis/jadis_udts/1/at280_adresai  ← šios paslaugos duomenų rinkinys
+  datasets/gov/rc/jadis/jadis_udts/1/at280_israsas  ← šios paslaugos duomenų rinkinys
+datasets/gov/rc/ntr/ntr_udts/1                      ← kita paslauga
+  datasets/gov/rc/ntr/ntr_udts/1/n249_israsas       ← jos duomenų rinkinys
 ```
 
 Šiame pavyzdyje vienas agentas aptarnauja dvi paslaugas, todėl generuojami du OAS – po vieną
@@ -151,14 +151,14 @@ patikrinkite kelią manifeste – žr.
 
 ```sh
 spinta udts oas manifest.csv -o jadis_udts.json \
-    --path datasets/gov/rc/jadis/jadis_udts \
+    --path datasets/gov/rc/jadis/jadis_udts/1 \
     --udts-cfg vartai-jadis_udts.yml
 ```
 
 - `--path` – duomenų paslaugos kelias. Atrenkami visi tos paslaugos rinkiniai:
   kurių pavadinimas lygus keliui arba prasideda juo, po kurio eina `/`. Todėl
-  `.../jadis_udts/1` nepagauna `.../jadis_udts/10`, o `.../jadis_udts` be versijos
-  nepagauna `.../jadis_udts/2` – tai atskira paslaugos versija. Jei manifeste yra tik viena paslauga,
+  `.../jadis_udts/1` nepagauna nei `.../jadis_udts/2`, nei `.../jadis_udts/10` – tai kitos
+  paslaugos versijos. Jei manifeste yra tik viena paslauga,
   `--path` galima praleisti.
 - `-o` – išvesties failas. `.yml` arba `.yaml` plėtinys duoda YAML, kitu atveju
   rašomas JSON. Be `-o` specifikacija spausdinama į standartinę išvestį.
@@ -169,19 +169,22 @@ spinta udts oas manifest.csv -o jadis_udts.json \
 :::{important}
 **Iki kur nurodyti `--path`**
 
-`--path` nurodomas **iki paslaugos segmento** (o jei nurodyta versija – iki versijos), ne
-iki IS ir ne iki duomenų rinkinio. Tinkamos reikšmės – `--list` išvestyje paslaugomis pažymėtos eilutės. Testavimo ir gamybinio agento OAS generuojami su tuo pačiu `--path`, skiriasi
+`--path` nurodomas **iki paslaugos versijos segmento** – ne iki IS, ne iki paslaugos be
+versijos ir ne iki duomenų rinkinio. Tinkamos reikšmės – `--list` išvestyje paslaugomis pažymėtos eilutės. Testavimo ir gamybinio agento OAS generuojami su tuo pačiu `--path`, skiriasi
 tik konfigūracijos failo `servers` adresas.
 
 | `--path` | |
 |---|---|
-| `datasets/gov/vssa/demo/demo_udts` | ✅ pirma paslaugos versija (rekomenduojama versijos nerašyti) |
+| `datasets/gov/vssa/demo/demo_udts/1` | ✅ pirma paslaugos versija |
 | `datasets/gov/vssa/demo/demo_udts/2` | ✅ nauja, nesuderinama paslaugos versija |
+| `datasets/gov/vssa/demo/demo_udts` | ❌ be versijos – versijos segmentas privalomas |
 | `datasets/gov/vssa/demo` | ❌ iki IS – į aprašą patektų visos IS paslaugos |
-| `datasets/gov/vssa/demo/demo_udts/rctest` | ❌ iki duomenų rinkinio – į aprašą patektų tik vienas rinkinys |
+| `datasets/gov/vssa/demo/demo_udts/1/rctest` | ❌ iki duomenų rinkinio – į aprašą patektų tik vienas rinkinys |
 
 Kai `--path` nėra paslaugos lygio, `spinta udts oas` parodo pranešimą
 „is not an UDTS data service path“ – tokio aprašo vartams neteikite.
+Kelią **be versijos** `spinta udts oas` priima be įspėjimo, todėl, ar versija nurodyta,
+patikrinkite patys.
 :::
 
 (oas-config)=
@@ -227,11 +230,11 @@ servers:
   - url: https://apigw.gov.lt
 ```
 
-ir generuojant su `--path datasets/gov/vssa/demo/demo_udts`, OAS faile bus:
+ir generuojant su `--path datasets/gov/vssa/demo/demo_udts/1`, OAS faile bus:
 
 ```yaml
 servers:
-  - url: https://apigw.gov.lt/datasets/gov/vssa/demo/demo_udts
+  - url: https://apigw.gov.lt/datasets/gov/vssa/demo/demo_udts/1
 ```
 
 Tai normalu – kelias paimamas iš `--path`, konfigūracijoje jo rašyti nereikia.
@@ -458,7 +461,7 @@ spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
 
    ```sh
    spinta udts oas manifest.csv -o jadis_udts.json \
-       --path datasets/gov/rc/jadis/jadis_udts \
+       --path datasets/gov/rc/jadis/jadis_udts/1 \
        --udts-cfg vartai-jadis_udts.yml
    ```
 

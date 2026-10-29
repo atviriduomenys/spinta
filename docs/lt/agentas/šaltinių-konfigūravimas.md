@@ -139,7 +139,7 @@ su API raktu. Antraštė aprašoma resurso `param` eilute su `header()` funkcija
 
 ```
 id,dataset,resource,base,model,property,type,ref,source,prepare,level,status,visibility,access,uri,eli,title,description
-,datasets/gov/vssa/demo/demo_udts/rctest,,,,,dataset,,,,,,,,,,,
+,datasets/gov/vssa/demo/demo_udts/1/rctest,,,,,dataset,,,,,,,,,,,
 ,,salys_api,,,,dask/json,,https://api.institucija.lt/salys,,,,,,,,,
 ,,,,,,param,auth,Authorization,"header(""Bearer <raktas>"")",,,,,,,,
 ,,,,Country,,,,data,,,,,private,,,,
@@ -196,7 +196,7 @@ Struktūros aprašo, skirto WSDL duomenims gauti, sudarymo pavyzdys:
 ```bash
 cat > manifest.csv << 'EOF'
 id,dataset,resource,base,model,property,type,ref,source,prepare,level,status,visibility,access,uri,eli,title,description
-,datasets/gov/vssa/demo/demo_udts/rctest,,,,,dataset,,,,,,,,,,,
+,datasets/gov/vssa/demo/demo_udts/1/rctest,,,,,dataset,,,,,,,,,,,
 ,,rc_wsdl,,,,wsdl,,https://test-data.data.gov.lt/api/v1/rc/get-data/?wsdl,,,,,,,,,
 ,,get_data,,,,soap,,Get.GetPort.GetPort.GetData,wsdl(rc_wsdl),,,,,,,,
 ,,,,,,param,action_type,input/ActionType,input(),,,,,,,,

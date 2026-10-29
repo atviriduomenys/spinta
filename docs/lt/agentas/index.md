@@ -271,7 +271,7 @@ reglamentuoja
 Kelias sudaromas iš manifesto `dataset` stulpelio reikšmės ir modelio pavadinimo:
 
 ```
-/datasets/{forma}/{organizacija}/{IS}/{paslauga}[/{versija}]/{duomenų rinkinys}/{Modelis}
+/datasets/{forma}/{organizacija}/{IS}/{paslauga}/{versija}/{duomenų rinkinys}/{Modelis}
 ```
 
 | Segmentas | Reikšmė | Pavyzdys |
@@ -280,15 +280,15 @@ Kelias sudaromas iš manifesto `dataset` stulpelio reikšmės ir modelio pavadin
 | `organizacija` | Organizacijos trumpinys, registruotas Kataloge | `vssa` |
 | `IS` | Informacinės sistemos trumpinys, registruotas Kataloge | `demo` |
 | `paslauga` | Duomenų paslaugos pavadinimas, parenka institucija; rekomenduojama `{IS}_udts` | `demo_udts` |
-| `versija` | Paslaugos versija – sveikasis skaičius. Pirmai paslaugos versijai galima nerašyti, ir **rekomenduojame nerašyti**; nurodoma (`2`, `3`, …) atsiradus nesuderinamai naujai paslaugos versijai | – |
+| `versija` | Paslaugos versija – sveikasis skaičius, **privaloma**. Pirmai paslaugos versijai rašoma `1`; nauja versija (`2`, `3`, …) – atsiradus nesuderinamiems paslaugos pakeitimams | `1` |
 | `duomenų rinkinys` | Duomenų rinkinio pavadinimas | `rctest` |
 | `Modelis` | Modelio pavadinimas (iš didžiosios raidės) | `Country` |
 
-Pilnas pavyzdys: `/datasets/gov/vssa/demo/demo_udts/rctest/Country`.
+Pilnas pavyzdys: `/datasets/gov/vssa/demo/demo_udts/1/rctest/Country`.
 
 Kelias svarbus, nes:
 
-1. iš jo generuojamas paslaugos OAS aprašas (`spinta udts oas --path` nurodomas iki paslaugos segmento,
+1. iš jo generuojamas paslaugos OAS aprašas (`spinta udts oas --path` nurodomas iki paslaugos versijos segmento,
    žr. [OAS generavimas](oas-generavimas.md));
 2. pagal jį paslauga registruojama vartuose ir sudaromos prieigos teisės (scope).
 
@@ -300,11 +300,12 @@ sutartys nebegaliotų, o pagal jas sukurtos integracijos tarp institucijų siste
 Todėl kelias turi būti teisingas **prieš** generuojant OAS ir diegiant paslaugą į vartus.
 :::
 
-Dažniausios klaidos (visais atvejais teisingai būtų `gov/vssa/demo/demo_udts/rctest/Country`):
+Dažniausios klaidos (visais atvejais teisingai būtų `gov/vssa/demo/demo_udts/1/rctest/Country`):
 
 | Neteisingai | Kas negerai |
 |-------------|-------------|
-| `gov/vssa/demo/rctest/Country` | Nėra paslaugos segmento – paslauga tampa `rctest` |
+| `gov/vssa/demo/demo_udts/rctest/Country` | Nėra versijos segmento |
+| `gov/vssa/demo/rctest/Country` | Nėra paslaugos ir versijos segmentų – paslauga tampa `rctest` |
 | `gov/vssa/demo_udts/get_salys/rctest/Country` | `_udts` prijungtas prie IS segmento; paslaugos vardu tapo `get_salys` |
 | `gov/lt/rctest/Country` | Trūksta organizacijos, IS ir paslaugos segmentų |
 
