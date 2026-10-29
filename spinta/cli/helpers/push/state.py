@@ -1,7 +1,7 @@
 import datetime
 import itertools
 import json
-from typing import Iterable, Iterator, List, Tuple
+from collections.abc import Iterable, Iterator
 
 import sqlalchemy as sa
 
@@ -16,8 +16,8 @@ from spinta.utils.sqlite import migrate_table
 
 def init_push_state(
     dburi: str,
-    models: List[Model],
-) -> Tuple[sa.engine.Engine, sa.MetaData]:
+    models: list[Model],
+) -> tuple[sa.engine.Engine, sa.MetaData]:
     engine = sa.create_engine(dburi)
     metadata = sa.MetaData(engine)
     inspector = sa.inspect(engine)
@@ -73,7 +73,7 @@ def init_push_state(
 
 def reset_pushed(
     context: Context,
-    models: List[Model],
+    models: list[Model],
     metadata: sa.MetaData,
 ):
     conn = context.get("push.state.conn")
@@ -202,7 +202,7 @@ def save_page_values(conn: sa.engine.Connection, table: sa.Table, model: Model, 
     page_values = json.dumps(page_values)
 
     if exists:
-        conn.execute(table.update().where((table.c.model == model_name)).values(value=page_values))
+        conn.execute(table.update().where(table.c.model == model_name).values(value=page_values))
     else:
         conn.execute(
             table.insert().values(

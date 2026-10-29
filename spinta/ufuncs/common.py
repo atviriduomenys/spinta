@@ -1,6 +1,6 @@
 import base64 as b64
 import math
-from typing import Any, Tuple, overload
+from typing import Any, overload
 
 from spinta.core.ufuncs import Env, Expr, NoOp, ufunc
 
@@ -34,7 +34,7 @@ def swap(env: Env, this: float, old: float, new: Any) -> Any:
 
 @overload
 @ufunc.resolver(Env, Expr)
-def group(env: Env, expr: Expr) -> Tuple[Any]:
+def group(env: Env, expr: Expr) -> tuple[Any]:
     args, kwargs = expr.resolve(env)
     return args[0]
 

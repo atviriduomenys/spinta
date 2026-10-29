@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import List, Optional, Union
-
 from spinta.components import Property
 from spinta.core.ufuncs import Expr, Unresolved
 from spinta.exceptions import IncompatibleForeignProperties
@@ -48,19 +46,19 @@ class ForeignProperty(Unresolved):
     """
 
     left: Ref
-    right: Optional[DataType]
-    chain: List[ForeignProperty]
+    right: DataType | None
+    chain: list[ForeignProperty]
     name: str
 
     def __init__(
         self,
-        fpr: Optional[ForeignProperty],
-        left: Union[Ref, BackRef],
+        fpr: ForeignProperty | None,
+        left: Ref | BackRef,
         right: DataType = None,
         *,
         # Used internally by swap method and only when fpr is None.
         _name: str = None,
-        _chain: List[ForeignProperty] = None,
+        _chain: list[ForeignProperty] = None,
     ):
         if fpr is None:
             self.name = left.prop.place if _name is None else _name
@@ -81,7 +79,7 @@ class ForeignProperty(Unresolved):
         else:
             return f"{name}({model}, {place})"
 
-    def __truediv__(self, prop: Optional[Property]) -> str:
+    def __truediv__(self, prop: Property | None) -> str:
         if prop:
             return f"{self.name} -> {prop.place}"
         else:
@@ -121,7 +119,7 @@ class ForeignProperty(Unresolved):
             _chain=chain,
         )
 
-    def push(self, right: Optional[Property] = None) -> ForeignProperty:
+    def push(self, right: Property | None = None) -> ForeignProperty:
         """Push another property to the chain
 
         Creates new ForeignProperty instance, by pushing another property to the
@@ -137,7 +135,7 @@ class ForeignProperty(Unresolved):
                 f"Can't push {right} to {self}, because right is a {type(self.right)}, but it should be a Ref."
             )
 
-    def swap(self, right: Optional[Property] = None) -> ForeignProperty:
+    def swap(self, right: Property | None = None) -> ForeignProperty:
         """Swap right with a new property
 
         Creates new ForeignProperty instance, preserving all properties, but

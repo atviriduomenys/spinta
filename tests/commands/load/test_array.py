@@ -24,7 +24,7 @@ def show_lists(dtype, parent=()):
         listname = None
     else:
         listname = dtype.prop.list.place
-    if isinstance(dtype, (Model, Object)):
+    if isinstance(dtype, Model | Object):
         if isinstance(dtype, Model):
             this = {}
         else:

@@ -1,8 +1,7 @@
 import re
-from typing import List
 
 
-def extract_error_property_names(error_message: str) -> List[str]:
+def extract_error_property_names(error_message: str) -> list[str]:
     pattern = re.compile(r"Key \((.*?)\)")
     return pattern.search(error_message).group(1).split(".")[0].split(", ")
 

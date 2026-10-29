@@ -1,6 +1,5 @@
 import pathlib
 from io import StringIO
-from typing import Tuple, Union
 
 from pytest import FixtureRequest
 
@@ -15,7 +14,7 @@ from spinta.manifests.tabular.helpers import normalizes_columns, render_tabular_
 from spinta.testing.context import TestContext, create_test_context
 
 
-def compare_manifest(manifest: Manifest, expected: str, context: Context = None) -> Tuple[str, str]:
+def compare_manifest(manifest: Manifest, expected: str, context: Context = None) -> tuple[str, str]:
     expected = striptable(expected)
     if not context:
         context = Context("empty")
@@ -45,7 +44,7 @@ def _create_file_path_for_type(tmp_path: pathlib.Path, file_name: str, manifest_
 
 def load_manifest_get_context(
     rc: RawConfig,
-    manifest: Union[pathlib.Path, str] = None,
+    manifest: pathlib.Path | str = None,
     *,
     load_internal: bool = False,
     request: FixtureRequest = None,
@@ -96,7 +95,7 @@ def load_manifest_get_context(
 
 def load_manifest(
     rc: RawConfig,
-    manifest: Union[pathlib.Path, str],
+    manifest: pathlib.Path | str,
     **kwargs,
 ) -> Manifest:
     context = load_manifest_get_context(rc, manifest, **kwargs)
@@ -106,9 +105,9 @@ def load_manifest(
 
 def load_manifest_and_context(
     rc: RawConfig,
-    manifest: Union[pathlib.Path, str] = None,
+    manifest: pathlib.Path | str = None,
     **kwargs,
-) -> Tuple[Context, Manifest]:
+) -> tuple[Context, Manifest]:
     context = load_manifest_get_context(rc, manifest, **kwargs)
     store: Store = context.get("store")
     return context, store.manifest
@@ -116,12 +115,12 @@ def load_manifest_and_context(
 
 def prepare_manifest(
     rc: RawConfig,
-    manifest: Union[pathlib.Path, str],
+    manifest: pathlib.Path | str,
     *,
     request: FixtureRequest = None,
     load_internal: bool = True,
     **kwargs,
-) -> Tuple[TestContext, Manifest]:
+) -> tuple[TestContext, Manifest]:
     context = load_manifest_get_context(
         rc,
         manifest,
@@ -137,7 +136,7 @@ def prepare_manifest(
 
 def bootstrap_manifest(
     rc: RawConfig,
-    manifest: Union[pathlib.Path, str],
+    manifest: pathlib.Path | str,
     *,
     request: FixtureRequest = None,
     load_internal: bool = True,

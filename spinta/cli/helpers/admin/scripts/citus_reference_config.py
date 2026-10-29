@@ -250,7 +250,7 @@ def generate_citus_reference_shard_config(
 
         for table in plan_reference_tables(eligible_tables, foreign_keys):
             model_name = table.comment or table.qualified_name
-            config_models[model_name] = {"distribute": "copy"}
+            config_models[model_name] = {"distribute": ["copy"]}
 
     output_stream = nullcontext(sys.stdout) if output_path is None else output_path.open("w")
     with output_stream as out:

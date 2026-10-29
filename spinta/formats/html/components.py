@@ -1,6 +1,6 @@
 import dataclasses
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from spinta.formats.components import Format
 
@@ -23,11 +23,11 @@ class Color(str, Enum):
 @dataclasses.dataclass
 class Cell:
     value: str
-    link: Optional[str] = None
-    color: Optional[Color] = None
+    link: str | None = None
+    color: Color | None = None
     external: bool = False
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         data = {
             "value": self.value,
             "link": self.link,
@@ -36,8 +36,4 @@ class Cell:
         return {k: v for k, v in data.items() if k == "value" or v is not None}
 
 
-ComplexCell = Union[
-    Cell,
-    Dict[str, "ComplexCell"],
-    List["ComplexCell"],
-]
+ComplexCell = Cell | dict[str, "ComplexCell"] | list["ComplexCell"]

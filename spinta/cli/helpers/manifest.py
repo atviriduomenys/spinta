@@ -1,11 +1,9 @@
-from typing import List, Union
-
 from spinta.core.config import Path, RawConfig, check_if_manifest_valid, parse_manifest_path
 from spinta.exceptions import UnknownManifestType
 from spinta.manifests.components import ManifestPath
 
 
-def convert_str_to_manifest_path(manifests: Union[List[str], str]) -> Union[ManifestPath, List[ManifestPath]]:
+def convert_str_to_manifest_path(manifests: list[str] | str) -> ManifestPath | list[ManifestPath]:
     if not manifests:
         return []
 
@@ -21,7 +19,7 @@ def convert_str_to_manifest_path(manifests: Union[List[str], str]) -> Union[Mani
 
 def _parse_cli_manifest_path(
     rc: RawConfig,
-    path: Union[str, ManifestPath],
+    path: str | ManifestPath,
 ) -> ManifestPath:
     from spinta.manifests.components import ManifestPath
 

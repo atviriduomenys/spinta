@@ -3,7 +3,8 @@ import hashlib
 import json
 import logging
 import textwrap
-from typing import Any, Callable, Dict, Tuple
+from collections.abc import Callable
+from typing import Any
 from unittest.mock import Mock
 from urllib.parse import unquote
 
@@ -476,15 +477,15 @@ def test_fetch_all_model_data_server_limit(responses: RequestsMock, retries: int
     assert error_counter.count == 0
 
 
-def _match_dict(d: Dict[str, Any], m: Dict[str, Any]) -> bool:
+def _match_dict(d: dict[str, Any], m: dict[str, Any]) -> bool:
     for k, v in m.items():
         if k not in d or d[k] != v:
             return False
     return True
 
 
-def _matcher(match: Dict[str, Any]) -> Callable[..., Any]:
-    def _match(request: PreparedRequest) -> Tuple[bool, str]:
+def _matcher(match: dict[str, Any]) -> Callable[..., Any]:
+    def _match(request: PreparedRequest) -> tuple[bool, str]:
         reason = ""
         body = request.body
         try:

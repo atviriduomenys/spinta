@@ -1,4 +1,4 @@
-from typing import Any, Dict, NamedTuple, Optional, TypedDict
+from typing import Any, NamedTuple, TypedDict
 
 import sqlalchemy as sa
 
@@ -11,16 +11,16 @@ class State(NamedTuple):
 
 
 class PushRow:
-    model: Optional[Model]
-    data: Dict[str, Any]
+    model: Model | None
+    data: dict[str, Any]
     # SHA1 checksum of data generated with _get_data_rev.
-    checksum: Optional[str]
+    checksum: str | None
     # True if data has already been sent.
     saved: bool = False
     # If push request received an error
     error: bool = False
     # Row operation
-    op: Optional[str] = None
+    op: str | None = None
     # If True, need to push data immediately
     push: bool = False
     # If True, need to include in request
@@ -28,8 +28,8 @@ class PushRow:
 
     def __init__(
         self,
-        model: Optional[Model],
-        data: Dict[str, Any],
+        model: Model | None,
+        data: dict[str, Any],
         checksum: str = None,
         saved: bool = False,
         error: bool = False,

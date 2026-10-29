@@ -1,4 +1,4 @@
-from typing import Any, Dict, overload
+from typing import Any, overload
 
 from geoalchemy2 import WKBElement
 from geoalchemy2.shape import to_shape
@@ -20,7 +20,7 @@ def prepare_dtype_for_response(
     dtype: Geometry,
     value: WKBElement,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):
@@ -36,7 +36,7 @@ def prepare_dtype_for_response(
     dtype: Geometry,
     value: WKBElement,
     *,
-    data: Dict[str, Any],
+    data: dict[str, Any],
     action: Action,
     select: dict = None,
 ):

@@ -4,7 +4,7 @@ import uuid
 from collections import Counter
 from collections.abc import Generator
 from copy import copy
-from typing import Any, Optional
+from typing import Any
 
 from redis import Redis
 from typer import echo
@@ -17,11 +17,11 @@ from spinta.exceptions import KeymapDuplicateMapping, KeyMapGivenKeyMissmatch
 
 
 class RedisKeyMap(KeyMap):
-    dsn: Optional[str] = None
+    dsn: str | None = None
     duplicate_warn_only: bool = False
-    sync_transaction_size: Optional[int] = None
+    sync_transaction_size: int | None = None
 
-    def __init__(self, dsn: Optional[str] = None):
+    def __init__(self, dsn: str | None = None):
         self.dsn = dsn
 
     def __enter__(self):
@@ -54,7 +54,7 @@ class RedisKeyMap(KeyMap):
     def _get_sync_table_name() -> str:
         return "keymap:sync"
 
-    def encode(self, name: str, value: Any, primary_key: Optional[str] = None) -> Optional[str]:
+    def encode(self, name: str, value: Any, primary_key: str | None = None) -> str | None:
         if value is None:
             return None
 
@@ -75,7 +75,7 @@ class RedisKeyMap(KeyMap):
         self.redis.hset(key_table_name, key, serialized)
         return key
 
-    def decode(self, name: str, key: str) -> Optional[object]:
+    def decode(self, name: str, key: str) -> object | None:
         serialized = self.redis.hget(self._get_key_table_name(name), key)
         return json.loads(serialized) if serialized is not None else None
 
@@ -88,7 +88,7 @@ class RedisKeyMap(KeyMap):
     def has_synced_before(self) -> bool:
         return bool(self.redis.hlen(self._get_sync_table_name()))
 
-    def get_last_synced_id(self, name: str) -> Optional[Any]:
+    def get_last_synced_id(self, name: str) -> Any | None:
         if last_sync_record := self.redis.hget(self._get_sync_table_name(), name):
             return json.loads(last_sync_record).get("cid")
         return None

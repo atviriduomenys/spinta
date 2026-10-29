@@ -2,8 +2,9 @@ import itertools
 import json
 import pathlib
 import typing
+from collections.abc import AsyncIterator, Iterator
 from email.message import Message
-from typing import Any, AsyncIterator, Dict, Iterator, Optional, Union, overload
+from typing import Any, overload
 
 from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from starlette.requests import Request
@@ -230,7 +231,7 @@ def is_streaming_request(request: Request):
     return content_type in STREAMING_CONTENT_TYPES
 
 
-def get_filename(request: Request) -> Union[str, None]:
+def get_filename(request: Request) -> str | None:
     if "Content-Disposition" in request.headers:
         message = Message()
         message["Content-Disposition"] = request.headers["Content-Disposition"]
@@ -325,11 +326,11 @@ async def _read_request_body(
 
 def _log_write(
     context: Context,
-    model: Union[Namespace, Model],
-    prop: Optional[Property],
+    model: Namespace | Model,
+    prop: Property | None,
     action: Action,
-    id_: Optional[str],
-    payload: Dict[str, Any],
+    id_: str | None,
+    payload: dict[str, Any],
 ) -> None:
     transaction: WriteTransaction = context.get("transaction")
     accesslog: AccessLog = context.get("accesslog")
@@ -381,7 +382,7 @@ def _add_where(params: UrlParams, payload: dict):
 async def _read_request_stream(
     context: Context,
     request: Request,
-    scope: Union[Namespace, Model],
+    scope: Namespace | Model,
     action: Action,
     stop_on_error: bool = True,
 ) -> AsyncIterator[DataItem]:
@@ -580,8 +581,8 @@ async def read_existing_data(
 def _cast_row_to_python(
     context: Context,
     data: DataItem,
-    rows: Dict[str, Any],
-) -> Iterator[Dict[str, Any]]:
+    rows: dict[str, Any],
+) -> Iterator[dict[str, Any]]:
     for row in rows:
         if data.prop:
             yield commands.cast_backend_to_python(
@@ -754,11 +755,11 @@ def build_data_patch_for_write(
     context: Context,
     dtype: BackRef,
     *,
-    given: Optional[dict],
-    saved: Optional[dict],
+    given: dict | None,
+    saved: dict | None,
     insert_action: bool = False,
     update_action: bool = False,
-) -> Union[dict, NotAvailable]:
+) -> dict | NotAvailable:
     return NA
 
 
@@ -767,11 +768,11 @@ def build_data_patch_for_write(
     context: Context,
     dtype: Object,
     *,
-    given: Optional[dict],
-    saved: Optional[dict],
+    given: dict | None,
+    saved: dict | None,
     insert_action: bool = False,
     update_action: bool = False,
-) -> Union[dict, NotAvailable]:
+) -> dict | NotAvailable:
     if insert_action:
         props = take(dtype.properties).values()
     elif update_action:
@@ -799,11 +800,11 @@ def build_data_patch_for_write(
     context: Context,
     dtype: Array,
     *,
-    given: Optional[Union[list, NotAvailable]],
-    saved: Optional[Union[list, NotAvailable]],
+    given: list | NotAvailable | None,
+    saved: list | NotAvailable | None,
     insert_action: bool = False,
     update_action: bool = False,
-) -> Union[list, None, NotAvailable]:
+) -> list | None | NotAvailable:
     if given is NA and not (insert_action or update_action):
         return NA
     if given is NA:
@@ -844,11 +845,11 @@ def build_data_patch_for_write(
     context: Context,
     dtype: DataType,
     *,
-    given: Optional[object],
-    saved: Optional[object],
+    given: object | None,
+    saved: object | None,
     insert_action: bool = False,
     update_action: bool = False,
-) -> Union[dict, NotAvailable]:
+) -> dict | NotAvailable:
     if given is NA:
         if insert_action or update_action:
             given = dtype.default
@@ -865,11 +866,11 @@ def build_data_patch_for_write(
     context: Context,
     dtype: Inherit,
     *,
-    given: Optional[object],
-    saved: Optional[object],
+    given: object | None,
+    saved: object | None,
     insert_action: bool = False,
     update_action: bool = False,
-) -> Union[dict, NotAvailable]:
+) -> dict | NotAvailable:
     # Needs to be implemented when it's possible to modify Inherit type
     return NA
 
@@ -894,8 +895,8 @@ def build_full_response(
     context: Context,
     dtype: (Object, Model),
     *,
-    patch: Optional[object],
-    saved: Optional[object],
+    patch: object | None,
+    saved: object | None,
 ):
     full_patch = {}
     for prop in dtype.properties.values():
@@ -917,8 +918,8 @@ def build_full_response(  # noqa
     context: Context,
     dtype: DataType,
     *,
-    patch: Optional[object],
-    saved: Optional[object],
+    patch: object | None,
+    saved: object | None,
 ):
     if patch is not NA:
         return patch
@@ -933,8 +934,8 @@ def build_full_response(  # noqa
     context: Context,
     dtype: BackRef,
     *,
-    patch: Optional[object],
-    saved: Optional[object],
+    patch: object | None,
+    saved: object | None,
 ):
     return NA
 
@@ -944,8 +945,8 @@ def build_full_response(  # noqa
     context: Context,
     dtype: Inherit,
     *,
-    patch: Optional[object],
-    saved: Optional[object],
+    patch: object | None,
+    saved: object | None,
 ):
     # Needs to be implemented when it's possible to modify Inherit type
     return NA
@@ -956,8 +957,8 @@ def build_full_response(  # noqa
     context: Context,
     dtype: File,
     *,
-    patch: Optional[dict],
-    saved: Optional[dict],
+    patch: dict | None,
+    saved: dict | None,
 ):
     if patch is not NA:
         return {
@@ -1216,7 +1217,7 @@ async def simple_response(
     context: Context,
     fmt: Format,
     results: AsyncIterator[DataItem],
-) -> typing.Tuple[int, Dict[str, Any]]:
+) -> tuple[int, dict[str, Any]]:
     results = await alist(aslice(results, 2))
     assert len(results) == 1
     data = results[0]
@@ -1309,11 +1310,11 @@ async def wipe(  # noqa
     return render(context, request, ns, params, response, status_code=200)
 
 
-def prepare_headers(context: Context, node: Node, resp: dict, action: Action, is_batch: Optional[bool] = False):
+def prepare_headers(context: Context, node: Node, resp: dict, action: Action, is_batch: bool | None = False):
     headers = {}
     if action == Action.INSERT and not is_batch:
-        server_url = context.get("config").server_url
-        headers["location"] = f"{server_url}/{node.name}/{resp['_id']}"
+        resource_server_url = context.get("config").resource_server_url
+        headers["location"] = f"{resource_server_url}/{node.name}/{resp['_id']}"
     return headers
 
 

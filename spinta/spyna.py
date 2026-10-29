@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import functools
-from typing import List, Optional, TypedDict
+from typing import TypedDict
 
 import lark
 
@@ -88,10 +88,10 @@ _parser = lark.Lark(GRAMMAR, parser="lalr")
 
 class SpynaAST(TypedDict):
     name: str
-    args: List[SpynaAST]
+    args: list[SpynaAST]
 
 
-def parse(rql) -> Optional[SpynaAST]:
+def parse(rql) -> SpynaAST | None:
     if not isinstance(rql, str):
         return rql
 

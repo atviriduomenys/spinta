@@ -4,14 +4,9 @@
 # =============================================================================
 
 
-export MAJOR=1
-export MINOR=2
-export PATCH=0
-export OLD_MINOR=1
-export FUTURE_MINOR=3
-export RELEASE_VERSION=$MAJOR.$MINOR.$PATCH
-export CURRENT_VERSION=$MAJOR.$OLD_MINOR.$PATCH
-export FUTURE_VERSION=$MAJOR.$FUTURE_MINOR.$PATCH
+export CURRENT_VERSION=1.3.0
+export RELEASE_VERSION=1.3.1
+export FUTURE_VERSION=1.4.0
 export NEW_VERSION=$RELEASE_VERSION
 
 # Host ports for the docker containers (docker-compose.yml reads both variables).
@@ -635,8 +630,10 @@ if [ "$REPLY" = "y" ]; then
     [ $? -eq 0 ] || { echo "ERROR: poetry publish failed"; exit 1; }
 
     echo "--- Generating hashed requirements file ---"
-    # Export pinned requirements for this release version
+    # Export pinned requirements for this release version, including optional
+    # extras (uvicorn, gunicorn, alembic), otherwise they are left out
     poetry export -f requirements.txt \
+      --all-extras \
       --output requirements/spinta-${NEW_VERSION}.txt
     [ $? -eq 0 ] || { echo "ERROR: poetry export failed"; exit 1; }
 

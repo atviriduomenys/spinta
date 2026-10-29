@@ -14,7 +14,7 @@ def fix_data_for_json(data):
         return [fix_data_for_json(v) for v in data]
     if isinstance(data, tuple):
         return (fix_data_for_json(v) for v in data)
-    if isinstance(data, (datetime.datetime, datetime.date, datetime.time)):
+    if isinstance(data, datetime.datetime | datetime.date | datetime.time):
         return data.isoformat()
     if isinstance(data, bytes):
         return base64.b64encode(data).decode("ascii")
@@ -22,7 +22,7 @@ def fix_data_for_json(data):
         return str(data)
     if isinstance(data, decimal.Decimal):
         return float(data)
-    if isinstance(data, (int, float, str, type(None))):
+    if isinstance(data, int | float | str | type(None)):
         return data
     if isinstance(data, BaseGeometry):
         return data.wkt

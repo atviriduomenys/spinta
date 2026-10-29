@@ -1,4 +1,5 @@
-from typing import Any, Dict, Iterable, Optional
+from collections.abc import Iterable
+from typing import Any
 
 from starlette.requests import Request
 
@@ -16,8 +17,8 @@ from spinta.typing import ObjectData
 
 def make_get_request(
     path: str,
-    query: Optional[str] = None,
-    headers: Optional[Dict[str, str]] = None,
+    query: str | None = None,
+    headers: dict[str, str] | None = None,
     method: str = "GET",
 ) -> Request:
     if not path.startswith("/"):
@@ -38,13 +39,13 @@ def render_data(
     context: Context,
     manifest: Manifest,
     path: str,
-    query: Optional[str],
+    query: str | None,
     data: ObjectData,
     *,
     method: str = "GET",
     accept: str = "application/json",
-    headers: Optional[Dict[str, str]] = None,
-) -> Optional[Dict[str, Any]]:
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any] | None:
     context.set("auth.token", AdminToken())
 
     if headers is None:
@@ -78,7 +79,7 @@ def _get_html_template_context(
     model: Model,
     action: Action,
     params: UrlParams,
-    rows: Iterable[Dict[str, Cell]],
+    rows: Iterable[dict[str, Cell]],
 ):
     ctx = build_template_context(context, model, action, params, rows)
     resp = next(ctx["data"], None)

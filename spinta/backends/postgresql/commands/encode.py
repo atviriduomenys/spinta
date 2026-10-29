@@ -1,5 +1,4 @@
 import datetime
-from typing import List, Union
 
 from sqlalchemy.engine.row import RowProxy
 
@@ -21,7 +20,7 @@ def prepare_data_for_response(
     *,
     action: Action,
     select: SelectTree = None,
-    prop_names: List[str] = None,
+    prop_names: list[str] = None,
 ) -> dict:
     return commands.prepare_data_for_response(
         context,
@@ -40,7 +39,7 @@ def prepare_for_write(
     dtype: DateTime,
     backend: PostgreSQL,
     value: datetime.datetime,
-) -> Union[datetime.datetime, str]:
+) -> datetime.datetime | str:
     # convert datetime object to isoformat string if it belongs
     # to a nested property
     if dtype.prop.parent is dtype.prop.model:
@@ -58,7 +57,7 @@ def prepare_for_write(
     dtype: Date,
     backend: PostgreSQL,
     value: datetime.date,
-) -> Union[datetime.date, str]:
+) -> datetime.date | str:
     # convert date object to isoformat string if it belongs
     # to a nested property
     if dtype.prop.parent is dtype.prop.model:

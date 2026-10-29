@@ -1,7 +1,8 @@
 import dataclasses
 import logging
+from collections.abc import Iterator
 from operator import itemgetter
-from typing import Any, Dict, Iterator, List, NamedTuple, Tuple, TypedDict
+from typing import Any, NamedTuple, TypedDict
 
 import cachetools
 import sqlalchemy as sa
@@ -109,13 +110,13 @@ def read_schema(context: Context, path: str, prepare: str = None, dataset_name: 
 class _TableMapping(NamedTuple):
     model: str  # full model name
     schema: str
-    props: Dict[
+    props: dict[
         str,  # column
         str,  # property
     ]
 
 
-_Mapping = Dict[
+_Mapping = dict[
     str,  # table
     _TableMapping,
 ]
@@ -165,7 +166,7 @@ def _get_primary_key(
     table: str,
     schema: str,
     mapping: dict[str, _SchemaMapping],
-) -> List[str]:
+) -> list[str]:
     pk = insp.get_pk_constraint(table, schema=schema)
     return [mapping[schema].get_table(table).props[col] for col in pk["constrained_columns"]]
 
@@ -183,9 +184,9 @@ def _read_props(
     schema: str,
     mapping: dict[str, _SchemaMapping],
 ) -> Iterator[
-    Tuple[
+    tuple[
         str,
-        Dict[str, Any],
+        dict[str, Any],
     ]
 ]:
     fkeys, cfkeys = _get_fkeys(insp, table, schema, mapping)
@@ -285,7 +286,7 @@ def _get_column_type(column: _Column, table: str | None = None) -> str:
 class _Ref(NamedTuple):
     name: str  # property name
     model: str  # referenced model
-    props: List[str]  # referenced props
+    props: list[str]  # referenced props
 
 
 def _get_fkeys(
@@ -293,12 +294,12 @@ def _get_fkeys(
     table: str,
     schema: str,
     mapping: dict[str, _SchemaMapping],
-) -> Tuple[
-    Dict[  # foreign keys
+) -> tuple[
+    dict[  # foreign keys
         str,  # column (source)
         _Ref,
     ],
-    Dict[  # composite foreign keys
+    dict[  # composite foreign keys
         str,  # column (source)
         _Ref,
     ],

@@ -1,4 +1,5 @@
-from typing import Callable, Dict, TypedDict
+from collections.abc import Callable
+from typing import TypedDict
 
 from spinta import commands
 from spinta.components import Context, Model, Namespace, Node
@@ -92,7 +93,7 @@ def set_model(context: Context, manifest: Manifest, model_name: str, model: Mode
 
 
 @commands.set_models.register(Context, Manifest, dict)
-def set_models(context: Context, manifest: Manifest, models: Dict[str, Model], **kwargs):
+def set_models(context: Context, manifest: Manifest, models: dict[str, Model], **kwargs):
     manifest.get_objects()["model"] = models
 
 

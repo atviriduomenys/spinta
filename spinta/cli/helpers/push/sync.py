@@ -1,5 +1,5 @@
 import datetime
-from typing import Any, List
+from typing import Any
 
 import sqlalchemy as sa
 import tqdm
@@ -18,7 +18,7 @@ from spinta.core.enums import Action
 from spinta.utils.response import get_request_with_retries
 
 
-def _build_push_state_sync_url(server: str, model: str, page: str, page_columns: List[str], limit: int):
+def _build_push_state_sync_url(server: str, model: str, page: str, page_columns: list[str], limit: int):
     base = f"{server}/{model}?format(json)&"
 
     required = ["_id", "_revision", "_page", "checksum()"]
@@ -97,8 +97,7 @@ def _fetch_all_model_data(
         if "_page" in resp_data:
             page_hash = resp_data["_page"].get("next", None)
 
-        for row in data:
-            yield row
+        yield from data
 
 
 def _get_state_rows_with_id(context: Context, table: sa.Table, size: int) -> sa.engine.LegacyCursorResult:
@@ -232,7 +231,7 @@ def sync_push_state(
     context: Context,
     client,
     server: str,
-    models: List[Model],
+    models: list[Model],
     error_counter: ErrorCounter,
     no_progress_bar: bool,
     metadata: sa.MetaData,

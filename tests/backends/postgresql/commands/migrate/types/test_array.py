@@ -394,7 +394,7 @@ def test_migrate_change_array_subtype(migration_db: Engine, rc: RawConfig, cli: 
     assert result.output.endswith(
         "BEGIN;\n\n"
         'ALTER TABLE "migrate/example"."Test/:list/new" ALTER COLUMN "new" TYPE TEXT '
-        'USING CAST("migrate/example"."Test/:list/new"."new" AS TEXT);\n'
+        'USING CAST("new" AS TEXT);\n'
         "\n"
         "COMMIT;\n"
         "\n"

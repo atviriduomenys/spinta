@@ -1,7 +1,6 @@
 import csv
 import pathlib
 from io import StringIO
-from typing import List
 
 from spinta.components import Context
 from spinta.manifests.tabular.components import ManifestColumn
@@ -16,7 +15,7 @@ def create_tabular_manifest(
 ) -> None:
     path = pathlib.Path(path)
     rows = read_ascii_tabular_rows(manifest, strip=True)
-    cols: List[ManifestColumn] = next(rows, [])
+    cols: list[ManifestColumn] = next(rows, [])
     if cols:
         rows = (torow(DATASET, dict(zip(cols, row))) for row in rows)
         write_tabular_manifest(context, str(path), rows)

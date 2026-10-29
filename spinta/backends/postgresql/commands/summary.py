@@ -193,7 +193,7 @@ def _handle_time_units(model_prop: Property, value):
 
 
 def _handle_time_units_not_given(model_prop: Property, value):
-    if isinstance(model_prop.dtype, (Date, DateTime)):
+    if isinstance(model_prop.dtype, Date | DateTime):
         return value + datetime.timedelta(days=100)
     else:
         if (value + datetime.timedelta(minutes=100)).hour < value.hour:
@@ -244,7 +244,7 @@ def _handle_time_summary(connection, model_prop: Property):
     try:
         prop = get_pg_column_name(model_prop.place)
         table_identifier = get_table_identifier(model_prop)
-        if isinstance(model_prop.dtype, (Date, DateTime)):
+        if isinstance(model_prop.dtype, Date | DateTime):
             min_value, max_value = connection.execute(
                 f'SELECT MIN("{prop}"::TIMESTAMP) , MAX("{prop}"::TIMESTAMP) FROM {table_identifier.pg_escaped_qualified_name}'
             ).fetchone()

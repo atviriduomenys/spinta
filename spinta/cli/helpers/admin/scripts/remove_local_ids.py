@@ -1,5 +1,4 @@
 import pathlib
-from typing import List
 
 from click import echo
 
@@ -31,7 +30,7 @@ def remove_explicit_id_properties(context: Context, manifest: str) -> int:
 
 def remove_local_ids(
     context: Context,
-    manifests: List[str] | None = None,
+    manifests: list[str] | None = None,
     output_path: pathlib.Path | None = None,
     **kwargs,
 ) -> None:

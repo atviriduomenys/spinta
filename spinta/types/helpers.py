@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Iterable, List
+from typing import TYPE_CHECKING
 
 from spinta import exceptions
 from spinta.components import Base, Config, Context, Model, Property
@@ -71,7 +72,7 @@ def replace_undeclared_ref_with_object(
     prop: Property,
     original_type: str,
     original_model: str,
-    refprops: List[str] | None = None,
+    refprops: list[str] | None = None,
 ) -> None:
     from spinta.types.datatype import Object
 

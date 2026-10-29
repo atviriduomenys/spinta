@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List
 
 import sqlalchemy as sa
 
@@ -243,7 +242,7 @@ def set_model(context: Context, manifest: InternalSQLManifest, model_name: str, 
 
 
 @commands.set_models.register(Context, InternalSQLManifest, dict)
-def set_models(context: Context, manifest: InternalSQLManifest, models: Dict[str, Model], **kwargs):
+def set_models(context: Context, manifest: InternalSQLManifest, models: dict[str, Model], **kwargs):
     manifest.get_objects()["model"] = models
 
 
@@ -481,7 +480,7 @@ def _adjust_indexes(table, conn, from_index, starting_index):
 
 
 class RowMergeBuilder:
-    actions: List[RowMergeAction]
+    actions: list[RowMergeAction]
 
     def __init__(self):
         self.actions = []
