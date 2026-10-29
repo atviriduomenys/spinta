@@ -109,7 +109,7 @@ def _replace_with_object(context: Context, dtype: Partial) -> None:
 
 def _type_repr(dtype: DataType) -> str:
     # `partial_array` is an internal type, in a manifest it is written as `array`.
-    if isinstance(dtype, (Array, ArrayBackRef)):
+    if isinstance(dtype, Array | ArrayBackRef):
         return "array"
     return dtype.name
 
