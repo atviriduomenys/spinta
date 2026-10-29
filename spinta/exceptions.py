@@ -246,8 +246,8 @@ class QueryParamNotFound(UserError):
 
 class UnlinkedQueryParam(UserError):
     template = (
-        "Resource param query() {param!r} has no default value and is not linked to any property with param(). "
-        "Its value can't be provided."
+        "Resource param query() {param!r} has no default value and is not linked to any property with param() "
+        "in model {model!r}. Its value can't be provided."
     )
 
 

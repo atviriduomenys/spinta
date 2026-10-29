@@ -395,3 +395,159 @@ def test_query_without_default_and_without_linked_property_is_an_error(rc: RawCo
             """,
             mode=Mode.external,
         )
+
+
+def test_query_without_default_must_be_linked_in_every_model_of_resource(rc: RawConfig):
+    endpoint = "http://example.com/addresses/Street"
+
+    # `Other` has no link to `DATA_TYPE`, so its requests could never get a value. Rejected on load.
+    with pytest.raises(UnlinkedQueryParam):
+        prepare_manifest(
+            rc,
+            f"""
+            d | r | b | m | property | type     | ref    | source         | prepare       | access
+            example                  | dataset  |        |                |               |
+              | resource             | dask/xml |        | {endpoint}     |               |
+              |   |   |              | param    | type   | DATA_TYPE      | query()       |
+              |   |   | Street       |          | id     | /GATVES/GATVE  |               |
+              |   |   |   | id       | string   |        | GAT_ID         |               | open
+              |   |   |   | type     | string   |        |                | param()       | open
+              |   |   | Other        |          | id     | /GATVES/GATVE  |               |
+              |   |   |   | id       | string   |        | GAT_ID         |               | open
+            """,
+            mode=Mode.external,
+        )
+
+
+def test_query_default_is_sent_on_placeholder_url(rc: RawConfig, responses: RequestsMock):
+    # The URL has a `{path}` placeholder, filled from a resource param (no `read()`), so `parametrize_bases()` takes
+    # the placeholder branch that formats the URL from `resource.params`.
+    _mock(responses, "http://example.com/addresses/Street")
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type     | ref    | source                        | prepare       | access
+        example                  | dataset  |        |                               |               |
+          | resource             | dask/xml |        | http://example.com/{path}     |               |
+          |   |   |              | param    | path   | addresses/Street              |               |
+          |   |   |              | param    | client | CLIENT_NAME                   | query('TEST') |
+          |   |   | Street       |          | id     | /GATVES/GATVE                 |               |
+          |   |   |   | id       | string   |        | GAT_ID                        |               | open
+          |   |   |   | name     | string   |        | VARDAS_K                      |               | open
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Street", ["getall"])
+
+    resp = app.get("/example/Street")
+
+    assert resp.status_code == 200
+    assert listdata(resp, "id", "name", sort=False) == [("1", "Vilniaus"), ("2", "Kauno")]
+    assert responses.calls[-1].request.url.split("?")[0] == "http://example.com/addresses/Street"
+    assert _sent_query(responses) == {"CLIENT_NAME": ["TEST"]}
+
+
+def test_query_default_is_sent_on_every_page_of_placeholder_url(rc: RawConfig, responses: RequestsMock):
+    # `{path}` is filled by `read().next`: the first page comes from the literal param value, every next page from
+    # `parametrize_bases()` with `resolved_params`. Each of them must carry the `query()` default.
+    responses.add(
+        GET,
+        "http://example.com/pages/page0.json",
+        json={"page": {"next": "http://example.com/pages/page1.json", "name": "Page 0"}},
+        status=200,
+    )
+    responses.add(GET, "http://example.com/pages/page1.json", json={"page": {"next": None, "name": "Page 1"}})
+
+    context, manifest = prepare_manifest(
+        rc,
+        """
+        d | r | b | m | property | type      | ref    | source                                | prepare     | access
+        example/json             |           |        |                                       |             |
+          | resource             | dask/json |        | {path}                                |             |
+          |   |   |              | param     | path   | http://example.com/pages/page0.json   |             |
+          |   |   |              |           |        | Page                                  | read().next |
+          |   |   |              | param     | client | CLIENT_NAME                           | query('TEST') |
+          |   |   | Page         |           | name   | page                                  |             |
+          |   |   |   | name     | string    |        | name                                  |             | open
+          |   |   |   | next     | uri       |        | next                                  |             | open
+        """,
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/json/Page", ["getall"])
+
+    resp = app.get("/example/json/Page")
+
+    assert resp.status_code == 200, resp.json()
+    assert listdata(resp, "name", sort=False) == ["Page 0", "Page 1"]
+    urls = {call.request.url.split("?")[0] for call in responses.calls}
+    assert urls == {"http://example.com/pages/page0.json", "http://example.com/pages/page1.json"}
+    for call in responses.calls:
+        assert parse_qs(urlparse(call.request.url).query) == {"CLIENT_NAME": ["TEST"]}
+
+
+MULTI_ROW_ENDPOINT = "http://example.com/addresses/Street"
+
+
+def _multi_row_manifest(data_type_query: str = "query()", type_code_query: str = "query()") -> str:
+    # One resource param `type` with two `query()` rows, each with its own outgoing query name.
+    return f"""
+        d | r | b | m | property | type     | ref    | source         | prepare       | access
+        example                  | dataset  |        |                |               |
+          | resource             | dask/xml |        | {MULTI_ROW_ENDPOINT} |         |
+          |   |   |              | param    | type   | DATA_TYPE      | {data_type_query} |
+          |   |   |              |          |        | TYPE_CODE      | {type_code_query} |
+          |   |   | Street       |          | id     | /GATVES/GATVE  |               |
+          |   |   |   | id       | string   |        | GAT_ID         |               | open
+          |   |   |   | name     | string   |        | VARDAS_K       |               | open
+          |   |   |   | type     | string   |        |                | param()       | open
+        """
+
+
+def test_every_query_row_of_a_param_is_recorded(rc: RawConfig):
+    # Both rows are recorded. Before, only the last row was kept, so `DATA_TYPE` looked unlinked and the manifest was
+    # rejected with UnlinkedQueryParam, although `type` provides a value for it.
+    context, manifest = prepare_manifest(rc, _multi_row_manifest(), mode=Mode.external)
+
+    resource = commands.get_dataset(context, manifest, "example").resources["resource"]
+    [param] = resource.params
+    assert param.query_names == ["DATA_TYPE", "TYPE_CODE"]
+
+
+def test_url_value_is_sent_for_every_query_row_of_a_param(rc: RawConfig, responses: RequestsMock):
+    _mock(responses, MULTI_ROW_ENDPOINT)
+    context, manifest = prepare_manifest(rc, _multi_row_manifest(), mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Street", ["getall", "search"])
+
+    calls = len(responses.calls)
+    resp = app.get("/example/Street")
+    assert resp.status_code == 400
+    assert resp.json()["errors"][0]["code"] == "QueryParamNotFound"
+    assert len(responses.calls) == calls
+
+    resp = app.get("/example/Street?type='ADR'")
+    assert resp.status_code == 200, resp.json()
+    assert _sent_query(responses) == {"DATA_TYPE": ["ADR"], "TYPE_CODE": ["ADR"]}
+
+
+def test_query_defaults_of_every_row_of_a_param_are_sent(rc: RawConfig, responses: RequestsMock):
+    _mock(responses, MULTI_ROW_ENDPOINT)
+    context, manifest = prepare_manifest(
+        rc,
+        _multi_row_manifest(data_type_query="query('GAT')", type_code_query="query('X')"),
+        mode=Mode.external,
+    )
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("example/Street", ["getall", "search"])
+
+    resp = app.get("/example/Street")
+
+    assert resp.status_code == 200, resp.json()
+    assert _sent_query(responses) == {"DATA_TYPE": ["GAT"], "TYPE_CODE": ["X"]}

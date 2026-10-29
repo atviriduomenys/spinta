@@ -195,8 +195,8 @@ class Param(ExtraMetaData):
     dependencies: set
     soap_body: dict[str, Any]  # Used to store result of input() function
     soap_body_value_type: str = "string"  # Type that soap body value will be converted to
-    # Outgoing query parameter name (`source`), set on load when `prepare` is `query()`.
-    query_name: str | None = None
+    # Outgoing query parameter names (`source`) of `query()` prepare formulas, set on load.
+    query_names: list[str]
 
     # Given values
     source: list[Any]

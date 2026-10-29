@@ -26,7 +26,7 @@ from spinta.datasets.components import Param
 from spinta.datasets.enums import ExternalIdPattern
 from spinta.datasets.helpers import authorized_or_system_request
 from spinta.datasets.utils import iterparams
-from spinta.dimensions.param.components import ParamProperty
+from spinta.dimensions.param.components import ParamProperty, is_param_property
 from spinta.exceptions import (
     InvalidArgumentInExpression,
     PropertyNotFound,
@@ -217,7 +217,7 @@ def select(env: DaskDataFrameQueryBuilder, prop: Property) -> Selected:
     if prop.place not in env.resolved:
         if isinstance(prop.external, list):
             raise SourceCannotBeList(prop)
-        if prop.param is not None and not prop.external.name:
+        if is_param_property(prop):
             # Source-less property linked to a resource param (`param()`) has no dataframe column. Its value
             # was already resolved by the query builder (URL value or `input()` default) and is passed in
             # `env.params` by param name.
@@ -581,7 +581,7 @@ COMPARE = [
 def compare(env: DaskDataFrameQueryBuilder, op: Bind, field: object, value: Any):
     prop = env.call("_resolve_property", field)
     if prop:
-        if prop.param is not None and not prop.external.name:
+        if is_param_property(prop):
             # Source-less property linked to a resource param (`param()`): the value is sent to the data source
             # as a query parameter and there is no dataframe column to filter by.
             return None

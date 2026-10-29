@@ -913,8 +913,10 @@ def configure_rc(
 
         if check_names is not None:
             config["check.names"] = check_names
-        if check_query_conflicts is not None:
-            config["check.query_conflicts"] = check_query_conflicts
+
+    # Outside the manifest block above, so it also works with an already configured manifest.
+    if check_query_conflicts is not None:
+        config["check.query_conflicts"] = check_query_conflicts
 
     config["ensure_backends"] = ensure_backends
 

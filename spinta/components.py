@@ -666,6 +666,8 @@ class Model(MetaData):
     # Systemic fields that are not part of the model definition.
     distribution_strategy: DistributionStrategy | None = None
     required_keymap_properties = None
+    # Set on link, when a property of this model is linked to a resource param (`param()`).
+    has_param_props: bool = False
 
     # Quick access properties
     uri_prop: Property | None = None

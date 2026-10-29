@@ -19,7 +19,7 @@ from spinta.datasets.backends.dataframe.commands.read import (
 )
 from spinta.datasets.backends.helpers import is_file_path
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.dimensions.param.helpers import get_param_props
+from spinta.dimensions.param.helpers import get_param_props, linked_param_values, resolve_url_query_params
 from spinta.exceptions import CannotReadResource, UnexpectedErrorReadingData
 from spinta.typing import ObjectData
 from spinta.utils.schema import NA
@@ -147,10 +147,11 @@ def getall(
 
     meta = get_dask_dataframe_meta(model)
 
+    # Outgoing `query()` params are sent only to a data source URL, not to a local `prepare` source.
+    url_query: dict = {}
     if resource.external:
-        data_source = parametrize_bases(
-            context, model, model.external.resource, resolved_params, query=query, param_props=param_props
-        )
+        url_query = resolve_url_query_params(context, model, resource, param_props)
+        data_source = parametrize_bases(context, model, resource, resolved_params, url_query=url_query)
     elif resource.prepare is not NA:
         data_source = builder.resolve(resource.prepare)
     else:
@@ -170,4 +171,5 @@ def getall(
         .flatten()
         .to_dataframe(meta=meta)
     )
-    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties, param_props=param_props)
+    params = linked_param_values(model, url_query)
+    yield from dask_get_all(context, query, df, backend, model, builder, extra_properties, params=params)

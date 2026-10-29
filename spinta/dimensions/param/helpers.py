@@ -4,7 +4,7 @@ from spinta import commands, spyna
 from spinta.components import Context, Model
 from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import Dataset, Param, Resource
-from spinta.dimensions.param.components import ParamLoader, ParamValues
+from spinta.dimensions.param.components import ParamLoader, ParamValues, is_param_property
 from spinta.exceptions import QueryParamNotFound, ResourceSourceQueryConflict, UnlinkedQueryParam
 from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
@@ -22,6 +22,7 @@ def load_param_formulas_and_sources(
 ) -> None:
     param_formulas = []
     param_sources = []
+    param.query_names = []
     builder = LoadBuilder(context)
     for source, ast in zip(sources, prepare_asts):
         builder.update(this=source, param=param, resource=resource)
@@ -95,6 +96,8 @@ def _link_property_params(context: Context, resource: Resource) -> None:
             prepare = prop.external.prepare
             if isinstance(prepare, Expr) and prepare.name == "param":
                 builder(this=prop).resolve(prepare)
+                if prop.param is not None:
+                    model.has_param_props = True
 
 
 def get_param_props(params: Any) -> list:
@@ -103,17 +106,17 @@ def get_param_props(params: Any) -> list:
 
 
 def _url_overrides(context: Context, model: Model, param_props: list | None) -> dict[str, Any]:
-    """Values given in the request URL for source-less properties linked to a param, keyed by `query_name`."""
+    """Values given in the request URL for source-less properties linked to a param, keyed by query name."""
     values: dict[str, Any] = {}
     env = ParamValues(context)
     env.update(values=values)
     env.call("and", list(param_props or []))
     overrides: dict[str, Any] = {}
     for prop in model.properties.values():
-        if prop.param is None or prop.param.query_name is None:
+        if not is_param_property(prop) or prop.name not in values:
             continue
-        if prop.name in values:
-            overrides[prop.param.query_name] = values[prop.name]
+        for query_name in prop.param.query_names:
+            overrides[query_name] = values[prop.name]
     return overrides
 
 
@@ -125,20 +128,22 @@ def check_resource_source_query_conflicts(resource: Resource) -> None:
 
 
 def check_query_params_have_values(resource: Resource) -> None:
-    """Raise if a `query()` param without default is not linked to any source-less property (#2066).
+    """Raise if a `query()` param without default is not linked to a source-less property of a model (#2066).
 
-    Such a param can only get its value from the request URL through a property linked with `param()`. Without
-    a link the value can never be provided, so the manifest is invalid.
+    Such a param can only get its value from the request URL through a property linked with `param()`. Every model
+    of the resource is requested with its own URL, so each model must link the param. Without a link the value can
+    never be provided, so the manifest is invalid.
     """
-    linked = {
-        prop.param.query_name
-        for model in resource.models.values()
-        for prop in model.properties.values()
-        if prop.param is not None and prop.param.query_name is not None
-    }
-    for name, default in resource.url.query.items():
-        if default is NA and name not in linked:
-            raise UnlinkedQueryParam(resource, param=name)
+    for model in resource.models.values():
+        linked = {
+            query_name
+            for prop in model.properties.values()
+            if is_param_property(prop)
+            for query_name in prop.param.query_names
+        }
+        for name, default in resource.url.query.items():
+            if default is NA and name not in linked:
+                raise UnlinkedQueryParam(resource, param=name, model=model.name)
 
 
 def resolve_url_query_params(
@@ -149,6 +154,8 @@ def resolve_url_query_params(
     Defaults come from `resource.url.query`, stored on load by `query()` formulas. A value given in the request URL
     for a source-less property linked to a param (`Property.param`, set on link) overrides the default. A `query()`
     without default and without a URL value raises `QueryParamNotFound`.
+
+    Call it once per request and pass the result down, see `linked_param_values()`.
     """
     overrides = _url_overrides(context, model, param_props)
 
@@ -161,19 +168,18 @@ def resolve_url_query_params(
     return values
 
 
-def resolve_linked_param_values(
-    context: Context, model: Model, resource: Resource, param_props: list | None = None
-) -> dict[str, Any]:
-    """Values of resource params linked to source-less properties (`param()`), keyed by param name.
+def linked_param_values(model: Model, query_values: dict[str, Any]) -> dict[str, Any]:
+    """Values of resource params linked to source-less properties of `model` (`param()`), keyed by param name.
 
-    Uses the same values as `resolve_url_query_params()`, so rows returned to the client show the value that was
-    sent to the data source (URL value if given, otherwise `query()` default).
+    Uses the values from `resolve_url_query_params()`, so rows returned to the client show the value that was sent
+    to the data source (URL value if given, otherwise `query()` default).
     """
-    query_values = resolve_url_query_params(context, model, resource, param_props)
     values: dict[str, Any] = {}
     for prop in model.properties.values():
-        if prop.param is None or prop.param.query_name is None:
+        if not is_param_property(prop):
             continue
-        if prop.param.query_name in query_values:
-            values[prop.param.name] = query_values[prop.param.query_name]
+        for query_name in prop.param.query_names:
+            if query_name in query_values:
+                values[prop.param.name] = query_values[query_name]
+                break
     return values

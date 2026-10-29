@@ -100,6 +100,12 @@ def header(env: LoadBuilder, header_name: str, header_value: Expr) -> None:
         env.resource.http.headers[header_name] = header_value
 
 
+def _add_query_name(env: LoadBuilder) -> None:
+    # One param may have several `query()` rows, each with its own query name.
+    if env.this not in env.param.query_names:
+        env.param.query_names.append(env.this)
+
+
 @ufunc.resolver(LoadBuilder, object)
 def query(env: LoadBuilder, default: object) -> None:
     """`query('default')` - outgoing query parameter (`source`) with a default value.
@@ -108,7 +114,7 @@ def query(env: LoadBuilder, default: object) -> None:
     `param()` overrides the default.
     """
     if env.resource is not None and isinstance(env.this, str):
-        env.param.query_name = env.this
+        _add_query_name(env)
         env.resource.url.query[env.this] = default
 
 
@@ -116,5 +122,5 @@ def query(env: LoadBuilder, default: object) -> None:
 def query(env: LoadBuilder) -> None:
     """`query()` - outgoing query parameter (`source`) without a default, value must come from the request URL."""
     if env.resource is not None and isinstance(env.this, str):
-        env.param.query_name = env.this
+        _add_query_name(env)
         env.resource.url.query[env.this] = NA

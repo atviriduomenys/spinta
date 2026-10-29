@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from typing import Any
 
 import dask
 import zeep
@@ -16,15 +17,21 @@ from spinta.datasets.backends.dataframe.commands.read import dask_get_all, get_d
 from spinta.datasets.backends.dataframe.ufuncs.query.components import DaskDataFrameQueryBuilder
 from spinta.datasets.components import Resource
 from spinta.dimensions.param.components import ResolvedParams
-from spinta.dimensions.param.helpers import get_param_props
+from spinta.dimensions.param.helpers import get_param_props, linked_param_values, resolve_url_query_params
 from spinta.exceptions import SoapRequestBodyParseError, UnexpectedErrorReadingData
 from spinta.typing import ObjectData
 from spinta.ufuncs.querybuilder.components import QueryParams
 
 
 def _get_data_soap(
-    url: str, backend: Soap, soap_request_body: dict, extra_headers: dict, source: str | None = None
+    url: str,
+    backend: Soap,
+    soap_request_body: dict,
+    extra_headers: dict,
+    source: str | None = None,
+    query_params: dict[str, Any] | None = None,
 ) -> list[dict]:
+    # `url` is not used, SOAP endpoint is taken from WSDL, `query_params` are appended to it.
     for key, value in soap_request_body.items():
         if isinstance(value, MakeCDATA):
             soap_request_body[key] = value()
@@ -36,7 +43,8 @@ def _get_data_soap(
 
     try:
         response_data = serialize_object(
-            backend.get_soap_operation(extra_headers=extra_headers)(**soap_request), target_cls=dict
+            backend.get_soap_operation(extra_headers=extra_headers, query_params=query_params)(**soap_request),
+            target_cls=dict,
         )
     except zeep.exceptions.Error as e:
         raise UnexpectedErrorReadingData(exception=type(e).__name__, message=str(e))
@@ -127,9 +135,8 @@ def getall(
     **kwargs,
 ) -> Iterator[ObjectData]:
     resource = model.external.resource
-    param_props = get_param_props(params)
-    bases = parametrize_bases(context, model, resource, resolved_params, query=query, param_props=param_props)
-    bases = list(bases)
+    url_query = resolve_url_query_params(context, model, resource, get_param_props(params))
+    bases = list(parametrize_bases(context, model, resource, resolved_params))
 
     builder = backend.query_builder_class(context)
     builder = builder.init(backend=backend, model=model, query_params=params)
@@ -147,6 +154,7 @@ def getall(
             soap_request_body=builder.soap_request_body,
             extra_headers=http_headers,
             source=model.external.name,
+            query_params=url_query,
         )
         .flatten()
         .to_dataframe(meta=meta)
@@ -155,6 +163,8 @@ def getall(
     dask_dataframe_query_builder = DaskDataFrameQueryBuilder(context)
     dask_dataframe_query_builder.update(model=model)
 
+    # SOAP body values (`builder.property_values`) take precedence over values of linked query params.
+    params_values = {**linked_param_values(model, url_query), **builder.property_values}
     yield from dask_get_all(
         context,
         query,
@@ -163,6 +173,5 @@ def getall(
         model,
         dask_dataframe_query_builder,
         extra_properties,
-        builder.property_values,
-        param_props=param_props,
+        params_values,
     )

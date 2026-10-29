@@ -14,6 +14,7 @@ from spinta.exceptions import (
 )
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
+from spinta.testing.manifest import load_manifest_get_context
 from spinta.testing.tabular import create_tabular_manifest
 
 
@@ -1001,3 +1002,23 @@ def test_check_query_without_default_requires_linked_property(context: Context, 
     assert result.exit_code != 0
     assert result.exc_info[0] is UnlinkedQueryParam
     assert "DATA_TYPE" in str(result.exception)
+
+
+def test_check_query_conflicts_flag_applies_to_configured_manifest(
+    context: Context, rc, cli: SpintaCliRunner, tmp_path
+):
+    # The manifest is configured in `rc` (not given to `spinta check`), so the flag must be applied without manifest
+    # arguments, it used to be ignored in that case.
+    manifest_path = tmp_path / "manifest.csv"
+    create_tabular_manifest(
+        context,
+        manifest_path,
+        striptable(QUERY_CONFLICT_MANIFEST.format(source="CLIENT_NAME=ABC")),
+    )
+    configured_rc = load_manifest_get_context(rc, manifest_path).get("rc")
+
+    result = cli.invoke(configured_rc, ["check", "--check-query-conflicts"], fail=False)
+
+    assert result.exit_code != 0
+    assert result.exc_info[0] is ResourceSourceQueryConflict
+    assert "CLIENT_NAME" in str(result.exception)

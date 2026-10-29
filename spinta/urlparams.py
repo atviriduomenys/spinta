@@ -18,7 +18,7 @@ from spinta.components import (
     Version,
     decode_page_values,
 )
-from spinta.core.enums import Action
+from spinta.core.enums import Action, Mode
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
 from spinta.dimensions.param.components import ParamProperty, ParamPropertyBuilder
 from spinta.dimensions.scope.helpers import get_active_custom_scope
@@ -61,9 +61,11 @@ def get_action(params: UrlParams, request: Request) -> Action:
         elif params.pk:
             return Action.GETONE
         else:
+            # `param_props` are query conditions too, they are extracted from `query` before this is called.
             search = any(
                 (
                     params.query,
+                    params.param_props,
                     params.select,
                     params.limit is not None,
                     params.offset is not None,
@@ -112,8 +114,15 @@ def _resolve_param_props(context: Context, params: UrlParams) -> None:
 
     Each filter condition is resolved by `ParamPropertyBuilder`. A linked `eq()` returns `ParamProperty`, which is
     moved to `params.param_props`; other conditions are kept in `params.query` as they are.
+
+    Only external models read through data sources that send `param_props` as query parameters need this. Internal
+    models are stored in their backend, so their conditions stay as ordinary filters.
     """
-    builder = ParamPropertyBuilder(context).init(model=params.model)
+    model = params.model
+    if not isinstance(model, Model) or model.mode != Mode.external or not model.has_param_props:
+        return
+
+    builder = ParamPropertyBuilder(context).init(model=model)
     query = []
     for condition in params.query:
         if _is_select_condition(condition):

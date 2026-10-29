@@ -11,6 +11,7 @@ from spinta.dimensions.param.components import (
     ParamProperty,
     ParamPropertyBuilder,
     ParamValues,
+    is_param_property,
     reject_param_properties,
 )
 from spinta.exceptions import (
@@ -173,11 +174,6 @@ def _is_resource_param(model: Model, name: str) -> bool:
     return resource is not None and any(param.name == name for param in resource.params)
 
 
-def _is_param_property(prop) -> bool:
-    """Source-less property linked to a resource param (`param()`): its value is a request-time constant."""
-    return prop.param is not None and not prop.external.name
-
-
 @ufunc.resolver(ParamPropertyBuilder, Bind, object, name="eq")
 def eq_(env: ParamPropertyBuilder, field: Bind, value: object) -> ParamProperty | None:
     try:
@@ -191,7 +187,7 @@ def eq_(env: ParamPropertyBuilder, field: Bind, value: object) -> ParamProperty 
             raise error
         # Other names are not model properties, the condition is left for query builders.
         return None
-    if not _is_param_property(prop):
+    if not is_param_property(prop):
         return None
 
     if any(recorded.prop is prop for recorded in env.props):

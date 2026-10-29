@@ -36,7 +36,8 @@ class DaskDataFrameQueryBuilder(Env):
             limit=None,
             offset=None,
             params=params,
-            query=None,
+            # Request query set by the reader (`update(query=...)`) must survive `init()`, it is used by `eval()`.
+            query=self._scope.get("query"),
             count=False,
         )
 

@@ -2,12 +2,17 @@ from __future__ import annotations
 
 from typing import Any
 
-from spinta.components import Model
-from spinta.core.ufuncs import Env, Expr, Unresolved
+from spinta.components import Model, Property
+from spinta.core.ufuncs import Bind, Env, Expr, Unresolved
 from spinta.datasets.components import Dataset
-from spinta.exceptions import ParamPropertyNotAllowed
+from spinta.exceptions import ParamPropertyNotAllowed, PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.ufuncs.propertyresolver.components import PropertyResolver
+
+
+def is_param_property(prop: Property) -> bool:
+    """Source-less property linked to a resource param (`param()`): its value is a request-time constant."""
+    return prop.param is not None and not (prop.external and prop.external.name)
 
 
 class ParamBuilder(Env):
@@ -72,9 +77,23 @@ class ParamPropertyBuilder(Env):
 
     def default_resolver(self, expr: Expr, *args, **kwargs):
         # A function without its own resolver gets already resolved args. A linked property is a constant only as a
-        # direct top-level condition, so it must not be an argument of any function.
-        reject_param_properties(expr.name, list(args) + list(kwargs.values()))
+        # direct top-level `eq()` condition, so it must not be an argument of any function, and only `eq()` can be
+        # applied to it.
+        name = expr.name
+        reject_param_properties(name, list(args) + list(kwargs.values()))
+        for arg in list(args) + list(kwargs.values()):
+            if isinstance(arg, Bind):
+                self._reject_linked_bind(name, arg)
         return None
+
+    def _reject_linked_bind(self, name: str, bind: Bind) -> None:
+        try:
+            prop = self.resolve_property(bind)
+        except PropertyNotFound:
+            # Not a model property, it is left for query builders.
+            return
+        if is_param_property(prop):
+            raise ParamPropertyNotAllowed(prop.model, property=prop.name, reason=f"in {name}(), only eq() is supported")
 
 
 def reject_param_properties(name: str, args: list) -> None:

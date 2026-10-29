@@ -80,3 +80,33 @@ def test_linked_property_used_more_than_once_or_nested_is_rejected(rc: RawConfig
     error = resp.json()["errors"][0]
     assert error["code"] == "ParamPropertyNotAllowed"
     assert reason in error["message"]
+
+
+def test_linked_eq_alone_is_search_not_getall(rc: RawConfig, responses: RequestsMock):
+    # `type='ADR'` is a search request even though the condition is not sent as a row filter.
+    app = _app(rc, responses)
+    app.authmodel("example/Street", ["search"])
+
+    resp = app.get("/example/Street?type='ADR'")
+
+    assert resp.status_code == 200
+
+
+@pytest.mark.parametrize("query", ["type!='ADR'", "lower(type)='adr'"])
+def test_linked_property_in_non_eq_condition_is_rejected(rc: RawConfig, query: str):
+    app = _client(rc)
+
+    resp = app.get(f"/example/Street?{query}")
+
+    assert resp.status_code == 400
+    error = resp.json()["errors"][0]
+    assert error["code"] == "ParamPropertyNotAllowed"
+
+
+def test_namespace_request_with_filter_is_not_a_server_error(rc: RawConfig):
+    # Namespace has no properties, so the linked property pass must be skipped for it.
+    app = _client(rc)
+
+    resp = app.get("/example?type='ADR'")
+
+    assert resp.status_code < 500

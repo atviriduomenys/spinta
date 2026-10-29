@@ -1,4 +1,5 @@
 import urllib.parse
+from typing import Any
 
 from spinta import exceptions
 from spinta.backends.helpers import is_accessible_by_equals_sign
@@ -124,3 +125,13 @@ def build_url_path(query: list[UrlParseNode]):
         return f"{path}?{other}"
     else:
         return path
+
+
+def append_query_params(url: str, params: dict[str, Any] | None) -> str:
+    """Append `params` to the query string of `url`, existing query parameters are kept."""
+    if not params:
+        return url
+    parsed = urllib.parse.urlparse(url)
+    pairs = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+    pairs.extend((name, str(value)) for name, value in params.items())
+    return parsed._replace(query=urllib.parse.urlencode(pairs)).geturl()

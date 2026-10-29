@@ -1,4 +1,5 @@
 from unittest.mock import ANY
+from urllib.parse import parse_qs, urlparse
 
 import pytest
 from pytest_mock import MockerFixture
@@ -101,7 +102,9 @@ def test_soap_read_calls_soap_operation_with_empty_request_body(rc: RawConfig, m
     app.authmodel("/example/City/", ["getall"])
     app.get("/example/City/")
 
-    soap_data_mock.assert_called_with(source, backend=ANY, extra_headers={}, soap_request_body={}, source="/")
+    soap_data_mock.assert_called_with(
+        source, backend=ANY, extra_headers={}, soap_request_body={}, source="/", query_params={}
+    )
 
 
 def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: RawConfig, mocker: MockerFixture) -> None:
@@ -126,7 +129,12 @@ def test_soap_read_calls_soap_operation_with_default_request_body_values(rc: Raw
         "request_model/param2": "default_val",
     }
     soap_data_mock.assert_called_with(
-        source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request, source="/"
+        source,
+        backend=ANY,
+        extra_headers={},
+        soap_request_body=expected_soap_request,
+        source="/",
+        query_params={},
     )
 
 
@@ -152,7 +160,12 @@ def test_soap_read_calls_soap_operation_with_request_body_values_from_url(rc: Ra
         "request_model/param2": "bar",
     }
     soap_data_mock.assert_called_with(
-        source, backend=ANY, extra_headers={}, soap_request_body=expected_soap_request, source="/"
+        source,
+        backend=ANY,
+        extra_headers={},
+        soap_request_body=expected_soap_request,
+        source="/",
+        query_params={},
     )
 
 
@@ -709,3 +722,47 @@ def test_soap_read_nested(rc: RawConfig, responses: RequestsMock) -> None:
             "name": "Name Two",
         },
     ]
+
+
+def test_soap_read_sends_query_params_to_endpoint_url(rc: RawConfig, responses: RequestsMock) -> None:
+    # `query()` defaults are appended to the SOAP endpoint URL of the POST request, not only to the body.
+    endpoint_url = "http://example.com/city"
+    soap_response = """
+        <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+            <ns0:Body>
+                <ns1:CityOutputResponse>
+                    <ns1:CityOutput>
+                        <ns1:id>100</ns1:id>
+                    </ns1:CityOutput>
+                </ns1:CityOutputResponse>
+            </ns0:Body>
+        </ns0:Envelope>
+    """
+    responses.add(POST, endpoint_url, status=200, content_type="text/plain; charset=utf-8", body=soap_response)
+
+    source = "CityService.CityPort.CityPortType.CityOperation"
+    context, manifest = prepare_manifest(
+        rc,
+        f"""
+        d | r | b | m | property | type    | ref        | source                                          | access | prepare
+        example                  | dataset |            |                                                 |        |
+          | wsdl_resource        | wsdl    |            | tests/datasets/backends/wsdl/data/wsdl.xml      |        |
+          | soap_resource        | soap    |            | {source}                                        |        | wsdl(wsdl_resource)
+          |   |   |   |          | param   | client     | CLIENT_NAME                                     |        | query('TEST')
+          |   |   | City         |         | id         | /                                               | open   |
+          |   |   |   | id       | integer |            | id                                              |        |
+          |   |   |   | client   | string  |            |                                                 |        | param(client)
+        """,
+        mode=Mode.external,
+    )
+
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("/example/City/", ["getall", "search"])
+
+    response = app.get("/example/City/")
+
+    assert response.status_code == 200
+    sent_url = responses.calls[-1].request.url
+    assert parse_qs(urlparse(sent_url).query) == {"CLIENT_NAME": ["TEST"]}
+    assert listdata(response, sort=False, full=True) == [{"id": 100, "client": "TEST"}]
