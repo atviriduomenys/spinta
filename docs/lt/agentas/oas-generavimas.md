@@ -212,6 +212,10 @@ Be jų aprašo į vartus įkelti nepavyktų, todėl `spinta udts oas` to nė
 nebando ir nutraukia darbą su aiškia klaida. `--list` konfigūracijos
 nereikalauja – jis tik parodo, kokias paslaugas mato manifeste.
 
+Privaloma nurodyti ir **`info.version`** – paslaugos versiją, pvz., `"1"` (kabutėse, kad
+YAML ją skaitytų kaip tekstą). Jos `spinta udts oas` netikrina: nenurodžius įrašoma
+`1.0.0`, todėl, ar ji nurodyta, patikrinkite patys.
+
 `servers[].url` – **vartų** bazinis adresas, ne agento. Vartai jį rodo kūrėjų
 portalo dokumentacijoje, o `endpoint.targetUrl` nustatomas rankomis. Serveris
 nurodomas vienas: kelis vartai naudotų pakaitomis (round-robin).
@@ -300,7 +304,7 @@ externalDocs:
 | `info.title` | taip | Vardas, kuriuo paslauga matoma vartų portale; rekomenduojama toks pat, kaip Kataloge. Kiekvienai paslaugai atskiras. |
 | `info.summary` | ne | Trumpas paslaugos aprašas. OpenAPI 3.0 `info` šio lauko neturi, todėl jis tampa pirma `info.description` pastraipa. |
 | `info.description` | taip (vartams) | Išsamesnis paslaugos aprašas. Nenurodžius įrašomas bendras angliškas tekstas; rekomenduojama nurodyti savo paslaugos aprašą lietuviškai. |
-| `info.version` | ne | Paslaugos aprašo versija. Nenurodžius – `1.0.0`; galima pakeisti parametru `--api-version`. |
+| `info.version` | taip | Paslaugos versija, pvz., `"1"`. Generatorius jos netikrina – nenurodžius įrašoma `1.0.0`. Galima nurodyti ir parametru `--api-version`. |
 | `info.termsOfService` | ne | Nuoroda į paslaugos naudojimo sąlygas; pilnas URL. |
 | `info.contact.name` | taip | Institucijos, į kurią kreipiasi paslaugos naudotojai, pavadinimas. |
 | `info.contact.url` | taip | Tos institucijos interneto svetainė; pilnas URL. |
@@ -446,6 +450,7 @@ spėjimas ten reikštų, kad vartai atmestų teisėtus duomenis.
    info:
      title: JADIS duomenų paslauga
      description: Juridinių asmenų dalyvių informacinės sistemos duomenų paslauga.
+     version: "1"
      contact:
        name: Registrų centras
        url: https://www.registrucentras.lt/
