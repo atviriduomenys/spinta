@@ -79,7 +79,8 @@ Jei jūsų `docker-compose.yml` `command:` naudoja `poetry run` (senesni, nestan
 diegimai) — nuo `0.2dev24` atvaizdas nebeturi Poetry, tad prieš `docker compose up`
 pašalinkite `poetry run` priešdėlius (pvz. `poetry run uvicorn ...` → `uvicorn ...`).
 Kitaip konteineris nepasileis su klaida `poetry: command not found`. Standartiniam
-diegimui (su `startup.sh`) tai netaikoma.
+diegimui (be `command:`, su atvaizde esančiu paleidimo skriptu) tai netaikoma – žr.
+{ref}`Kaip paleidžiamas Agentas konteineryje <docker-paleidimas>`.
 :::
 
 ## Atnaujinimas operacinėje sistemoje

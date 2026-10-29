@@ -24,8 +24,8 @@ Registracija reikalinga dviem tikslams:
 
 1. **Spinta sinchronizacija su katalogu** — agentas prisijungia prie katalogo ir
    patvirtina, kad jis pasiekiamas.
-2. **API publikavimas vartuose** — iš katalogo generuojamas OAS failas, kuris
-   perduodamas VSSA API vartų konfigūravimui.
+2. **API publikavimas vartuose** — Kataloge registruotos paslaugos OAS aprašas
+   generuojamas su `spinta udts oas` ir naudojamas paslaugai diegti į vartus.
 
 ## Prielaidos
 
@@ -163,9 +163,11 @@ Dabartinė OAS diegimo eiga yra **rankinė**:
 | # | Žingsnis | Atlikėjas |
 |---|----------|-----------|
 | 1 | Manifest failas konvertuojamas atgal į DSA formatą ir įkeliamas į katalogą | Institucija |
-| 2 | Kataloge generuojamas OAS failas | Katalogo sistema |
-| 3 | OAS failas perduodamas VSSA | Institucija |
-| 4 | VSSA rankiniu būdu užregistruoja API vartuose | VSSA |
+| 2 | Paslaugos OAS generuojamas `spinta udts oas` (žr. [OAS generavimas](oas-generavimas.md)) | Institucija |
+| 3 | OAS pateikiamas VSSA patikrai | Institucija |
+| 4 | Paslauga diegiama į vartus (Gravitee) – per VSSA suteiktą prieigą prie vartų platformos | Institucija |
+
+Kaip OAS virsta vartų API, žr. {ref}`OAS ir vartai <oas-vartai>`.
 
 :::{important}
 **Planuojamas automatizavimas:** Dabartinis rankinis procesas yra laikinas.

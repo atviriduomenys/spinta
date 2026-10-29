@@ -150,7 +150,6 @@ services:
       - /opt/spinta:/app/spinta_config
     depends_on:
       - redis-keymap
-    command: bash /app/spinta_config/startup.sh
 volumes:
   redis_keymap_data:
 EOF
@@ -165,6 +164,51 @@ kitais režimais.
 :::
 
 Paleiskite Docker konteinerius:
+
+(docker-paleidimas)=
+### Kaip paleidžiamas Agentas konteineryje
+
+Pavyzdyje `command:` nenurodytas – tada konteineris paleidžiamas atvaizde esančiu skriptu
+`/app/startup.sh`. Jis:
+
+1. patikrina manifestą (`spinta check`);
+2. jei nustatytas aplinkos kintamasis `SPINTA_AUTO_UPGRADE=true`, paleidžia `spinta upgrade`;
+3. paleidžia Agentą (`uvicorn spinta.asgi:app --host 0.0.0.0`, prievadas 8000).
+
+Tai **rekomenduojamas būdas**: atnaujinant atvaizdą kartu atnaujinamas ir paleidimo skriptas.
+Norėdami, kad atnaujinimo skriptai būtų paleidžiami automatiškai, `environment:` dalyje
+pridėkite:
+
+```yaml
+      SPINTA_AUTO_UPGRADE: "true"
+```
+
+:::{note}
+**Alternatyva – savas paleidimo skriptas.** Kai reikia kitų serverio parametrų (pvz.,
+`--workers`, `--proxy-headers`), papildomų patikrų prieš paleidimą ar kitokios atnaujinimo
+tvarkos, galima nurodyti savą skriptą, pvz.:
+
+```yaml
+    command: bash /app/spinta_config/startup.sh
+```
+
+Tuomet už skripto turinį ir jo suderinamumą su naujomis versijomis atsako institucija.
+Pagrindu imkite atvaizde esantį `/app/startup.sh` (`docker exec spinta cat /app/startup.sh`).
+:::
+
+:::{caution}
+**Kur dažniausiai suklystama naudojant savą skriptą**
+
+- Skripto nėra nurodytoje vietoje arba jis nevykdomas – konteineris nepasileidžia su
+  `No such file or directory`. Skriptas turi būti prijungtame kataloge (`/opt/spinta` →
+  `/app/spinta_config`), su Unix eilučių pabaigomis (LF, ne Windows CRLF).
+- Skripte paliktas `poetry run` – nuo `0.2dev24` atvaizde Poetry nebėra, klaida
+  `poetry: command not found`.
+- Skriptas nukopijuotas iš senos versijos ir neatnaujinamas kartu su atvaizdu.
+- `1.3.0` atvaizde trūko `uvicorn` (ištaisyta `1.3.1`) – atnaujinkite bent iki `1.3.1`.
+:::
+
+### Paleidimas
 
 ```bash
 docker compose up -d

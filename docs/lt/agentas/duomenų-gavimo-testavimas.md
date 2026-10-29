@@ -56,8 +56,7 @@ Jei gausite versiją — servisas veikia ir žetonas galioja. Tada galima tęsti
 Toliau siųskite užklausą į serverį:
 
 ```bash
-curl --location 'https://example.com/datasets/gov/vssa/demo/rctest/Country?action_type=%221%22&caller_code=%221%22&parameters=%22%22&time=%221%22&signature=%221%22' \
-  --header "$AUTH" | jq '.'
+curl "$SERVER/datasets/gov/vssa/demo/demo_udts/rctest/Country?_limit=5" -H "$AUTH" | jq '.'
 ```
 
 Turėtumėte gauti tokį atsakymą:
@@ -66,7 +65,7 @@ Turėtumėte gauti tokį atsakymą:
 {
   "_data": [
     {
-      "_type": "datasets/gov/vssa/demo/rctest/Country",
+      "_type": "datasets/gov/vssa/demo/demo_udts/rctest/Country",
       "_id": "88ea6c29-57a3-4dda-aa1b-ab550972bee4",
       "_revision": null,
       "_base": null,
@@ -74,7 +73,7 @@ Turėtumėte gauti tokį atsakymą:
       "title": "Lietuva"
     },
     {
-      "_type": "datasets/gov/vssa/demo/rctest/Country",
+      "_type": "datasets/gov/vssa/demo/demo_udts/rctest/Country",
       "_id": "967247a7-4d6a-478f-8675-7a6aee530c63",
       "_revision": null,
       "_base": null,
@@ -84,6 +83,103 @@ Turėtumėte gauti tokį atsakymą:
   ]
 }
 ```
+
+(pilnas-patikrinimas)=
+## Pilnas patikrinimas
+
+Lokalus testas (`http://localhost:8000`) parodo, kad agentas veikia. Kad įsitikintumėte, jog
+agentas pasiekiamas ir saugus, tuos pačius patikrinimus atlikite **per HTTPS agento adresu**
+(pvz., `https://spinta.institucija.lt`), **testavimo ir gamybinio** agento:
+
+```bash
+SERVER=https://spinta.institucija.lt
+```
+
+Gaukite žetoną ir įsirašykite jį į kintamąjį `AUTH`, kurį naudoja tolesnės komandos:
+
+```bash
+TOKEN_URL="$SERVER/auth/token"   # žr. pastabą žemiau
+CLIENT=test                      # kliento PAVADINIMAS, ne UUID
+SECRET=secret                    # kliento secret
+
+TOKEN=$(
+  curl -sS -f \
+    -u "$CLIENT:$SECRET" \
+    -d "grant_type=client_credentials" \
+    -d "scope=uapi:/:getall uapi:/:getone uapi:/:search" \
+    "$TOKEN_URL" \
+  | jq -r .access_token
+)
+AUTH="Authorization: Bearer $TOKEN"
+echo "$AUTH"
+```
+
+:::{note}
+Tai **pavyzdys**. `TOKEN_URL` priklauso nuo to, kas išduoda žetonus:
+
+- **pats agentas** (lokalus autorizacijos serveris) – `$SERVER/auth/token`, kaip pavyzdyje;
+- **nutolęs autorizacijos serveris** (Gravitee AM) – agento `/auth/token` išjungtas, žetonas
+  gaunamas iš AM; jo adresą, kliento duomenis ir leidžiamus scope suteikia VSSA.
+
+Kliento kūrimas ir scope aprašyti puslapyje [Autentifikacija ir autorizacija](autentifikacija.md).
+:::
+
+**1. Užklausa be žetono** – agentas turi atsisakyti grąžinti duomenis:
+
+```bash
+curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/rctest/Country?_limit=5" | jq '.'
+```
+
+```json
+{
+  "errors": [
+    {
+      "type": "system",
+      "code": "AuthorizedClientsOnly",
+      "template": "This resource can only be accessed by an authorized client.",
+      "context": {},
+      "message": "This resource can only be accessed by an authorized client."
+    }
+  ]
+}
+```
+
+Jei be žetono grąžinami duomenys, manifeste duomenims palikta prieinamumo lygio reikšmė
+`open` – ją reikia pakeisti (žr. [Apie manifestą](index.md)).
+
+**2. Užklausa su žetonu** – grąžinami duomenys:
+
+```bash
+curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/rctest/Country?_limit=5" -H "$AUTH" | jq '.'
+```
+
+Atsakymas – kaip aukščiau pateiktame pavyzdyje.
+
+**3. Užklausa į duomenų rinkinį** – grąžinamas rinkinio modelių sąrašas:
+
+```bash
+curl -s "$SERVER/datasets/gov/vssa/demo/demo_udts/rctest" -H "$AUTH" | jq '.'
+```
+
+```json
+{
+  "_data": [
+    {
+      "name": "datasets/gov/vssa/demo/demo_udts/rctest/Country",
+      "title": "Šalys",
+      "description": ""
+    }
+  ]
+}
+```
+
+Jei rinkinyje yra vidinių rinkinių, jų sąrašą gausite kelio gale pridėję `/:ns`, pvz.,
+`"$SERVER/datasets/gov/vssa/demo/demo_udts/rctest/:ns"`.
+
+:::{note}
+**DVMS projekto dalyviams.** Šių trijų patikrinimų ekrano nuotraukos (testavimo ir gamybinio
+agento) teikiamos projekto galutinėje ataskaitoje (R2.6 punktas).
+:::
 
 ## Užklausų parametrai testavimo metu
 

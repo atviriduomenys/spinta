@@ -4,6 +4,9 @@
 konfigūravimo ar atnaujinimo instrukcijas**. Pilnas pakeitimų sąrašas —
 [`CHANGES.rst`](https://github.com/atviriduomenys/spinta/blob/master/CHANGES.rst).
 
+Pačios dokumentacijos pataisymai surašyti puslapyje
+[Dokumentacijos pakeitimai](dokumentacijos-pakeitimai.md).
+
 ## Kaip naudotis
 
 1. Sužinokite dabartinę versiją: `spinta --version` (Docker: `docker exec spinta spinta --version`).

@@ -99,4 +99,5 @@ agentas/tinklo-konfigūravimas
 agentas/udts-suderinamumas
 agentas/papildoma-informacija
 Pakeitimai pagal versijas <agentas/versiju-pakeitimai>
+Dokumentacijos pakeitimai <agentas/dokumentacijos-pakeitimai>
 ```

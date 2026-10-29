@@ -126,6 +126,47 @@ Kiekviena eilutė privalo turėti **lygiai tiek reikšmių** kiek yra antraštė
 
 ---
 
+(http-saltiniai)=
+## HTTP JSON ir XML šaltiniai
+
+Kai duomenys gaunami iš HTTP adreso JSON ar XML formatu (`dask/json`, `dask/xml`), Agentas
+kiekvienai užklausai siunčia paprastą HTTP `GET` užklausą į resurso `source` adresą.
+
+### Autentifikacija
+
+Nuo Spinta `1.2.0` užklausai galima pridėti **pastovias HTTP antraštes**, pvz., `Authorization`
+su API raktu. Antraštė aprašoma resurso `param` eilute su `header()` funkcija:
+
+```
+id,dataset,resource,base,model,property,type,ref,source,prepare,level,status,visibility,access,uri,eli,title,description
+,datasets/gov/vssa/demo/demo_udts/rctest,,,,,dataset,,,,,,,,,,,
+,,salys_api,,,,dask/json,,https://api.institucija.lt/salys,,,,,,,,,
+,,,,,,param,auth,Authorization,"header(""Bearer <raktas>"")",,,,,,,,
+,,,,Country,,,,data,,,,,private,,,,
+,,,,,id,string,,id,,,,,,,,,
+,,,,,title,string,,title,,,,,,,,,
+```
+
+`param` eilutės `source` stulpelyje – antraštės pavadinimas, `prepare` stulpelyje – jos reikšmė.
+Jei reikia kelių antraščių, kiekvienai rašoma atskira `param` eilutė.
+
+:::{caution}
+Antraštės reikšmė saugoma manifeste. Prieš keliant DSA į Katalogą ją būtina pašalinti, kaip ir
+kitus prisijungimo duomenis.
+:::
+
+Nepalaikoma:
+
+- **Negotiate / NTLM / Kerberos** (Windows integruota autentifikacija, pvz., Microsoft Dynamics
+  BC OData);
+- **dinamiškai gaunami žetonai** (pvz., OAuth2 žetonas, kurį reikia periodiškai atnaujinti);
+- kiti metodai, kai antraštės reikšmė kinta kiekvienai užklausai.
+
+Tokiu atveju tarp Agento ir šaltinio reikalingas tarpinis komponentas – autentifikaciją
+atliekantis proxy arba ETL procesas, perkeliantis duomenis į Agentui prieinamą šaltinį (pvz.,
+duomenų bazę). SOAP šaltiniams sudėtingesnė autentifikacija (pvz., parašai) įgyvendinama
+{ref}`SOAP adapteriu <soap-adapteriai>`.
+
 ## WSDL ir SOAP šaltiniai
 
 WSDL ir SOAP šaltinio struktūros parengimas aprašytas čia:
@@ -155,7 +196,7 @@ Struktūros aprašo, skirto WSDL duomenims gauti, sudarymo pavyzdys:
 ```bash
 cat > manifest.csv << 'EOF'
 id,dataset,resource,base,model,property,type,ref,source,prepare,level,status,visibility,access,uri,eli,title,description
-,datasets/gov/vssa/demo/rctest,,,,,dataset,,,,,,,,,,,
+,datasets/gov/vssa/demo/demo_udts/rctest,,,,,dataset,,,,,,,,,,,
 ,,rc_wsdl,,,,wsdl,,https://test-data.data.gov.lt/api/v1/rc/get-data/?wsdl,,,,,,,,,
 ,,get_data,,,,soap,,Get.GetPort.GetPort.GetData,wsdl(rc_wsdl),,,,,,,,
 ,,,,,,param,action_type,input/ActionType,input(),,,,,,,,
@@ -187,6 +228,7 @@ EOF
 
 ---
 
+(soap-adapteriai)=
 ## SOAP adapteriai
 
 Kai kurių SOAP paslaugų užklausoms reikia laukų, kurių reikšmę galima apskaičiuoti tik tada, kai **visi kiti užklausos laukai jau žinomi** — pavyzdžiui, parašas (signature), kuris skaičiuojamas iš kelių kitų laukų reikšmių kartu.

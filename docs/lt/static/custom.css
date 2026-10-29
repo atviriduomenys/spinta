@@ -2,6 +2,11 @@
     max-width: 1200px;
 }
 
+.wy-table-responsive table td,
+.wy-table-responsive table th {
+    white-space: normal;
+}
+
 .rst-content table.docutils {
     width: 100%;
     overflow-x: auto;

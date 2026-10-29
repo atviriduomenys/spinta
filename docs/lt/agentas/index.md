@@ -241,7 +241,7 @@ REGISTRACIJA IR PALEIDIMAS
 
 :::{important}
 Manifesto failas (sDSA — Šaltinio Duomenų Struktūros Aprašas) yra **privaloma
-prielaida** prieš pradedantspinta agento testavimą. Tai CSV formato failas,
+prielaida** prieš pradedant SPINTA agento testavimą. Tai CSV formato failas,
 kuriame aprašyta, kokius duomenis agentas teiks ir kaip juos pasiekti.
 :::
 
@@ -250,10 +250,63 @@ sDSA paruošimo eiga:
 1. **Generavimas** — `spinta inspect` komanda automatiškai nuskaito šaltinio struktūrą
    ir sukuria pradinį sDSA
 2. **Tikslinimas** — veiklos žmonės patikrina ir papildo sugeneruotus failus
-   (pavadinimai, tipai, ryšiai tarp modelių)
-3. **Techninis tikrinimas** — sDSA konvertuojamas į manifest, atliekami lokalūs duomenų gavimo testai. 
-4. **DSA Publikavimas** — įsitikinus, kad DSA suderinamas su agentu (įmanoma teikti duomenis UDTS formatu), failas teikiamas VSSA tikrinimui/tvirtinimui. Gavus patvirtinimą DSA keliamas i kataloga, generuojami OAS ir Gravitee config. 
-4. **Duomenų paslaugos publikavimas** — Iš katalogo generuojami OAS ir Gravitee config. Jie perduodami VSSA administratoriams, kurie naudodamiesi failais sukonfioguruoja duomenų paslaugas vartuose.
+   (pavadinimai, tipai, ryšiai tarp modelių, prieinamumo lygiai, duomenų paslaugos kelias – žr.
+   [Duomenų paslaugos adresas (UDTS URL)](#duomenu-paslaugos-kelias))
+3. **Techninis tikrinimas** — sDSA konvertuojamas į manifest, atliekami lokalūs duomenų gavimo testai.
+4. **DSA Publikavimas** — įsitikinus, kad DSA suderinamas su agentu (įmanoma teikti duomenis UDTS formatu), failas teikiamas VSSA tikrinimui/tvirtinimui. Gavus patvirtinimą DSA keliamas į Katalogą.
+5. **Duomenų paslaugos publikavimas** — institucija generuoja paslaugos OAS (`spinta udts oas`, žr. [OAS generavimas](oas-generavimas.md)), pateikia jį VSSA patikrai ir per VSSA suteiktą prieigą diegia paslaugą į vartus.
+
+:::{important}
+UDTS paslaugomis teikiamiems duomenims **negalima palikti** prieinamumo lygio `open` – manifeste
+nurodomas `private` arba `protected`. `open` reiškia atvirus duomenis, kurie teikiami viešai, be
+autorizacijos.
+:::
+
+(duomenu-paslaugos-kelias)=
+### Duomenų paslaugos adresas (UDTS URL)
+
+Duomenų paslaugos adresą – UDTS URL, t. y. kelią, kuriuo pasiekiami paslaugos duomenys, –
+reglamentuoja
+[UDTS specifikacija](https://ivpk.github.io/uapi/draft/#section/Architecture/API-URL-structure "UDTS – API URL struktūra").
+Kelias sudaromas iš manifesto `dataset` stulpelio reikšmės ir modelio pavadinimo:
+
+```
+/datasets/{forma}/{organizacija}/{IS}/{paslauga}[/{versija}]/{duomenų rinkinys}/{Modelis}
+```
+
+| Segmentas | Reikšmė | Pavyzdys |
+|-----------|---------|----------|
+| `forma` | Organizacijos teisinė forma: `gov` – valstybės sektorius, `com` – kiti juridiniai asmenys | `gov` |
+| `organizacija` | Organizacijos trumpinys, registruotas Kataloge | `vssa` |
+| `IS` | Informacinės sistemos trumpinys, registruotas Kataloge | `demo` |
+| `paslauga` | Duomenų paslaugos pavadinimas, parenka institucija; rekomenduojama `{IS}_udts` | `demo_udts` |
+| `versija` | Paslaugos versija – sveikasis skaičius. Pirmai paslaugos versijai galima nerašyti, ir **rekomenduojame nerašyti**; nurodoma (`2`, `3`, …) atsiradus nesuderinamai naujai paslaugos versijai | – |
+| `duomenų rinkinys` | Duomenų rinkinio pavadinimas | `rctest` |
+| `Modelis` | Modelio pavadinimas (iš didžiosios raidės) | `Country` |
+
+Pilnas pavyzdys: `/datasets/gov/vssa/demo/demo_udts/rctest/Country`.
+
+Kelias svarbus, nes:
+
+1. iš jo generuojamas paslaugos OAS aprašas (`spinta udts oas --path` nurodomas iki paslaugos segmento,
+   žr. [OAS generavimas](oas-generavimas.md));
+2. pagal jį paslauga registruojama vartuose ir sudaromos prieigos teisės (scope).
+
+:::{danger}
+**Paskelbus paslaugą vartuose, jos kelio keisti negalima.**
+
+Iš kelio sudaryti scope fiksuojami duomenų teikimo sutartyse. Pakeitus kelią, jau sudarytos
+sutartys nebegaliotų, o pagal jas sukurtos integracijos tarp institucijų sistemų nustotų veikti.
+Todėl kelias turi būti teisingas **prieš** generuojant OAS ir diegiant paslaugą į vartus.
+:::
+
+Dažniausios klaidos (visais atvejais teisingai būtų `gov/vssa/demo/demo_udts/rctest/Country`):
+
+| Neteisingai | Kas negerai |
+|-------------|-------------|
+| `gov/vssa/demo/rctest/Country` | Nėra paslaugos segmento – paslauga tampa `rctest` |
+| `gov/vssa/demo_udts/get_salys/rctest/Country` | `_udts` prijungtas prie IS segmento; paslaugos vardu tapo `get_salys` |
+| `gov/lt/rctest/Country` | Trūksta organizacijos, IS ir paslaugos segmentų |
 
 
 
@@ -304,8 +357,8 @@ DSA gyvavimo ciklas — nuo generavimo iki API vartų (spustelėkite norėdami p
 | 2 | **sDSA tikslinimas** | Veiklos žmonės  | Rankinis redagavimas | Patikslintas sDSA: pavadinimai, tipai, prieinamumo lygiai |
 | 3 | **Testavimas su agentu** | Institucijos administratorius | `spinta run`, `spinta copy` | Veikiantis sDSA — duomenys grąžinami teisingai |
 | 4 | **Rengimas publikavimui** |  Veiklos žmonės + Admin | Rankinis redagavimas | Išvalytas sDSA: pašalinti connection string'ai ir šaltinio duomenys |
-| 5 | **Kėlimas į Katalogą** | Administratorius | Katalogas (data.gov.lt) | sDSA Kataloge — generuojamas OAS ir Gravitee config |
-| 6 | **API diegimas vartuose** | VSSA (Gravitee admin) | Gravitee | Veikianti duomenų paslauga per API vartus |
+| 5 | **Kėlimas į Katalogą** | Administratorius | Katalogas (data.gov.lt) | sDSA Kataloge |
+| 6 | **API diegimas vartuose** | Institucija (VSSA suteikia prieigą ir tikrina OAS) | `spinta udts oas`, Gravitee | Veikianti duomenų paslauga per API vartus |
 
 **Susijusios nuorodos:**
 
