@@ -112,6 +112,7 @@ def load(context: Context, config: Config) -> Config:
     config.sync_retry_delay_range = rc.get("sync_retry_delay_range", default=(1, 5, 10, 30, 60), cast=tuple)
     config.languages = rc.get("languages", default=[])
     config.check_names = rc.get("check", "names", default=False)
+    config.check_query_conflicts = rc.get("check", "query_conflicts", default=False, cast=asbool)
     config.check_ref_filters = rc.get("check_ref_filters", default=True, cast=asbool)
     config.root = rc.get("root", default=None)
     front_page_warning = rc.get("texts", "front_page_warning", default="")

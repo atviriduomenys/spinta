@@ -26,7 +26,7 @@ if TYPE_CHECKING:
     from spinta.accesslog import AccessLog
     from spinta.backends.components import Backend, DistributionStrategy
     from spinta.core.config import RawConfig
-    from spinta.datasets.components import Attribute, Entity
+    from spinta.datasets.components import Attribute, Entity, Param
     from spinta.datasets.keymaps.components import KeyMap
     from spinta.dimensions.comments.components import Comment
     from spinta.dimensions.enum.components import Enums, EnumValue
@@ -646,7 +646,7 @@ class Model(MetaData):
     title: str
     description: str
     ns: Namespace
-    external: Entity = None
+    external: Entity | None = None
     scopes: dict[str, Scope]
     properties: dict[str, Property]
     mode: Mode = None
@@ -666,6 +666,8 @@ class Model(MetaData):
     # Systemic fields that are not part of the model definition.
     distribution_strategy: DistributionStrategy | None = None
     required_keymap_properties = None
+    # Set on link, when a property of this model is linked to a resource param (`param()`).
+    has_param_props: bool = False
 
     # Quick access properties
     uri_prop: Property | None = None
@@ -785,6 +787,8 @@ class Property(ExtraMetaData):
     level: Level
     dtype: DataType = None
     external: Attribute
+    # Resource param linked by `param()` prepare formula of a source-less property, set on link.
+    param: Param | None = None
     list: Property = None
     model: Model = None
     uri: str = None
@@ -926,6 +930,9 @@ class UrlParams:
     formatparams: dict
 
     select: list[str] | None = None
+    # Request-time values of source-less properties linked to a resource param (`param()`), set by `eq()` in
+    # `query`. They are not row filters, they are sent to the data source as query parameters.
+    param_props: list[Any] | None = None
     select_props: dict[str, Expr | Bind] | None = None
     select_funcs: dict[str, FuncProperty] | None = None
 
@@ -1141,6 +1148,8 @@ class Config:
     languages: list[str]
     # For CLI commands `spinta copy` and `spinta check --check-names`
     check_names: bool = False
+    # For CLI command `spinta check --check-query-conflicts`
+    check_query_conflicts: bool = False
     # MB
     max_api_file_size: int
     max_error_count_on_insert: int
