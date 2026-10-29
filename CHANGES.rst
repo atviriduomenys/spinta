@@ -1,7 +1,7 @@
 Changes
 #######
 
-1.4.0 (unreleased)
+2.0.0 (unreleased)
 =====================
 
 Backwards incompatible:
