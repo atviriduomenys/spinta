@@ -59,7 +59,7 @@ def _recursive_iter_params(
 
 
 def iterparams(
-    context: Context, model: Model, manifest: Manifest, params: list[Param] = [], query: Expr | None = None
+    context: Context, model: Model, manifest: Manifest, params: list[Param] | None = None, query: Expr | None = None
 ) -> Iterator[ResolvedParams]:
     values = {}
 
