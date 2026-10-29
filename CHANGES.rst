@@ -919,7 +919,7 @@ Backwards incompatible:
   result in error. Additionally, if `model.limit` or `default_limit_objects` is set and user tries to perform simple `getall`
   or `changes` without specifying `limit()` or `page()`, an exception will be raised asking user to provide one of them.
   These new features mean that certain models can no longer be fully downloaded in a single request, requiring
-  users to implement their own parsers and use the `page()` feature to fetch subsequent pages (`#1491_`).
+  users to implement their own parsers and use the `page()` feature to fetch subsequent pages (`#1491`_).
 
 New Features:
 
