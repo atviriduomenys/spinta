@@ -75,6 +75,15 @@ skaičiaus. Agentų skaičius priklauso nuo to, kokio tipo duomenys bus skelbiam
 \* Vidinis Spinta AM rekomenduojamas tol, kol kataloge neužbaigtas sutarčių sudarymo ir valdymo modulis. Atsiradus galimybei sudaryti testavimo sutartį su savimi, agentus bus galima prijungti prie centralizuoto Gravitee TEST aplinkos AM.
 :::
 
+Prie kurių vartų jungiamas TEST agentas, priklauso nuo jo duomenų:
+
+- **TEST agentas su PROD duomenimis** jungiamas prie **PROD vartų** (vidiniai – `apigw.gov.lt`,
+  išoriniai – `api.gov.lt`), tik atskiru API context-path (pvz. `/stage` priešdėliu). Jį nustato
+  VSSA, diegdama paslaugą į vartus.
+- **TEST agentas su DEMO duomenimis** jungiamas prie **TEST vartų** (`test-apigw.gov.lt`).
+
+Kokį adresą tada nurodyti OAS – žr. {ref}`OAS generavimas – Kokius adresus nurodyti <oas-adresai>`.
+
 ```{mermaid}
 flowchart TD
     DSA["🔧 Nauja DSA versija"]
@@ -98,8 +107,8 @@ flowchart TD
 
     PA1 --> GW["PROD vartai<br/>(apigw.gov.lt)"]
     PA2 --> GW
-    TA1 -.-> TGW["TEST vartai<br/>(test-apigw.gov.lt)"]
-    TA2 -.-> TGW
+    TA1 -.->|"/stage"| GW
+    TA2 -.-> TGW["TEST vartai<br/>(test-apigw.gov.lt)"]
 
     style PA1 fill:#2d6a2d,color:#fff
     style TA1 fill:#5a5a00,color:#fff

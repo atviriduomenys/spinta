@@ -75,9 +75,12 @@ Minimalus agentų skaičius priklauso nuo to, kokie duomenys bus skelbiami katal
 Kiekviena institucija privalo turėti bent:
 
 - **PROD agentą (duomenų teikimui)** — jungiamas prie `apigw.gov.lt`
-- **DSA testavimo agentą** — jungiamas prie `test-apigw.gov.lt`, skirtas DSA
-  pakeitimams tikrinti prieš perkeliant į PROD. Rekomenduojama naudoti tik vidinį
-  Spinta AM — kitos institucijos neturi turėti prieigos.
+- **DSA testavimo agentą** — skirtas DSA pakeitimams tikrinti prieš perkeliant į PROD.
+  Rekomenduojama naudoti tik vidinį Spinta AM — kitos institucijos neturi turėti prieigos.
+  Prie kurių vartų jis jungiamas, priklauso nuo duomenų:
+  - su **PROD duomenimis** — prie PROD vartų (`apigw.gov.lt`, išoriniai – `api.gov.lt`)
+    atskiru API context-path (pvz. `/stage`), kurį nustato VSSA diegdama paslaugą;
+  - su **DEMO duomenimis** — prie TEST vartų (`test-apigw.gov.lt`).
 
 Jei kataloge skelbiami ir DEMO duomenys — kiekvienam duomenų tipui reikia atskiro
 PROD agento ir DSA testavimo agento.
