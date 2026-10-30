@@ -12,7 +12,7 @@ from spinta.core.config import RawConfig
 from spinta.testing.client import create_test_client
 from spinta.testing.data import encode_page_values_manually, listdata
 from spinta.testing.manifest import bootstrap_manifest
-from spinta.testing.utils import get_error_codes
+from spinta.testing.utils import error, get_error_codes
 
 
 def _prep_context(context: Context):
@@ -144,6 +144,65 @@ def test_getall_pagination_enabled(
     json_response = response.json()
     assert len(json_response["_data"]) == 2
     assert "_page" in json_response
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize("limit_source", ["model", "default"])
+def test_model_limit_with_pagination_disabled_in_manifest(
+    manifest_type: str,
+    tmp_path: Path,
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+    limit_source: str,
+):
+    if limit_source == "model":
+        rc = rc.fork({"models": {"example/Country": {"limit": 2}}})
+    else:
+        rc = rc.fork({"default_limit_objects": 2})
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property | type    | ref  | access | prepare
+    example                  |         |      |        |
+      |   |   | Country      |         | name |        | page()
+      |   |   |   | name     | string  |      | open   |
+    """,
+        backend=postgresql,
+        tmp_path=tmp_path,
+        manifest_type=manifest_type,
+        request=request,
+        full_load=True,
+    )
+    app = create_test_client(context)
+    app.authmodel("example/Country", ["create", "getall", "search"])
+    html_limit = context.get("config").exporters["html"].limit
+    names = [f"Country {i:03}" for i in range(html_limit + 1)]
+    for name in names:
+        resp = app.post("/example/Country", json={"name": name})
+        assert resp.status_code == 201
+
+    resp = app.get("/example/Country?sort(name)")
+    assert resp.status_code == 200
+    assert listdata(resp, "name") == names
+    assert "_page" not in resp.json()
+
+    for limit in [1, 3]:
+        resp = app.get(f"/example/Country?sort(name)&limit({limit})")
+        assert resp.status_code == 200
+        assert listdata(resp, "name") == names[:limit]
+
+    resp = app.get("/example/Country?sort(name)", headers={"accept": "text/html"})
+    assert resp.status_code == 200
+    assert len(resp.context["data"]) == html_limit
+    assert [row[-1].value for row in resp.context["data"]] == names[:html_limit]
+
+    resp = app.get(f"/example/Country?limit({html_limit + 1})", headers={"accept": "text/html"})
+    assert resp.status_code == 400
+    assert error(resp, "code", ["maximum_limit", "given_limit"]) == {
+        "code": "ExceededMaximumLimit",
+        "context": {"maximum_limit": html_limit, "given_limit": html_limit + 1},
+    }
 
 
 @pytest.mark.manifests("internal_sql", "csv")

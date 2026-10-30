@@ -672,6 +672,8 @@ class Model(MetaData):
     id_prop: Property
     revision_prop: Property
 
+    limit: int | None = None
+
     schema = {
         "keymap": {"type": "string"},
         "backend": {"type": "string"},
@@ -707,6 +709,7 @@ class Model(MetaData):
         "eli": {"type": "string"},
         "count": {"type": "integer"},
         "origin": {"type": "string"},
+        "limit": {"type": "integer", "default": None},
     }
 
     def __init__(self):
@@ -936,7 +939,7 @@ class UrlParams:
     offset: int | None = None
     # Limit can be enforced even if it is not explicitly given in URL.
     limit_enforced: bool = False
-    limit_enforced_to: int = 100
+    limit_enforced_to: int
     # In batch requests, return summary of what was done.
     summary: bool = False
     bbox: list[float] | None = None
@@ -1144,6 +1147,9 @@ class Config:
     # MB
     max_api_file_size: int
     max_error_count_on_insert: int
+
+    default_limit_objects: int = None
+    default_limit_bytes: int
 
     # Config variable that should only be set when running `upgrade` `cli` command, used to track when certain errors
     # can be ignored (like missing migrations while loading configs)

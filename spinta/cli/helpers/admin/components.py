@@ -20,3 +20,4 @@ class Script(enum.Enum):
     CITUS_REFERENCE_CONFIG = "citus_reference_config"
     ADD_LOCAL_IDS = "add_local_ids"
     REMOVE_LOCAL_IDS = "remove_local_ids"
+    MODEL_LIMIT = "model_limit"

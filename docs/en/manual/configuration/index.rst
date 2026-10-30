@@ -30,6 +30,7 @@ keymap, a backend, a manifest and an access log, might look like this:
    soap-custom-adapters
    front-page
    health
+   limits
 
 .. _config-file:
 
