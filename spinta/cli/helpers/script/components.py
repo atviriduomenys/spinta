@@ -45,6 +45,7 @@ class ScriptBase(metaclass=_ScriptMeta):
         its name that must be present before applying this script.
         targets (set[str]): Set of target identifiers this script applies to.
         tags (set[str]): Set of tags associated with this script.
+        requires_store (bool): Whether checking or running the script requires a prepared store.
 
     Args:
         name (str): The name of the script.
@@ -54,6 +55,7 @@ class ScriptBase(metaclass=_ScriptMeta):
         type with its name. Defaults to None.
         targets (set[str] | None, optional): A set of applicable target identifiers. Defaults to None.
         tags (set[str] | None, optional): A set of tags for categorizing the script. Defaults to None.
+        requires_store (bool, optional): Prepare the store before checking or running. Defaults to False.
 
     Methods:
         run(context: Context, **kwargs):
@@ -70,6 +72,7 @@ class ScriptBase(metaclass=_ScriptMeta):
     required: list[str | tuple[str, str]]
     targets: set[str]
     tags: set[str]
+    requires_store: bool
 
     def __init__(
         self,
@@ -79,6 +82,7 @@ class ScriptBase(metaclass=_ScriptMeta):
         required: list[str | tuple[str, str]] | None = None,
         targets: set[str] | None = None,
         tags: set[str] | None = None,
+        requires_store: bool = False,
     ):
         self.name = name
         self.__run_func = run
@@ -86,11 +90,20 @@ class ScriptBase(metaclass=_ScriptMeta):
         self.required = required
         self.targets = targets or set()
         self.tags = tags or set()
+        self.requires_store = requires_store
 
     def run(self, context: Context, **kwargs):
+        if self.requires_store:
+            from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
+
+            ensure_store_is_loaded(context)
         self.__run_func(context, **kwargs)
 
     def check(self, context: Context, **kwargs) -> bool:
+        if self.requires_store:
+            from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
+
+            ensure_store_is_loaded(context)
         if self.__check_func is None:
             return True
 
@@ -124,6 +137,7 @@ class ScriptStatus(enum.Enum):
 @enum.unique
 class ScriptTarget(enum.Enum):
     SQLALCHEMY_KEYMAP = "sqlalchemy_keymap"
+    PUSH_STATE_DB = "push_state_db"
     FS = "file_system"
     AUTH = "auth"
     BACKEND = "backend"

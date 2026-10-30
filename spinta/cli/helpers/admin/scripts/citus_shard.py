@@ -26,7 +26,6 @@ from spinta.backends.postgresql.helpers.migrate.citus import (
     undistribute_all,
 )
 from spinta.cli.helpers.message import cli_message
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.cli.helpers.upgrade.scripts.backends.postgresql.comments import migrate_comments
 from spinta.components import Context
 from spinta.exceptions import NotImplementedFeature
@@ -121,7 +120,7 @@ def migrate_citus_distributions(context: Context, destructive: bool, **kwargs) -
     from alembic.operations import Operations
     from alembic.runtime.migration import MigrationContext
 
-    store = ensure_store_is_loaded(context)
+    store = context.get("store")
     required_plan = _create_sharding_plan(context, verbose=True)
 
     sharded_plan = _gather_current_sharding_plan(context, verbose=True)
@@ -150,7 +149,7 @@ def migrate_citus_distributions(context: Context, destructive: bool, **kwargs) -
 
 
 def cli_requires_citus_distribution(context: Context, **kwargs) -> bool:
-    store = ensure_store_is_loaded(context)
+    store = context.get("store")
     required_plans = _create_sharding_plan(context, verbose=False)
 
     existing_plans = _gather_current_sharding_plan(context, verbose=False)
