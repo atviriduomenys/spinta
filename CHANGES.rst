@@ -38,6 +38,7 @@ Improvements:
   without leading zeros, for example ``datasets/gov/vk/vis/udts/1/vis``, where
   the integer is the UDTS data service version. Such names are no longer
   rejected by name checks (`#2080`_).
+- Enforced `#1990`_ changes to existing scripts and implementations (`#2077`_).
 
 Bug fixes:
 
@@ -48,6 +49,7 @@ Bug fixes:
 
 .. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 .. _#2080: https://github.com/atviriduomenys/spinta/issues/2080
+.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 
 1.3.1 (2026-10-22)
 =====================

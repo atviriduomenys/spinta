@@ -158,7 +158,9 @@ def test_prepare_model_custom_property_type(rc: RawConfig):
                 "example/Continent": {
                     "properties": {
                         "id": {
-                            "type": "sqlalchemy.types.BigInteger",
+                            "type": {
+                                "name": "sqlalchemy.types.BigInteger",
+                            },
                         },
                     },
                 },
@@ -227,7 +229,9 @@ def test_prepare_complex_custom_type_error(complex_type: str, rc: RawConfig):
                 "example/Continent": {
                     "properties": {
                         "test": {
-                            "type": "sqlalchemy.types.BigInteger",
+                            "type": {
+                                "name": "sqlalchemy.types.BigInteger",
+                            },
                         },
                     },
                 },
@@ -259,7 +263,9 @@ def test_prepare_ref_custom_type_error(ref_level: str, rc: RawConfig):
                 "example/Continent": {
                     "properties": {
                         "test": {
-                            "type": "sqlalchemy.types.BigInteger",
+                            "type": {
+                                "name": "sqlalchemy.types.BigInteger",
+                            },
                         },
                     },
                 },
@@ -292,7 +298,9 @@ def test_prepare_backref_custom_type_error(rc: RawConfig):
                 "example/Country": {
                     "properties": {
                         "test": {
-                            "type": "sqlalchemy.types.BigInteger",
+                            "type": {
+                                "name": "sqlalchemy.types.BigInteger",
+                            },
                         },
                     },
                 },
@@ -326,7 +334,9 @@ def test_prepare_denorm_custom_type_error(rc: RawConfig):
                 "example/Continent": {
                     "properties": {
                         "test.name": {
-                            "type": "sqlalchemy.types.BigInteger",
+                            "type": {
+                                "name": "sqlalchemy.types.BigInteger",
+                            },
                         },
                     },
                 },
