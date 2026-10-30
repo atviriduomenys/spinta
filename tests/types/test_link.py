@@ -150,6 +150,114 @@ def test_undeclared_backref_model_transforms_to_object(manifest_type: str, tmp_p
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+def test_undeclared_backref_model_with_nested_properties_transforms_to_object(
+    manifest_type: str, tmp_path: Path, rc: RawConfig
+):
+    """Nested properties under a backref to an undeclared model must not stop
+    the downgrade to object, same as under a ref (`#2033`)."""
+    context = load_manifest_get_context(
+        rc,
+        manifest="""
+    d | r | b | m | property             | type    | ref              | access
+    example                              |         |                  |
+                                         |         |                  |
+      |   |   | City                     |         |                  |
+      |   |   |   | name                 | string  |                  | private
+      |   |   |   | countries[]          | backref | example2/Country | private
+      |   |   |   | countries[].code     | string  |                  | private
+      |   |   |   | countries[].zone.id  | string  |                  | private
+    """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
+    store = context.get("store")
+    city = store.manifest.get_objects()["model"]["example/City"]
+    # `countries[]` is an array wrapper, the backref itself is its item.
+    countries_property = city.properties["countries"].dtype.items
+
+    assert isinstance(countries_property.dtype, Object)
+    assert countries_property.level.value == 2
+    assert len(countries_property.comments) == 1
+    prepare = countries_property.comments[0].prepare.replace(" ", "").replace('"', "").replace("'", "")
+    assert "type:backref" in prepare
+    assert "ref:example2/Country" in prepare
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_nested_denorm_under_downgraded_ref(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    """A property taken from a model that was downgraded to object has nothing
+    left to take a type from, so it becomes an object too (`#2033`)."""
+    context = load_manifest_get_context(
+        rc,
+        manifest="""
+    d | r | b | m | property                    | type   | ref                | access
+    example                                     |        |                    |
+                                                |        |                    |
+      |   |   | Country                         |        |                    |
+      |   |   |   | code                        | string |                    | private
+      |   |   |   | continent                   | ref    | example2/Continent | private
+                                                |        |                    |
+      |   |   | City                            |        |                    |
+      |   |   |   | name                        | string |                    | private
+      |   |   |   | country                     | ref    | Country            | private
+      |   |   |   | country.continent.zone.name | string |                    | private
+    """,
+        manifest_type=manifest_type,
+        tmp_path=tmp_path,
+    )
+    store = context.get("store")
+    city = store.manifest.get_objects()["model"]["example/City"]
+    zone = city.flatprops["country.continent.zone"]
+
+    assert isinstance(zone.dtype, Object)
+    assert zone.dtype.inherited is True
+    assert zone.given.explicit is False
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_nested_denorm_undeclared_model_is_order_independent(manifest_type: str, tmp_path: Path, rc: RawConfig):
+    """Taking a property must not depend on the order models are declared in:
+    resolving the referenced model used to skip the `has_model` check and
+    raised `ModelNotFound` when the referencing model was linked first
+    (`#2033`)."""
+    models = {
+        "Country": """
+      |   |   | Country                     |        |                    |
+      |   |   |   | code                    | string |                    | private
+      |   |   |   | continent               | ref    | example2/Continent | private
+""",
+        "City": """
+      |   |   | City                        |        |                    |
+      |   |   |   | name                    | string |                    | private
+      |   |   |   | country                 | ref    | Country            | private
+      |   |   |   | country.continent.name  | string |                    | private
+""",
+    }
+    header = """
+    d | r | b | m | property                | type   | ref                | access
+    example                                 |        |                    |
+"""
+    levels = []
+    for order in (("Country", "City"), ("City", "Country")):
+        sub_path = tmp_path / "-".join(order)
+        sub_path.mkdir()
+        context = load_manifest_get_context(
+            rc,
+            manifest=header + "".join(models[name] for name in order),
+            manifest_type=manifest_type,
+            tmp_path=sub_path,
+        )
+        city = context.get("store").manifest.get_objects()["model"]["example/City"]
+        continent = city.flatprops["country.continent"]
+        assert isinstance(continent.dtype, Object)
+        assert continent.dtype.inherited is True
+        assert continent.given.explicit is False
+        levels.append(continent.level)
+
+    assert levels[0] == levels[1]
+
+
+@pytest.mark.manifests("internal_sql", "csv")
 def test_undeclared_array_model_transforms_to_object(manifest_type, tmp_path, rc):
     """When an array property references an undeclared intermediate table model,
     the property is downgraded to object and a restore comment with type:array is appended."""
