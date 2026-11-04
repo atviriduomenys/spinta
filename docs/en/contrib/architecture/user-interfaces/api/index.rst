@@ -209,9 +209,11 @@ UrlParams: parsing the request URL
 **********************************
 
 `UrlParams` (`spinta/components.py`) holds everything parsed from the
-request: path parts, model, primary key, property, format, `select`/`sort`/
-`limit`/`offset`, query expressions, pagination, language preferences and the
-resolved `Action`.
+incoming request (see :ref:`incoming-and-outgoing-requests`): path parts,
+model, primary key, property, format, `select`/`sort`/`limit`/`offset`, query
+expressions, pagination, language preferences and the resolved `Action`.
+These represent incoming request parameters provided by the client, distinct
+from outgoing request parameters sent to external data sources.
 
 `spinta/urlparams.py:prepare()` builds `params.parsetree` from the URL path
 (`spinta/utils/url.py:parse_url_path()`) and the query string

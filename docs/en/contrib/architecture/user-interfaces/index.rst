@@ -15,6 +15,11 @@ core layers (commands, manifests, backends, configuration):
   (see :doc:`cli`). Handlers fork the context, load the store and
   manifest, and call the same commands the API uses.
 
+Both interfaces handle :ref:`incoming requests <incoming-and-outgoing-requests>`
+(client or end-user requests), as distinct from :ref:`outgoing requests
+<incoming-and-outgoing-requests>` that Spinta sends to external data sources.
+
+
 Where to start
 ==============
 

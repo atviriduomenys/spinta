@@ -198,6 +198,12 @@ keymap story; `spinta/datasets/keymaps/components.py`):
 Reading external data
 *********************
 
+When reading external data, Spinta processes an **incoming request** from a
+client and issues one or more **outgoing requests** (or queries) to the
+external data source. It is important to distinguish between request parameters
+provided for the incoming request and those configured for the outgoing request
+(see :ref:`incoming-and-outgoing-requests`).
+
 External data is read with the same `getall`/`getone` commands as internal
 data, but dispatched on the *external* backend type:
 
@@ -215,6 +221,131 @@ data, but dispatched on the *external* backend type:
 - `spinta/datasets/utils.py:iterparams()` iterates over resolved `Param`
   values, so one resource can yield several sources (e.g. one file per
   month) and one request can merge them.
+
+.. _external-data-source-params:
+
+Params, `param()`-linked properties and request values
+******************************************************
+
+This section describes how values flow from an incoming UAPI request into an
+outgoing request to the external source. Three objects are involved, and only
+one of them is visible to the end user.
+
+`param`
+=======
+
+A `param` is an internal, resource-level (or entity-level) input of an
+external source. It is declared with the `param` dimension in the manifest
+(`type` `param`, with `name`, `source` and `prepare` columns) and loaded into
+`Param` objects (`spinta/datasets/components.py`) by `load_params()` in
+`spinta/dimensions/param/helpers.py`.
+
+A `Param` holds two parallel lists, `sources` and `formulas`. Each `prepare`
+formula (for example `input('default_val')`, `header('X-Key', 'value')`,
+`read().data`) is paired with its `source`. Formulas are evaluated by
+`ParamBuilder` and `ParamLoader` (`spinta/dimensions/param/ufuncs.py`). A
+`param` answers the question "what value goes into the outgoing request, and
+where?". It never answers "what does the user ask for?".
+
+Some formulas are resolved early, at manifest load time, by `LoadBuilder`
+(`spinta/ufuncs/loadbuilder/ufuncs.py`):
+
+- `input(value)` stores `param.soap_body = {source: value}`, a default value
+  for a SOAP body slot.
+- `header(name, value)` stores `param.http_header = {name: value}`, a default
+  HTTP header.
+- `cdata()` marks the SOAP body value as CDATA.
+
+Other formulas, such as `read()` and `eval()`, are evaluated per request or
+per iteration (`iterparams()` in `spinta/datasets/utils.py`).
+
+`param()`-linked property
+=========================
+
+A `param()`-linked property is a normal model property whose `prepare` is a
+call to `param(<name>)` and which has no `source` column. For example, in
+`tests/datasets/dataframe/backends/soap/commands/test_read.py`:
+
+.. code-block:: text
+
+   d | r | b | m | property | type    | ref | source                | access | prepare
+   example                  |         |     |                       |        |
+     | soap_resource        | soap    |     | {source}              |        | wsdl(wsdl_resource)
+     |   |   |   | param    | parameter1 | request_model/param1 | open | input('default_val')
+     |   |   | City         |         | id  | /                     | open   |
+     |   |   |   | id       | integer |     | id                    |        |
+     |   |   |   | p1       | integer |     |                       |        | param(parameter1)
+
+Here `p1` is the property that users see. It has no `source` column, so its
+value does not come from a column of the source data. Instead, it is a handle
+for the `parameter1` param, which feeds the outgoing SOAP request. The value
+returned for `p1` is the value that was sent (see the test expectations for
+`?p1='foo'`, which return `"p1": "foo"`).
+
+The link is not stored on the property as a separate object. `param(parameter1)`
+is resolved at request time against the builder's `params` dictionary (name
+to `Param`), so the property's `prepare` evaluates to the `Param` it points to.
+
+Incoming and outgoing values
+============================
+
+For an incoming request such as `GET /example/City/?p1='foo'`, the flow is:
+
+#. **Incoming URL query → property.** The query parser builds `QueryParams`
+   (`spinta/ufuncs/querybuilder/components.py`). For a SOAP model, a filter on
+   a `param()`-linked property (`eq_` in
+   `spinta/datasets/backends/dataframe/backends/soap/ufuncs/ufuncs.py`) stores
+   the value in `query_params.url_params[prop.place]`. The key is the
+   property name, not the param name.
+
+#. **Property → param.** The `soap_request_body(Property, Param)` resolver
+   looks up the property's `prepare` (`param(...)`) and gets the `Param`. It
+   then takes the URL value for the property, if present, and otherwise falls
+   back to the `input()` default stored on the param. The result is written to
+   `soap_request_body[<soap key>]` and `property_values[<param name>]`.
+
+#. **Param → outgoing request.** The outgoing request is built from the
+   resolved values. How they are placed depends on the backend:
+
+   - **SOAP body** — `soap_request_body` is expanded from flat keys such as
+     `request_model/param1` into a nested body and sent with `zeep`
+     (`spinta/datasets/backends/dataframe/backends/soap/commands/read.py`).
+   - **HTTP headers** — `resource.get_param_http_headers()` collects
+     `param.http_header` from all params of the resource. Each value is
+     resolved and passed as headers to the SOAP, JSON and XML readers.
+   - **URL placeholders** — for `dask/*` resources, `{name}` placeholders in
+     `resource.external` are filled by `parametrize_bases()` from resolved
+     param values (`spinta/datasets/backends/dataframe/commands/read.py`).
+   - **Source of another model** — when a param's formula reads another model
+     (for example `read().data`), `ParamBuilder` calls `getall()` on that
+     model, forwarding the incoming query (`url_query_params`), so the
+     user's filters also apply to that upstream read.
+
+   Note that the ufuncs page describes a `query()` formula that populates
+   `resource.url.query`. This is not present in the current code, so it should
+   not be relied on.
+
+`param` must stay internal
+==========================
+
+From the end user's point of view, only the `property` exists. The `param`
+is an implementation detail of how the external source is called:
+
+- The UAPI URL uses the property name (`?p1='foo'`), not the param name
+  (`parameter1`), and the value is applied through the property.
+- Responses, metadata and listed properties show `p1` as a normal property.
+  The SOAP test above checks that `p1` is returned and that the filter works
+  through `/example/City/?p1='foo'`.
+- The link from `p1` to `parameter1` (through `param(...)`) and the source
+  names of the param (`request_model/param1`) are manifest and config
+  details. They must not appear in UAPI responses, URLs or metadata.
+- A `param()` link may therefore be used, filtered and selected like any
+  other property, but its `param` is never exposed or addressed by name.
+
+Incoming request parameters are described in
+:ref:`incoming-and-outgoing-requests`. The `Ufunc` and `Env` machinery that
+resolves `param()`, `input()` and `header()` is described in
+:doc:`/contrib/architecture/multiple-dispatch/ufuncs/index`.
 
 Lifecycle
 *********

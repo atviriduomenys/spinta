@@ -132,7 +132,8 @@ Basically each AST node is interpreted on a given environment.
 All environments are subclasses of the `spinta.core.ufuncs.Env` class. By
 default the `Env` class has these properties:
 
-- `this` — represents the current object.
+- `this` — the node whose `prepare` formula is being resolved (see
+  :ref:`contrib-ufuncs-this` below).
 - `context` — represents global Spinta context, where you can access various
   global instances.
 
@@ -148,12 +149,18 @@ specific environments:
   specific subclasses are configured per backend, e.g.
   `PostgreSQLQueryBuilder`, `MySQLQueryBuilder`, `MSSQLQueryBuilder`,
   `SqliteQueryBuilder`, etc.
+- `spinta.datasets.backends.dataframe.ufuncs.query.components.DaskDataFrameQueryBuilder` —
+  builds queries for dataframe/file-based datasets (CSV, JSON, etc.).
 - `spinta.ufuncs.resultbuilder.components.ResultBuilder` and its backend
   specific subclasses (`PgResultBuilder`, `SqlResultBuilder`) — transform
   results returned by a backend, this is used to perform additional, more
   complex transformations that are not supported natively by a backend.
 - `spinta.ufuncs.loadbuilder.components.LoadBuilder` — resolves `prepare`
   formulas of manifest nodes at manifest load time.
+- `spinta.ufuncs.linkbuilder.components.LinkBuilder` — links cross-node
+  references after manifest nodes are loaded.
+- `spinta.ufuncs.requestparamsbuilder.components.RequestParamsBuilder` —
+  interprets incoming request URL parameters.
 - `spinta.dimensions.param.components.ParamBuilder` and `ParamLoader` —
   resolve `param` source and formula values.
 - `spinta.ufuncs.propertyresolver.components.PropertyResolver` — resolves
@@ -215,6 +222,63 @@ arguments `2` and `2`, without resolving arguments before the call.
 
 See :doc:`/contrib/architecture/multiple-dispatch/ufuncs/env` for the full list of `Env` methods.
 
+.. _contrib-ufuncs-this:
+
+The `this` value
+----------------
+
+`this` is the node of which a `prepare` formula is being resolved. It is
+set when the environment is created or extended, usually with `env(this=...)`
+or `env.update(this=...)`. For example, when the `prepare` formula of a
+resource is resolved:
+
+.. code-block:: python
+
+   builder = LinkBuilder(context, resource, resource.dataset)
+   builder(this=resource).resolve(resource.prepare)
+
+Here `this` is set to `resource`, because the `prepare` of `resource` is being
+resolved.
+
+Given this manifest:
+
+.. code-block:: text
+
+   d | r | b | m | property     | type    | ref     | source     | prepare | level | access
+   example                      |         |         |            |         |       |
+     | resource1                | sql     |         |            | f1()    |       |
+     |   |   | City             |         | id      | COUNTRIES  | f2()    |       |
+     |   |   |   | id           | integer |         | ID         | f3()    |       |
+
+each formula receives `this` as follows:
+
+- `f1()` — `env(this=Resource(resource1))`
+- `f2()` — `env(this=Model(City))`
+- `f3()` — `env(this=Property(id))`
+
+When chained methods are used, `this` for each method is the result of the
+previous method. For example, with this manifest:
+
+.. code-block:: text
+
+   d | r | b | m | property     | type    | ref     | source     | prepare     | level | access
+   example                      |         |         |            |             |       |
+     | resource1                | sql     |         |            | a().b().c() |       |
+     |   |   | City             |         | id      | COUNTRIES  |             |       |
+     |   |   |   | id           | integer |         | ID         |             |       |
+
+`this` is set as follows:
+
+- `a()` — `env(this=Resource(resource1))`, `a()` returns `SqlBackend()`
+- `b()` — `env(this=SqlBackend())`, `b()` returns `sa.Engine()`
+- `c()` — `env(this=sa.Engine())`
+
+`Env` does not change `this` on its own while resolving a chain. Chained
+calls are resolved on the same environment, so a resolver that needs the
+result of the previous call as `this` must pass it on explicitly, for
+example with `env(this=previous_result)`, as done in
+`spinta/ufuncs/querybuilder/ufuncs.py`.
+
 Resolver functions
 ******************
 
@@ -243,7 +307,7 @@ There are two ways, how a resolver function can be registered:
    all other functions with the same name and different argument types.
    If you need to call another function dispatched by argument types, then
    you need to do it manually, because automatic dispatch by argument types
-   will be turned off (see `autoargs` below).
+   will be turned off (see :ref:`multiple-dispatch-and-autoargs` below).
 
 2. Register a function that is dispatched by arguments automatically
    resolved before the function is called:
@@ -273,27 +337,220 @@ So common functionality should be implemented on top of `Env`, but
 environment specific functionality should be implemented on a specific `Env`
 subclass.
 
-Autoargs and the `Env, Expr` case
----------------------------------
-
-The `Ufunc` dispatcher (unlike regular commands) has `autoargs = True` by
-default. When `Env.resolve` calls a resolver with `autoargs` enabled, it
-first resolves all expression arguments recursively and calls the function
-with the resolved values.
-
-If a function is registered with `(Env, Expr)` as its types, then `autoargs`
-is turned off for that name. In this case the function receives the whole
-unresolved `Expr` and must resolve its arguments manually with
-`expr.resolve(env)` or `env.resolve(...)`. This is how variadic functions
-like `select` or `sort` are implemented, see
-`spinta/ufuncs/querybuilder/ufuncs.py`.
-
 If no resolver is registered for a given name and argument types, the
 `default_resolver` is called — by default it just returns the expression
 with resolved arguments attached (`expr(*args, **kwargs)`), so that the
 result can be further processed by executors. Concrete environments can
 override `default_resolver` (e.g. `SqlQueryBuilder` raises `UnknownMethod`
 there, because all its resolvers must be explicit).
+
+`Expr` resolution
+*****************
+
+Formulas (`Expr`) must **never** be evaluated manually by inspecting ASTs or
+writing custom tree-walkers in backend commands. All formula resolution goes
+through `ufunc` resolvers on dedicated `*Builder` (`Env`) classes.
+
+Formulas must be resolved **as early as possible** in the lifecycle. If an
+expression can be evaluated at load time (e.g. `2 + 2`), store the result, not
+the `Expr`. If it depends on later information (user input, data source
+values), leave the `Expr` unresolved and pass it to the next builder.
+
+Resolution order:
+
+1. **`LoadBuilder`** — earliest stage, during `commands.load`.
+
+   - Used for metadata preparation that needs no external context.
+   - Resource parameter formulas are resolved here:
+
+     - `header()` -> populates `resource.http.headers[name]`
+     - `query()` -> populates `resource.url.query[name]`
+
+   - Consumed formulas return `None` so they are not retained in
+     `param.formulas`.
+   - Values requiring late resolution (e.g. `creds()`) remain `Expr` inside the
+     dict.
+
+2. **`LinkBuilder`** — runs after all manifest nodes are loaded and can reference
+   each other.
+
+   - Used to link cross-node references.
+   - Property `prepare = param()` -> links the source-less property to its
+     resource param, setting `Property.param`. See
+     :ref:`external-data-source-params` for how the link is used.
+
+3. **`RequestParamsBuilder`** — runs when an HTTP request arrives, before
+   touching data sources.
+
+   - Interprets incoming request URL parameters (see
+     :ref:`incoming-and-outgoing-requests`).
+
+4. **`QueryBuilder`** (backend-specific, e.g. `DaskDataFrameQueryBuilder`,
+   `SqlQueryBuilder`)
+
+   - Translates unresolved `Expr` filters/prepares into external data source
+     queries (for outgoing requests).
+   - Accesses pre-resolved metadata directly (`resource.http.headers`,
+     `resource.url.query`, `prop.param`) instead of traversing
+     `resource.params` or re-evaluating formulas.
+
+5. **`ResultBuilder`** — runs after data is returned from the data source to
+   post-process rows.
+
+.. _multiple-dispatch-and-autoargs:
+
+Multiple dispatch and `autoargs`
+--------------------------------
+
+`ufunc` resolvers are built on `multipledispatch`. Dispatch is based on the
+runtime types and arity (number of positional arguments):
+
+- **Fixed-arity dispatch (`autoargs = True`, the default)**:
+  By default, `autoargs = True` on every `Ufunc`. When evaluating
+  `Expr(name, *args, **kwargs)`, `Env.resolve()` recursively resolves all
+  arguments first (`args, kwargs = expr.resolve(self)`), and then calls
+  `ufunc(self, *args, **kwargs)`.
+
+  The dispatcher receives already-resolved Python objects and matches their
+  runtime types against registered signatures (e.g. `str`, `int`, `Bind`).
+
+  Because `multipledispatch` registers exact signatures from
+  `@ufunc.resolver(EnvClass, ArgType1, ...)`, Python's `*args` does **not**
+  create a catch-all or optional-argument signature in the dispatcher. For
+  functions with a known, fixed set of arities or alternative argument types,
+  define **separate resolver methods** for each signature:
+
+  .. code-block:: python
+
+     @ufunc.resolver(LinkBuilder)
+     def param(env: LinkBuilder) -> None:
+         ...  # param() with 0 formula arguments (uses prop.name)
+
+     @ufunc.resolver(LinkBuilder, (str, Bind))
+     def param(env: LinkBuilder, name: str | Bind) -> None:
+         ...  # param('name') or param(name) with 1 argument
+
+  - Tuples of types like `(str, Bind)` can be used in the decorator to accept
+    multiple alternative types for an argument.
+  - Omit `name="foo"` from `@ufunc.resolver` if the Python function name
+    already matches the resolver name. Use `name=` only for reserved Python
+    keywords (e.g. `and_`, `or_`) or explicit aliases.
+
+- **Handling variadic arguments by disabling `autoargs` (`autoargs = False`)**:
+  When a ufunc must accept an arbitrary or variable number of arguments
+  (`*args` and/or `**kwargs`) — such as logical `and(...)` and `or(...)`
+  ufuncs, or container functions like `list(...)` — defining separate
+  fixed-arity signatures for every possible argument count is impractical.
+
+  In these cases, disable `autoargs` by registering the resolver with `Expr`
+  as its argument type:
+
+  .. code-block:: python
+
+     @ufunc.resolver(EnvClass, Expr, name="...")
+     def func(env: EnvClass, expr: Expr):
+         ...
+
+  When **any** resolver for a given ufunc name registers `(EnvClass, Expr)`:
+
+  - Automatic argument resolution is disabled globally for that ufunc name
+    across all environments (`dispatcher.autoargs = False`).
+  - `Env.resolve()` bypasses automatic argument resolution and invokes
+    `ufunc(self, expr)` directly, passing the raw unevaluated `Expr`.
+  - The resolver receives the unevaluated `Expr` and must resolve arguments
+    manually via `args, kwargs = expr.resolve(env)`.
+  - The resolver can then iterate over or manipulate the variadic `args` list
+    dynamically (e.g. filtering out `None` values, combining multiple SQL
+    conditions, or delegating).
+
+  **Example 1: Variadic resolvers in `LoadBuilder`**
+
+  In `spinta/ufuncs/loadbuilder/ufuncs.py`, `and` and `or` expressions can take
+  any number of arguments. The resolvers accept `expr: Expr`, resolve the
+  arguments manually with `expr.resolve(env)`, filter out `None` values, and
+  return the list of active conditions:
+
+  .. code-block:: python
+
+     from spinta.core.ufuncs import Expr, ufunc
+     from spinta.ufuncs.loadbuilder.components import LoadBuilder
+
+
+     @ufunc.resolver(LoadBuilder, Expr, name="and")
+     def and_(env: LoadBuilder, expr: Expr):
+         args, kwargs = expr.resolve(env)
+         args = [a for a in args if a is not None]
+         return args
+
+
+     @ufunc.resolver(LoadBuilder, Expr, name="or")
+     def or_(env: LoadBuilder, expr: Expr):
+         args, kwargs = expr.resolve(env)
+         args = [a for a in args if a is not None]
+         return args
+
+  **Example 2: Variadic resolvers in `SqlQueryBuilder`**
+
+  In `spinta/datasets/backends/sql/ufuncs/query/ufuncs.py`, backend query builders
+  translate variable numbers of filter conditions into SQLAlchemy clauses. The
+  resolvers manually resolve arguments and combine them using `sa.and_(*args)`
+  or `sa.or_(*args)`:
+
+  .. code-block:: python
+
+     import sqlalchemy as sa
+     from spinta.core.ufuncs import Expr, ufunc
+     from spinta.datasets.backends.sql.components import SqlQueryBuilder
+
+
+     @ufunc.resolver(SqlQueryBuilder, Expr, name="and")
+     def and_(env: SqlQueryBuilder, expr: Expr):
+         args, kwargs = expr.resolve(env)
+         args = [env.call("_resolve_unresolved", arg) for arg in args if arg is not None]
+         if len(args) > 1:
+             return sa.and_(*args)
+         elif args:
+             return args[0]
+
+
+     @ufunc.resolver(SqlQueryBuilder, Expr, name="or")
+     def or_(env: SqlQueryBuilder, expr: Expr):
+         args, kwargs = expr.resolve(env)
+         args = [env.call("_resolve_unresolved", arg) for arg in args if arg is not None]
+         if len(args) > 1:
+             return sa.or_(*args)
+         elif args:
+             return args[0]
+
+- **When to use `autoargs = True` vs `(EnvClass, Expr)` (`autoargs = False`)**:
+
+  - Use standard typed signatures (`autoargs = True`, the default) whenever the
+    ufunc has fixed or predictable arities (e.g. 0-arg, 1-arg, or 2-arg
+    functions like `param()`, binary comparison operators, or type casts). This
+    allows `multipledispatch` to automatically route calls based on runtime
+    argument types without boilerplate resolution code.
+  - Use `(EnvClass, Expr)` (`autoargs = False`) mostly when implementing
+    **variadic ufuncs** accepting arbitrary arguments (`*args` and/or
+    `**kwargs`), such as `and`, `or`, or `list`, or when an environment must
+    explicitly control or defer argument evaluation.
+
+Rules for adding resolvers
+--------------------------
+
+- **Never** evaluate `Expr` with custom `if/elif` loops over `expr.name` or
+  `expr.args`. Define a resolver with `@ufunc.resolver(BuilderClass, ...)`.
+- **Beware of `autoargs`**: if *any* resolver for a name registers
+  `(EnvSubclass, Expr)` as its signature, `autoargs` is disabled globally for
+  that name across all environments. If you want arguments resolved
+  automatically by child resolvers, do not use `Expr` in the resolver
+  signature.
+- **Do not use `*args` or `**kwargs`** in resolver signatures expecting
+  `multipledispatch` to match variable argument counts. For fixed arities, write
+  distinct resolver functions for each arity and type signature. For variadic
+  ufuncs (like `and` or `or`), register `(EnvClass, Expr)` and resolve arguments
+  manually via `args, kwargs = expr.resolve(env)`.
+- Stash resolved values on the appropriate object (`Resource.http`,
+  `Resource.url`, `Property.param`), not in ad-hoc dicts on `Param`.
 
 Executor functions
 ******************
@@ -363,3 +620,6 @@ See also
   `Ufunc` dispatcher and `UFuncRegistry` in detail.
 - :doc:`/contrib/architecture/multiple-dispatch/ufuncs/env` — `Env` and
   its concrete builder subclasses in detail.
+- :doc:`/contrib/architecture/data-access/backends/external-data-sources` —
+  how `param`, `param()`-linked properties, `input()` and `header()` formulas
+  are used when reading external data sources.

@@ -70,6 +70,30 @@ External systems Spinta talks to:
 
 .. _#katalogas/2302: https://github.com/atviriduomenys/katalogas/issues/2302
 
+.. _incoming-and-outgoing-requests:
+
+Incoming and outgoing requests
+==============================
+
+When working with Spinta, it is important to distinguish between two kinds of
+requests:
+
+- **Incoming request** — a client or end-user request via UAPI or CLI
+  interface.
+- **Outgoing request** — a request sent by Spinta to an external data source.
+
+Often we need to distinguish between request parameters provided for the
+incoming request and for the outgoing request. Mixing these two might lead to
+confusion and misunderstanding.
+
+For example, parameters provided for an incoming request (such as URL query
+parameters or CLI arguments) specify what data the client is requesting and how
+it should be filtered, sorted, or formatted. In contrast, parameters for an
+outgoing request (such as HTTP query parameters, headers, or credentials
+configured on a resource) specify how Spinta interacts with an external data
+source to retrieve or synchronize data.
+
+
 .. _contrib-containers:
 
 Containers

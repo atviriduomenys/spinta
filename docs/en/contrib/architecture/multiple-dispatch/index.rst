@@ -7,7 +7,8 @@ Multiple dispatch
 Spinta dispatches work with multiple dispatch: the implementation of
 a command or a ufunc is selected at call time by the types of its
 positional arguments. Two mechanisms are built on top of the same
-`multipledispatch`-based machinery (see `spinta/dispatcher.py`):
+`multipledispatch <https://multiple-dispatch.readthedocs.io/>`_-based machinery
+(see `spinta/dispatcher.py`):
 
 - **Commands** (`Command` objects, see :doc:`commands`) — internal
   service functions like `commands.load`, `commands.link`,
@@ -35,3 +36,10 @@ see :doc:`/contrib/architecture/user-interfaces/cli`).
 
    Commands <commands>
    Ufuncs <ufuncs/index>
+
+See also
+********
+
+- `Multiple Dispatch documentation <https://multiple-dispatch.readthedocs.io/>`_ —
+  documentation for the `multipledispatch` library.
+
