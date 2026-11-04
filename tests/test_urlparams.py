@@ -3,8 +3,11 @@ import pytest
 from spinta import spyna
 from spinta.commands import prepare
 from spinta.components import Context, Model, Namespace, UrlParams, Version
+from spinta.core.config import RawConfig
+from spinta.core.enums import Mode
 from spinta.dimensions.scope.components import Scope
 from spinta.exceptions import InvalidValue, PropertiesNotFound, PropertyNotFound, ScopeNotFound
+from spinta.testing.manifest import prepare_manifest
 from spinta.testing.request import make_get_request
 from spinta.urlparams import _apply_custom_scope, _prepare_urlparams_from_path
 
@@ -432,3 +435,31 @@ class TestApplyCustomScopeWithNamespace:
         _apply_custom_scope(params)
 
         assert params.query is None
+
+
+PARAM_PROP_MANIFEST = """
+    d | r | b | m | property | type     | ref    | source                              | prepare       | access
+    example                  | dataset  |        |                                     |               |
+      | resource             | dask/xml |        | http://example.com/addresses/Street |               |
+      |   |   |              | param    | client | CLIENT_NAME                         | query('TEST') |
+      |   |   | Street       |          | id     | /GATVES/GATVE                       |               |
+      |   |   |   | id       | string   |        | GAT_ID                              |               | open
+      |   |   |   | client   | string   |        |                                     | param()       | open
+"""
+
+
+@pytest.mark.parametrize("mode", [Mode.internal, Mode.external], ids=["internal", "external"])
+def test_linked_property_condition_is_stripped_only_in_external_mode(rc: RawConfig, mode: Mode):
+    # Internal storage filters rows by ordinary conditions, so `client='ABC'` must stay in `query`. External models
+    # send a linked `eq()` to the data source as a request-time param instead (`param_props`).
+    context, manifest = prepare_manifest(rc, PARAM_PROP_MANIFEST, mode=mode)
+
+    params = prepare(context, UrlParams(), Version(), make_get_request("example/Street", "client='ABC'"))
+
+    assert params.model.mode is mode
+    if mode is Mode.internal:
+        assert params.query == [spyna.parse("client='ABC'")]
+        assert params.param_props is None
+    else:
+        assert params.query is None
+        assert len(params.param_props) == 1

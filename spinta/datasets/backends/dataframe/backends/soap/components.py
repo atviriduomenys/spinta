@@ -7,6 +7,7 @@ from zeep.proxy import OperationProxy
 from spinta.datasets.backends.dataframe.components import DaskBackend
 from spinta.datasets.backends.wsdl.components import WsdlBackend
 from spinta.exceptions import SoapServiceError
+from spinta.utils.url import append_query_params
 
 
 class Soap(DaskBackend):
@@ -18,7 +19,7 @@ class Soap(DaskBackend):
     port: str
     operation: str
 
-    def get_soap_operation(self, extra_headers: dict) -> OperationProxy:
+    def get_soap_operation(self, extra_headers: dict, query_params: dict | None = None) -> OperationProxy:
         with self.wsdl_backend.begin():
             client = self.wsdl_backend.client
 
@@ -28,6 +29,13 @@ class Soap(DaskBackend):
             soap_service = client.bind(self.service, self.port)
         except ValueError:
             raise SoapServiceError(f"SOAP service {self.service} with port {self.port} not found")
+
+        if query_params:
+            # `client.bind()` returns a new service proxy, so its endpoint can be changed for this request only.
+            # The endpoint is the one from WSDL, outgoing query params are appended to its URL.
+            options = soap_service._binding_options
+            if options.get("address"):
+                options["address"] = append_query_params(options["address"], query_params)
 
         try:
             soap_operation = soap_service[self.operation]

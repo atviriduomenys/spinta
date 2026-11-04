@@ -32,6 +32,7 @@ from spinta.ufuncs.resultbuilder.components import ResultBuilder
 from spinta.utils.data import take
 from spinta.utils.nestedstruct import extract_list_property_names, flat_dicts_to_nested
 from spinta.utils.schema import NA
+from spinta.utils.url import append_query_params
 
 OBJECT_DTYPE = "object"
 
@@ -230,20 +231,37 @@ def getall(
     yield from dask_get_all(context, query, dask_df, backend, model, builder, extra_properties)
 
 
-def parametrize_bases(context: Context, model: Model, resource: Resource, resolved_params: dict, *args):
+def parametrize_bases(
+    context: Context,
+    model: Model,
+    resource: Resource,
+    resolved_params: ResolvedParams,
+    *args,
+    url_query: dict[str, Any] | None = None,
+):
+    """Data source URLs of `resource` to read.
+
+    `url_query` are outgoing `query()` params (see `resolve_url_query_params()`), appended to every URL.
+    """
     base = resource.external
     if len(resource.source_params) > 0:
-        if not resolved_params:
+        # dsa:resource.source is given with URL placeholders, for example:
+        # resource.source = http://example.com/path/{year}/data?param={value}
+        if resolved_params:
+            # Case when dsa:resource.param.prepare uses read() ufunc, for example:
+            # | type  | ref  | source | prepare     |
+            # | param | city | City   | read().name |
+            # The `resolved_params` comes from read() -> getall() -> parametrize_bases().
+            formatted = base.format(*args, **resolved_params)
+            if formatted != base:
+                yield append_query_params(formatted, url_query)
+        else:
             params = model.external.resource.params
             resolved_params = iterparams(context, model, model.manifest, params)
             for item in resolved_params:
-                yield base.format(*args, **item)
-        else:
-            formatted = base.format(*args, **resolved_params)
-            if formatted != base:
-                yield formatted
+                yield append_query_params(base.format(*args, **item), url_query)
     else:
-        yield base
+        yield append_query_params(base, url_query)
 
 
 def dask_get_all(
@@ -256,6 +274,8 @@ def dask_get_all(
     extra_properties: dict,
     params: dict | None = None,
 ):
+    # `params` are values of resource params linked to source-less `param()` properties, see
+    # `linked_param_values()`. Readers that make no data source request (e.g. memory backend) pass none.
     params = params or {}
 
     query = merge_formulas(model.external.prepare, query)

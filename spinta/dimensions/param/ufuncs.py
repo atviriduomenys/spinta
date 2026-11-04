@@ -5,8 +5,22 @@ from spinta import commands
 from spinta.components import Model
 from spinta.core.ufuncs import Bind, Env, Expr, ufunc
 from spinta.datasets.components import Param
-from spinta.dimensions.param.components import ParamBuilder, ParamLoader
-from spinta.exceptions import InvalidParamSource, KeyNotFound, ModelNotFound, PropertyNotFound
+from spinta.dimensions.param.components import (
+    ParamBuilder,
+    ParamLoader,
+    ParamProperty,
+    ParamPropertyBuilder,
+    ParamValues,
+    is_param_property,
+    reject_param_properties,
+)
+from spinta.exceptions import (
+    InvalidParamSource,
+    KeyNotFound,
+    ModelNotFound,
+    ParamPropertyNotAllowed,
+    PropertyNotFound,
+)
 from spinta.utils.schema import NotAvailable
 
 
@@ -17,7 +31,7 @@ def param(env: Env, bind: Bind) -> Any:
 
 @ufunc.resolver(ParamBuilder, Model)
 def read(env: ParamBuilder, model: Model) -> Any:
-    return commands.getall(env.context, model, model.backend, resolved_params=env.params, query=env.url_query_params)
+    return commands.getall(env.context, model, model.backend, resolved_params=env.params, query=env.query)
 
 
 @ufunc.resolver(ParamBuilder, str)
@@ -145,3 +159,63 @@ def read(env: ParamLoader, any_: object):
 @ufunc.resolver(ParamLoader)
 def read(env: ParamLoader):
     return True
+
+
+@ufunc.resolver(ParamValues, list, name="and")
+def and_(env: ParamValues, args: list) -> None:
+    # Collect values of linked properties from the top-level conditions of the query.
+    for arg in args:
+        if isinstance(arg, ParamProperty):
+            env.values[arg.prop.name] = arg.value
+
+
+def _is_resource_param(model: Model, name: str) -> bool:
+    resource = model.external.resource if model.external else None
+    return resource is not None and any(param.name == name for param in resource.params)
+
+
+@ufunc.resolver(ParamPropertyBuilder, Bind, object, name="eq")
+def eq_(env: ParamPropertyBuilder, field: Bind, value: object) -> ParamProperty | None:
+    try:
+        prop = env.resolve_property(field)
+    except PropertyNotFound:
+        # A resource param given in the URL without a linked property would be silently dropped. Resource params
+        # are internal to the data source, so the user sees the same error as for an unknown property, but with 400.
+        if _is_resource_param(env.model, field.name):
+            error = PropertyNotFound(env.model, property=field.name)
+            error.status_code = 400
+            raise error
+        # Other names are not model properties, the condition is left for query builders.
+        return None
+    if not is_param_property(prop):
+        return None
+
+    if any(recorded.prop is prop for recorded in env.props):
+        raise ParamPropertyNotAllowed(prop.model, property=prop.name, reason="more than once")
+    param_property = ParamProperty(prop=prop, value=value)
+    env.props.append(param_property)
+    return param_property
+
+
+@ufunc.resolver(ParamPropertyBuilder, Expr, name="or")
+def or_(env: ParamPropertyBuilder, expr: Expr) -> None:
+    args, kwargs = expr.resolve(env)
+    reject_param_properties("or", args)
+
+
+@ufunc.resolver(ParamPropertyBuilder, Expr, name="and")
+def and_(env: ParamPropertyBuilder, expr: Expr) -> None:
+    args, kwargs = expr.resolve(env)
+    reject_param_properties("and", args)
+
+
+@ufunc.resolver(ParamPropertyBuilder, Expr, name="not")
+def not_(env: ParamPropertyBuilder, expr: Expr) -> None:
+    args, kwargs = expr.resolve(env)
+    reject_param_properties("not", args)
+
+
+@ufunc.resolver(ParamPropertyBuilder, Expr, name="select")
+def select_(env: ParamPropertyBuilder, expr: Expr) -> None:
+    # `select()` is a field selection handled by the select path, it has no linked property.
+    return None

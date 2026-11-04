@@ -232,6 +232,29 @@ class PropertyNotFound(UserError):
     template = "Property {property!r} not found."
 
 
+class ParamNotFound(UserError):
+    template = "Resource param {param!r} referenced by property prepare `param()` is not defined."
+
+
+class ResourceSourceQueryConflict(UserError):
+    template = "Query parameter {param!r} is defined both in resource source and in a resource param query()."
+
+
+class QueryParamNotFound(UserError):
+    template = "Value for query parameter {param!r} is not provided: {reason}."
+
+
+class UnlinkedQueryParam(UserError):
+    template = (
+        "Resource param query() {param!r} has no default value and is not linked to any property with param() "
+        "in model {model!r}. Its value can't be provided."
+    )
+
+
+class ParamPropertyNotAllowed(UserError):
+    template = "Property {property!r} is linked to a resource param and cannot be used {reason}."
+
+
 class ScopeNotFound(UserError):
     status_code = 404
     template = "Scope {scope!r} not found in model {model!r}."

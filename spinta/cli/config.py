@@ -26,10 +26,20 @@ def check(
     manifests: list[str] | None = Argument(None, help=("Manifest files to load")),
     mode: Mode = Option("internal", help="Mode of backend operation"),
     check_names: bool = Option(None, help="To check dataset, model and property names"),
+    check_query_conflicts: bool = Option(
+        None,
+        help="To check that resource source query keys do not clash with resource param query() keys",
+    ),
 ):
     """Check configuration and manifests"""
     manifests = convert_str_to_manifest_path(manifests)
-    context: Context = configure_context(ctx.obj, manifests, mode=mode, check_names=check_names)
+    context: Context = configure_context(
+        ctx.obj,
+        manifests,
+        mode=mode,
+        check_names=check_names,
+        check_query_conflicts=check_query_conflicts,
+    )
     prepare_manifest(context, ensure_config_dir=True, full_load=True)
     manager = context.get("error_manager")
 

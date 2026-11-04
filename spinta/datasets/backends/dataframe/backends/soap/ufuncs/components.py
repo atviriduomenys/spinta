@@ -24,6 +24,9 @@ class SoapQueryBuilder(QueryBuilder):
         builder.update(soap_request_body={}, property_values={})
         builder.update(params={param.name: param for param in model.external.resource.params})
         builder.init_query_params(query_params)
+        # Request-time values of properties linked to resource params (`param()`), sent in the SOAP body.
+        for param_prop in builder.query_params.param_props:
+            builder.query_params.url_params[param_prop.prop.place] = str(param_prop.value)
 
         return builder
 
