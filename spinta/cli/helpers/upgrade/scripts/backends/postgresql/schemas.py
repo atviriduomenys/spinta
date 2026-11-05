@@ -27,7 +27,6 @@ from spinta.backends.postgresql.helpers.name import (
     get_pg_foreign_key_name,
     get_pg_index_name,
 )
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model
 from spinta.types.namespace import sort_models_by_ref_and_base
 from spinta.utils.sqlalchemy import Convention
@@ -36,7 +35,6 @@ pg_identifier_preparer = postgresql.dialect().identifier_preparer
 
 
 def cli_requires_schema_migration(context: Context, **kwargs) -> bool:
-    ensure_store_is_loaded(context)
     store = context.get("store")
 
     inspectors = {}
@@ -103,7 +101,6 @@ def migrate_schemas(context: Context, **kwargs):
     from alembic.operations import Operations
     from alembic.runtime.migration import MigrationContext
 
-    ensure_store_is_loaded(context)
     store = context.get("store")
 
     inspectors = {}
