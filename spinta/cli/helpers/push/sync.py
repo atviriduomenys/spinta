@@ -29,8 +29,7 @@ def _build_push_state_sync_url(server: str, model: str, page: str, page_columns:
 
     base = f"{base})&sort(_id)"
 
-    if page:
-        base = f"{base}&page('{page}')"
+    base = f"{base}&page('{page}')" if page else f"{base}&page()"
 
     if limit:
         base = f"{base}&limit({limit})"
@@ -63,17 +62,24 @@ def _fetch_all_model_data(
         url = _build_push_state_sync_url(
             server=server, model=model.model_type(), page=page_hash, page_columns=page_columns, limit=limit
         )
-
         result = get_request_with_retries(
             client,
             url,
-            error_counter=error_counter,
             timeout=timeout,
             retries=retries,
             progress_bar=progress_bar,
             delay_range=delay_range,
+            stop_on_errors=["ExceededMaximumLimit"],
         )
         if not result.ok:
+            error = result.get_error("ExceededMaximumLimit")
+            if error and isinstance(error.get("context"), dict):
+                maximum = error["context"].get("maximum_limit")
+                if type(maximum) is int and 0 < maximum < limit:
+                    limit = maximum
+                    continue
+            if error_counter:
+                error_counter.increase()
             cli_message(f"ERROR: Failed to fetch data for model {model.model_type()}.", progress_bar)
             break
 

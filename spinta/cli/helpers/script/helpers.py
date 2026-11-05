@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import pathlib
+import sys
 from collections import defaultdict, deque
 
-from spinta.cli.helpers.message import cli_message
+from spinta.cli.helpers.message import cli_error, cli_message
 from spinta.cli.helpers.script.components import ScriptStatus
 from spinta.cli.helpers.upgrade.components import UpgradeScript
 from spinta.components import Context, Store
@@ -67,3 +69,39 @@ def ensure_store_is_loaded(context: Context, verbose: bool = False) -> Store:
 
     store = prepare_manifest(context, verbose=verbose, full_load=True)
     return store
+
+
+def parse_input_path(
+    context: Context,
+    input_path: pathlib.Path | None = None,
+    required: bool = True,
+    **kwargs,
+) -> list[str] | None:
+    if input_path is None:
+        # Reads stdin direct for data
+        if not sys.stdin.isatty():
+            data = sys.stdin.read()
+            data = data.splitlines()
+            return data
+
+        if not required:
+            return None
+
+        cli_message(
+            "Script requires model list file path (can also add it through `--input <file_path>` argument).", err=True
+        )
+        input_path = input("Enter model list file path: ")
+
+    if not input_path.exists():
+        cli_error(f'File "{input_path}" does not exist.')
+
+    with input_path.open("r") as f:
+        return f.read().splitlines()
+
+
+def validate_config_file_output_path(destructive: bool, output_path: pathlib.Path | None = None) -> pathlib.Path | None:
+    if output_path and output_path.suffix not in {".yml", ".yaml"}:
+        cli_error(f"Output file '{output_path}' has unsupported format. Use '.yml' or '.yaml'.")
+
+    if output_path and output_path.exists() and not destructive:
+        cli_error(f"Output file '{output_path}' already exists. Use --destructive to overwrite.")
