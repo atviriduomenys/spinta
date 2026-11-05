@@ -194,7 +194,8 @@ CONFIG = {
     "manifest": "default",
     # Parameters for datasets, for example credentials. Example:
     #
-    #   datasets: {default: {gov/vpk: {resource: sql://user:pass@host/db}}
+    #   datasets.gov/vpk:
+    #     resource: sql://user:pass@host/db}
     #
     # There configuraiton parameters should be read directly by datasets.
     "datasets": {},

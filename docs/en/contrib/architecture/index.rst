@@ -262,7 +262,8 @@ Command line tools
     CLI handlers: `config.py`, `auth.py` (`key`, `token`, `client`),
     `manifest.py` (`copy`), `inspect.py`, `data.py` (`import`, `export`),
     `pull.py`, `push.py`, `server.py` (`run`, `wait`), `migrate.py`
-    (`bootstrap`, `sync`, `migrate`), `keymap.py`, `show.py`,
+    (`bootstrap`, `migrate`), `sync.py` (`sync`, Catalogue metadata sync,
+    see :doc:`sync`), `keymap.py`, `show.py`,
     `uncomment.py`, `comment.py`, `admin.py`, `upgrade.py`, `pii.py`.
     See :doc:`user-interfaces/cli`.
 

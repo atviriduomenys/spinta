@@ -80,11 +80,14 @@ overloads dispatched on the backend class (multiple dispatch, see
 - `wait(Context, Backend)` — poll availability
   (`spinta/backends/postgresql/commands/wait.py`).
 
-Then, per backend: `prepare` / `migrate` (table creation, e.g.
-`spinta/backends/postgresql/commands/init.py`), `getall`/`getone`
+Then, per backend: `prepare` (builds table objects, e.g.
+`spinta/backends/postgresql/commands/init.py`), `bootstrap` (creates missing
+schemas and tables), `migrate` (schema changes for existing tables, see
+:doc:`/contrib/architecture/data-access/backends/internal-data-store`),
+`getall`/`getone`
 (reads, dispatched as `(Context, Model, PostgreSQL)`),
 `getall(Context, Model, Sql)` for external sources, `write`/`push`,
-`wipe`, `changes`, `bootstrap` and so on.
+`wipe`, `changes` and so on.
 
 The full backend type list is configured in
 `spinta/config.py:CONFIG['components']['backends']`; instantiation is

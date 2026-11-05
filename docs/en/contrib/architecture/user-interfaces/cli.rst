@@ -45,13 +45,22 @@ Commands are registered in `main.py` via a small helper from
            app.command(name, **kwargs)(item)
 
 `add()` accepts either a plain function (registered as a command) or another
-``Typer`` instance (registered as a command *group*). Currently two groups
+``Typer`` instance (registered as a command *group*). Currently three groups
 exist:
 
 - ``spinta keymap`` — a ``Typer`` app defined in `spinta/cli/keymap.py`
   (currently only ``spinta keymap sync``);
-- `spinta cli pii` — a ``Typer`` app defined in `spinta/cli/pii.py` for
-  managing person identifying information.
+- ``spinta pii`` — a ``Typer`` app defined in `spinta/cli/pii.py` for
+  managing person identifying information;
+- ``spinta udts`` — a ``Typer`` app defined in `spinta/cli/udts/__init__.py`
+  for UDTS data service agent operations.
+
+Command names must be unique. Registering a second command under a name that
+is already taken does not fail: the later registration silently replaces the
+earlier one. `spinta sync` was registered twice (``cli.migrate.sync`` and
+``cli.sync.sync``); only ``cli.sync.sync`` is reachable. See
+:doc:`/contrib/architecture/sync` for what `spinta sync` does and how it
+relates to `spinta bootstrap` and `spinta migrate`.
 
 The root application callback (``@app.callback``) is executed before every
 sub-command. It handles the global options and — importantly — creates the
@@ -103,7 +112,7 @@ Commands registered in `spinta/cli/main.py`, with their handler functions in
 +---------------------------+---------------------------------------------+
 | `spinta bootstrap`        | ``cli.migrate.bootstrap``                   |
 +---------------------------+---------------------------------------------+
-| `spinta sync`             | ``cli.migrate.sync``                        |
+| `spinta sync`             | ``cli.sync.sync``                           |
 +---------------------------+---------------------------------------------+
 | `spinta migrate`          | ``cli.migrate.migrate``                     |
 +---------------------------+---------------------------------------------+

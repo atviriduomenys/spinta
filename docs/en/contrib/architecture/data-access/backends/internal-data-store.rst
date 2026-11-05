@@ -45,6 +45,28 @@ registered in `components.backends` (it cannot be configured); read
 commands raise `BackendNotGiven`. `NoBackend` is also used as the
 backend value while manifest data is not reachable.
 
+Schema bootstrap and migrations
+*******************************
+
+Schema of the internal backends is managed by two commands. Both also record
+the schema versions in the backend manifest (`run_bootstrap()` and
+`run_migrations()` in `spinta/manifests/backend/helpers.py`).
+
+- ``spinta bootstrap`` (`cli.migrate.bootstrap`) runs ``commands.bootstrap``
+  on every backend. For PostgreSQL (`spinta/backends/postgresql/commands/
+  bootstrap.py`) it creates missing schemas and calls
+  ``create_all(checkfirst=True)``, so it only adds **new** tables. It does not
+  change existing tables, columns or indexes, so it is not suitable for
+  upgrading an existing database.
+- ``spinta migrate`` (`cli.migrate.migrate`) runs ``commands.migrate``, which
+  compares the manifest with the current database state and applies the
+  differences: new and changed columns, indexes, constraints, and Citus
+  distribution. Migration logic lives in `spinta/backends/postgresql/commands/
+  migrate/`. With ``--plan`` the SQL is printed instead of executed.
+
+``spinta sync`` is not a migration command. It synchronizes manifests with
+the Metadata Catalogue (see :doc:`/contrib/architecture/sync`).
+
 Transactions
 ************
 
