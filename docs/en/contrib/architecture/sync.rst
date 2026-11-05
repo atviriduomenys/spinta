@@ -124,12 +124,15 @@ Sync-owned files and locations
 **Planned.** ``spinta sync`` always uses predefined locations, so that it knows
 where to find and update its files. The rules are the same for every target:
 
-* All sync-owned files are stored under ``$XDG_DATA_HOME/spinta/`` (by default
-  ``~/.local/share/spinta``). Each target has its own directory there, for
-  example ``manifests/``, ``datasets/`` or ``clients/``. The exact file pattern
-  of each target is given on its target page. The state of each Catalogue
-  is in ``sync/<catalog>/``, a state file and a lock file per target, see
-  `Scheduling and state tracking`_.
+* All sync-owned files are stored under ``$XDG_DATA_HOME/spinta/sync/<catalog>/``
+  (by default ``~/.local/share/spinta/sync/<catalog>/``). Each target has its own
+  directory there, for example ``manifests/``, ``datasets/`` or ``clients/``. The
+  exact file pattern of each target is given on its target page. The state of
+  each target is in ``_state/``, see `Scheduling and state tracking`_.
+* ``<catalog>`` is the name of the Catalogue section in ``credentials.cfg``, for
+  example ``katalogas``. It is set in configuration (a proposed ``sync.catalog``
+  key, **Planned**, see `Missing parts and issues`_). Metadata synchronized from
+  different Catalogues is kept in different directories.
 * Users cannot change individual file locations. Only ``XDG_DATA_HOME`` moves
   the whole tree.
 * Settings that point to a file, for example ``manifests.default.path``, are
@@ -191,20 +194,18 @@ new change id. ``spinta keymap sync`` already works this way, see
 
 Each target has its own state file and its own lock, so that no two targets
 write the same file, and targets that do not need each other can run at the same
-time. The state of each Catalogue is kept in a directory:
+time. The state of each Catalogue is kept in a ``_state/`` directory next to the
+directories of the targets:
 
 .. code-block:: text
 
     $XDG_DATA_HOME/spinta/sync/<catalog>/
-        manifests.json      state of the manifests target
-        manifests.lock      lock of the manifests target
-        ...                 the same pair for every other target
+        <target>/...                the sync-owned files of the target
+        _state/<target>.json        state of the target
+        _state/<target>.lock        lock of the target
 
-``<catalog>`` is the name of the Catalogue that the metadata is synchronized
-from. It is the name of the Catalogue section in ``credentials.cfg``, for
-example ``katalogas``. If only the old ``default`` section exists, the name is
-``default``. The file names are the target names, so they are predefined like
-the other sync-owned locations.
+The file names are the target names, so they are predefined like the other
+sync-owned locations.
 
 **What is stored.** One file holds the state of one target. It holds no
 credentials and no synchronized values. The values are in the sync-owned files
@@ -261,7 +262,7 @@ Revisions are not stored. Each change record carries the revision of the object
 it changed. The agent needs revisions only when it writes back to the Catalogue
 (Part 3, not planned yet), so the state does not keep them.
 
-Example. ``manifests.json`` has a successful run. ``models.json`` failed on its
+Example. ``_state/manifests.json`` has a successful run. ``_state/models.json`` failed on its
 last run. Its cursor is still ``5209``, the last change id it applied, so the
 next run asks again from ``5210``.
 
@@ -300,7 +301,7 @@ not stored in the file, because they are user settings. If no target is due, the
 run does nothing and reports that everything is in sync. Daemon mode (a process
 that keeps running and synchronizes by itself) is tracked in Katalogas #1584.
 
-**Locking.** Each target has its own lock file, ``<target>.lock``. A run takes
+**Locking.** Each target has its own lock file, ``_state/<target>.lock``. A run takes
 the locks of the targets it runs before it reads any state:
 
 * ``spinta sync <target>`` and ``spinta sync <target> <element>`` take the lock
@@ -441,14 +442,19 @@ Missing parts and issues
 * **Per-element intervals** — the datasets page allows a dataset to have its own
   interval, but the state is per target. Decide whether the interval moves to
   configuration per element, or is dropped. No issue yet.
-* **State files and lock** — nothing of ``$XDG_DATA_HOME/spinta/sync/<catalog>/``
-  is implemented. Open points: support for ``flock`` on Windows, and the directory
-  name when only the old ``default`` section exists. No issue yet. See
+* **Catalogue key** — the ``sync.catalog`` configuration key that names the
+  ``credentials.cfg`` section is not implemented. The section is hardcoded:
+  ``katalogas`` (``KATALOGAS_CREDENTIALS_SECTION`` in ``spinta/auth.py``), with a
+  fallback to ``default`` (``get_catalog_credentials_section()`` in
+  ``spinta/cli/helpers/sync/helpers.py``). Open points: whether the key is
+  required or has a default, and whether the ``default`` fallback stays. No issue
+  yet.
+* **State files and lock** — nothing of ``$XDG_DATA_HOME/spinta/sync/<catalog>/_state/``
+  is implemented. Open point: support for ``flock`` on Windows. No issue yet. See
   `Scheduling and state tracking`_.
-* **Sync-owned files across Catalogues** — sync-owned locations such as
-  ``manifests/<dataset>.csv`` are not namespaced by Catalogue. Two Catalogues
-  with the same dataset code name would write the same file, and the lock of one
-  Catalogue does not prevent it. No issue yet.
+* **Catalogue namespace of sync-owned files** — today ``manifests.default.path``
+  is one path with no Catalogue in it. Two Catalogues with the same dataset code
+  name would write the same file. No issue yet.
 * **Summary output** — ``spinta sync`` without a subcommand still prints the
   whole manifest. No issue yet.
 * **Daemon mode** — katalogas#1584.

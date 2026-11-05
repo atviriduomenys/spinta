@@ -27,7 +27,7 @@ Location
 
 .. code-block:: text
 
-    $XDG_DATA_HOME/spinta/contracts/<contract>.yml
+    $XDG_DATA_HOME/spinta/sync/<catalog>/contracts/<contract>.yml
 
 ``<contract>`` is the contract id in UUID form. The file is ``.yml``, but the
 contract content is an ODOC ``adoc`` document, so the file format is open, see

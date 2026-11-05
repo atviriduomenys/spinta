@@ -28,11 +28,11 @@ Location
 
 .. code-block:: text
 
-    $XDG_DATA_HOME/spinta/push/<remote>.yml
+    $XDG_DATA_HOME/spinta/sync/<catalog>/push/<remote>.yml
 
-``<remote>`` is the remote name. The push state of ``spinta push`` is stored in
-the same directory, as ``<remote>.db``, so the two files differ only in the
-extension.
+``<remote>`` is the remote name. The push state of ``spinta push``
+(``<remote>.db``) is not sync-owned. It stays in ``$XDG_DATA_HOME/spinta/push/``,
+so the two files are in different directories. See `Open questions`_.
 
 Current implementation
 **********************
@@ -53,9 +53,11 @@ Open questions
 * **Element form.** Should the element be the section name in
   ``credentials.cfg`` (the host name), or the normalized remote name used in
   the file name (``data_gov_lt``)?
-* **Relation to the push state file.** The ``.db`` push state and the ``.yml``
-  sync output are in the same directory. Should the ``.yml`` file be generated
-  from the ``.db`` file, or from the same data read by ``spinta push``?
+* **Relation to the push state file.** The ``.db`` push state is in
+  ``spinta/push/`` and the ``.yml`` sync output is in ``spinta/sync/<catalog>/push/``.
+  Should the ``.yml`` file be generated from the ``.db`` file, or from the same
+  data read by ``spinta push``? Should the ``.db`` file move to ``spinta/sync/<catalog>/push/``
+  too?
 
 Related issues
 **************

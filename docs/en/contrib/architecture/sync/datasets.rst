@@ -45,30 +45,24 @@ Location
 
 .. code-block:: text
 
-    $XDG_DATA_HOME/spinta/datasets/<dataset>.yml
+    $XDG_DATA_HOME/spinta/sync/<catalog>/datasets/<dataset>.yml
 
 ``<dataset>`` is the dataset code name. For ``datasets/gov/rc/ar`` the file is
-``~/.local/share/spinta/datasets/datasets/gov/rc/ar.yml``. The ``datasets/``
+``~/.local/share/spinta/sync/katalogas/datasets/datasets/gov/rc/ar.yml``. The ``datasets/``
 segment appears twice, because the dataset code name already starts with
 ``datasets/``. The rule keeps it, see `Open questions`_.
 
-The :doc:`models` target writes into the same file. Each file holds the settings
-of one dataset and of all models that belong to it. Each setting is a dotted key
-named by the object code name, without the ``datasets/`` prefix. The prefix shows
-what the key configures: ``datasets`` for the dataset itself, ``models`` for one
-of its models. A dotted key replaces only the item it names, so the file for one
-dataset does not reset the settings of other datasets (see
-:ref:`configuration-syntax`):
+The :doc:`models` target writes into the same file. Each file holds the
+settings of one dataset and of all models that belong to it. A dotted key
+replaces only the item it names, so the file for one dataset does not reset the
+settings of other datasets (see :ref:`configuration-syntax`):
 
 .. code-block:: yaml
 
-    datasets.gov/vpk:
+    datasets.datasets/gov/vpk:
       resource: sql://user:pass@host/db
-    models.gov/vpk/Data:
+    models.datasets/gov/vpk/Data:
       backend: default
-
-The keys in the example are written without the ``datasets/`` prefix, see
-`Open questions`_.
 
 Users must not edit this file. To change a value, the user sets it in the
 configuration directory ``$XDG_CONFIG_HOME/spinta``. That value has priority
@@ -155,7 +149,7 @@ Output: where the values are written
 ************************************
 
 **Planned.** The values are written to one sync-owned file per dataset, under
-``$XDG_DATA_HOME/spinta/datasets/`` (see `Location`_). The options considered
+``$XDG_DATA_HOME/spinta/sync/<catalog>/datasets/`` (see `Location`_). The options considered
 were:
 
 .. list-table::
@@ -175,7 +169,7 @@ were:
      - No path to configure.
      - The configuration directory is for user-edited files. Sync output there
        would be mixed with user settings and could be edited by hand.
-   * - **One sync-owned file per dataset in** ``$XDG_DATA_HOME/spinta/datasets/``
+   * - **One sync-owned file per dataset in** ``$XDG_DATA_HOME/spinta/sync/<catalog>/datasets/``
        **(chosen)**
      - No path to configure. The user can override any value in the
        configuration directory. The sync output is never edited by hand. Each
@@ -210,7 +204,7 @@ Current status
 * no ``datasets`` target in ``spinta sync``;
 * no element argument, ``spinta sync`` takes no arguments today;
 * no request that reads a single dataset's periodicity or retention value;
-* no sync-owned file under ``$XDG_DATA_HOME/spinta/datasets/``;
+* no sync-owned file under ``$XDG_DATA_HOME/spinta/sync/<catalog>/datasets/``;
 * no reader of the value in the compression job;
 * no sync state store.
 

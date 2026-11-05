@@ -28,7 +28,7 @@ Location
 
 .. code-block:: text
 
-    $XDG_DATA_HOME/spinta/backends/<backend>.yml
+    $XDG_DATA_HOME/spinta/sync/<catalog>/backends/<backend>.yml
 
 ``<backend>`` is the backend name. The file can contain data source
 credentials, so it must be readable only by its owner. The design says

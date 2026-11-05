@@ -26,7 +26,7 @@ Location
 
 .. code-block:: text
 
-    $XDG_DATA_HOME/spinta/clients/<client>.yml
+    $XDG_DATA_HOME/spinta/sync/<catalog>/clients/<client>.yml
 
 ``<client>`` is the client id in UUID form.
 
@@ -53,7 +53,7 @@ Open questions
 **************
 
 * **Two places for client files.** Should sync-owned client files in
-  ``$XDG_DATA_HOME/spinta/clients/`` be a separate store, or should they be
+  ``$XDG_DATA_HOME/spinta/sync/<catalog>/clients/`` be a separate store, or should they be
   read as a fallback for the client files in the configuration directory? If a
   client exists in both, which one wins?
 * **Layout.** The sync-owned location uses ``<client>.yml``. The existing store

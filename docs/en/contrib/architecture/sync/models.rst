@@ -142,23 +142,20 @@ that the model belongs to:
 
 .. code-block:: text
 
-    $XDG_DATA_HOME/spinta/datasets/<dataset>.yml
+    $XDG_DATA_HOME/spinta/sync/<catalog>/datasets/<dataset>.yml
 
 For ``datasets/gov/rc/ar/City`` the dataset is ``datasets/gov/rc/ar``, so the
-file is ``~/.local/share/spinta/datasets/datasets/gov/rc/ar.yml``. The same file
+file is ``~/.local/share/spinta/sync/katalogas/datasets/datasets/gov/rc/ar.yml``. The same file
 is used by the :doc:`datasets` target.
 
-The file holds the settings of the dataset and of all its models. Each setting
-is a dotted key named by the object code name, without the ``datasets/`` prefix.
-The prefix shows what the key configures: ``datasets`` for the dataset, and
-``models`` for a model. A model key is the dataset name followed by the model
-name:
+The file holds the settings of the dataset and of all its models. A model key
+is the dataset name followed by the model name:
 
 .. code-block:: yaml
 
-    datasets.gov/rc/ar:
+    datasets.datasets/gov/rc/ar:
       resource: sql://user:pass@host/db
-    models.gov/rc/ar/City:
+    models.datasets/gov/rc/ar/City:
       backend: default
       distribute:
         type: copy

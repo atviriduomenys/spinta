@@ -30,11 +30,11 @@ Location
 
 .. code-block:: text
 
-    $XDG_DATA_HOME/spinta/manifests/<dataset>.csv
+    $XDG_DATA_HOME/spinta/sync/<catalog>/manifests/<dataset>.csv
 
 ``<dataset>`` is the value of the ``dataset`` column, for example
 ``datasets/gov/example``. The file is then
-``~/.local/share/spinta/manifests/datasets/gov/example.csv``.
+``~/.local/share/spinta/sync/katalogas/manifests/datasets/gov/example.csv``.
 
 One file per dataset fits the catalogue API, because Part 1 downloads one DSA
 per dataset id.
@@ -67,7 +67,7 @@ Differences from the target design:
 
 * The file is one local manifest for all datasets, set by the user in
   ``manifests.default.path``. The target design uses one sync-owned file per
-  dataset under ``$XDG_DATA_HOME/spinta/manifests/``, and ignores
+  dataset under ``$XDG_DATA_HOME/spinta/sync/<catalog>/manifests/``, and ignores
   ``manifests.default.path`` except as an override.
 * The element argument is not accepted, the command takes no arguments.
 * The whole manifest is printed to stdout instead of a summary.
@@ -170,7 +170,7 @@ merge cases. HTTP calls are mocked with ``requests_mock``.
 Missing parts and issues
 ========================
 
-* **Predefined per-dataset location** under ``$XDG_DATA_HOME/spinta/manifests/``,
+* **Predefined per-dataset location** under ``$XDG_DATA_HOME/spinta/sync/<catalog>/manifests/``,
   instead of ``manifests.default.path``. No issue yet.
 * **Element argument** (``spinta sync manifests <element>``). No issue yet.
 * **Part 2, source to agent** — spinta#1489.

@@ -28,7 +28,7 @@ Location
 
 .. code-block:: text
 
-    $XDG_DATA_HOME/spinta/logs/accesslogs/<date>.jsonl
+    $XDG_DATA_HOME/spinta/sync/<catalog>/logs/accesslogs/<date>.jsonl
 
 ``<date>`` is the log rotation date. One file per rotation period, in JSON
 Lines format (one JSON object per line).
@@ -54,7 +54,7 @@ Open questions
 * **Element meaning.** Is the element the source access log file that is read,
   or the sync-owned file that is updated?
 * **Default log location.** Should ``accesslog.file`` default to a file under
-  ``$XDG_DATA_HOME/spinta/logs/accesslogs/``, or stay ``/dev/null``?
+  ``$XDG_DATA_HOME/spinta/sync/<catalog>/logs/accesslogs/``, or stay ``/dev/null``?
 * **Rotation.** Who rotates the files by date: Spinta, or an external tool such
   as ``logrotate``?
 
