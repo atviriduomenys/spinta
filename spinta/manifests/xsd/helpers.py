@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from copy import copy, deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.request import urlopen
 
@@ -104,6 +104,9 @@ NODE_TYPES = [
     "maxInclusive",
     "appinfo",
     "Relationship",  # custom RC element
+    "key",  # XSD identity constraint for primary keys
+    "selector",  # child of key - defines scope
+    "field",  # child of key - defines field(s)
 ]
 
 NODE_ATTRIBUTE_TYPES = ["minOccurs", "maxOccurs", "type", "use", "name", "ref", "base", "value"]
@@ -120,6 +123,20 @@ class XSDType:
 
     def __init__(self, name: str = ""):
         self.name = name
+
+
+@dataclass
+class XSDKey:
+    """Represents an xs:key constraint from XSD schema"""
+
+    name: str
+    selector_xpath: str
+    field_xpaths: list[str]
+    # element the key is declared in: its inline models, or its named complexType
+    element_name: str = ""
+    element_models: list[XSDModel] = field(default_factory=list)
+    element_type: str | None = None
+    is_root_element: bool = False
 
 
 """
@@ -236,6 +253,7 @@ class XSDModel:
     extends_model: XSDModel | None = None
     is_partial: bool = True
     features: str | None = None
+    ref: list[str] | None = None  # primary key fields from xs:key
 
     def __init__(self, dataset_resource) -> None:
         self.properties = {}
@@ -270,6 +288,9 @@ class XSDModel:
             for prop_name, prop in self.properties.items():
                 properties.update(prop.get_data())
             model_data["properties"] = properties
+
+        if self.ref:
+            model_data["external"]["pk"] = self.ref
 
         if self.uri is not None:
             model_data["uri"] = self.uri
@@ -308,6 +329,23 @@ def _is_array(node: _Element) -> bool:
     return node.attrib.get("maxOccurs", 1) == "unbounded" or int(node.attrib.get("maxOccurs", 1)) > 1
 
 
+def _xpath_steps(xpath: str) -> list[str] | None:
+    """Splits xs:key selector or field xpath into steps without namespace prefixes, e.g. "@tns:ID" -> ["@ID"].
+
+    Returns None for unions, wildcards and descendant paths, which are not supported.
+    """
+    if any(token in xpath for token in ("|", "*", "//", "::")):
+        return None
+
+    steps = []
+    for step in xpath.strip().split("/"):
+        if step == ".":
+            continue
+        attribute_marker = "@" if step.startswith("@") else ""
+        steps.append(attribute_marker + step.removeprefix("@").split(":")[-1])
+    return steps
+
+
 class XSDReader:
     dataset_resource: XSDDatasetResource
     models: list[XSDModel]
@@ -323,6 +361,7 @@ class XSDReader:
     properties_xsd_type_to_set: set[str]
     namespaces: dict[str, str] | None = None
     global_attribute_properties: dict[str, list[XSDProperty]] = {}
+    keys: list[XSDKey]
 
     def __init__(self, path: str, dataset_name: str) -> None:
         self._path = path
@@ -334,6 +373,7 @@ class XSDReader:
         self.top_level_complex_type_models = {}
         self.separate_complex_type_root_elements = []
         self.properties_xsd_type_to_set = set()
+        self.keys = []
 
     def register_simple_types(self, state: State) -> None:
         custom_types_nodes = self.root.xpath('./*[local-name() = "simpleType"]')
@@ -449,6 +489,69 @@ class XSDReader:
                     logger.warning(f"Parent model '{model.extends_model}' not found for model '{model.name}'")
                     model.extends_model = None
 
+    def _post_process_keys(self) -> None:
+        """Sets model `ref` (primary key) from xs:key constraints."""
+        for key in self.keys:
+            for target_model in self._find_key_target_models(key):
+                self._apply_key_to_model(key, target_model)
+
+    def _find_key_target_models(self, key: XSDKey) -> list[XSDModel]:
+        steps = _xpath_steps(key.selector_xpath)
+        if steps is None:
+            logger.warning(f"xs:key '{key.name}' selector '{key.selector_xpath}' is not supported")
+            return []
+
+        # root element copies have deep-copied ref models, so models are looked up by name
+        models_by_name = {model.name: model for model in self.models}
+        models = self._find_key_element_models(key)
+
+        # selector is relative to the element the key is declared in
+        for step in steps:
+            models = [
+                models_by_name.get(xsd_property.ref_model.name, xsd_property.ref_model)
+                for model in models
+                for xsd_property in model.properties.values()
+                if xsd_property.ref_model and xsd_property.xsd_name == step
+            ]
+
+        if not models:
+            logger.warning(f"xs:key '{key.name}' selector '{key.selector_xpath}' does not match any model")
+        return list(dict.fromkeys(models))
+
+    def _find_key_element_models(self, key: XSDKey) -> list[XSDModel]:
+        if key.element_type is None:
+            return key.element_models
+        if key.is_root_element:
+            # each root element gets its own model of the named complexType
+            return [model for model in self.models if model.is_entry_model and model.source == f"/{key.element_name}"]
+        return self.top_level_complex_type_models.get(key.element_type, [])
+
+    def _apply_key_to_model(self, key: XSDKey, model: XSDModel) -> None:
+        key_property_names = []
+        for field_xpath in key.field_xpaths:
+            property_name = self._find_property_name_by_field_xpath(model, field_xpath)
+            if property_name is None:
+                # a key with some of its fields missing does not guarantee uniqueness
+                logger.warning(f"xs:key '{key.name}' field '{field_xpath}' not found in model {model.name}")
+                return
+            key_property_names.append(property_name)
+
+        model.ref = key_property_names
+
+    @staticmethod
+    def _find_property_name_by_field_xpath(model: XSDModel, field_xpath: str) -> str | None:
+        steps = _xpath_steps(field_xpath)
+        # fields in nested elements are not supported
+        if not steps or len(steps) > 1:
+            return None
+
+        step = steps[0]
+        source = step if step.startswith("@") else f"{step}/text()"
+        for property_name, xsd_property in model.properties.items():
+            if xsd_property.source == source:
+                return property_name
+        return None
+
     def post_process_separate_complex_type_root_elements(self) -> None:
         processed_models = []
         deduplicator = Deduplicator()
@@ -528,6 +631,9 @@ class XSDReader:
         self._post_process_resource_model()
 
         self.post_process_separate_complex_type_root_elements()
+
+        # after root elements get their own models, so keys don't leak between them
+        self._post_process_keys()
 
         self._sort_alphabetically()
 
@@ -678,6 +784,15 @@ class XSDReader:
 
             elif QName(child).localname == "annotation":
                 description = self.process_annotation(child, state)
+
+            elif QName(child).localname == "key":
+                # keys are applied after all models are created, see _post_process_keys
+                key = self.process_key(child, state)
+                key.element_name = property_name
+                key.element_models = models
+                key.element_type = property_type_to
+                key.is_root_element = is_root
+                self.keys.append(key)
 
             else:
                 raise RuntimeError(f"This node type cannot be in the element: {QName(child).localname}")
@@ -892,6 +1007,31 @@ class XSDReader:
                 raise RuntimeError(f"Unexpected element type inside simpleType element: {QName(child).localname}")
         property_type.description = description
         return property_type
+
+    def process_key(self, node: _Element, state: State) -> XSDKey:
+        """
+        Process xs:key element to extract primary key constraint.
+
+        XSD structure:
+            <xs:key name="KeyName">
+                <xs:selector xpath="path/to/elements"/>
+                <xs:field xpath="@attribute or element"/>
+            </xs:key>
+        """
+        key_name = node.attrib.get("name")
+
+        selector_nodes = node.xpath('./*[local-name() = "selector"]')
+        if not selector_nodes:
+            raise RuntimeError(f"xs:key '{key_name}' must have a selector element")
+        selector_xpath = selector_nodes[0].attrib.get("xpath")
+
+        # composite keys have several fields
+        field_nodes = node.xpath('./*[local-name() = "field"]')
+        if not field_nodes:
+            raise RuntimeError(f"xs:key '{key_name}' must have at least one field element")
+        field_xpaths = [field_node.attrib.get("xpath") for field_node in field_nodes]
+
+        return XSDKey(name=key_name, selector_xpath=selector_xpath, field_xpaths=field_xpaths)
 
     def process_sequence(self, node: _Element, state: State) -> list[list[XSDProperty]]:
         """
