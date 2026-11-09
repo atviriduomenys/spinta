@@ -214,8 +214,8 @@ nereikalauja – jis tik parodo, kokias paslaugas mato manifeste.
 
 Privaloma nurodyti ir **`info.version`** – paslaugos versiją, pvz., `"1"` (kabutėse, kad
 YAML ją skaitytų kaip tekstą). Ji turi sutapti su UDTS URL versijos segmentu: kai
-`--path` baigiasi `/1`, `info.version` – `"1"`. Jos `spinta udts oas` netikrina: nenurodžius įrašoma
-`1.0.0`, todėl, ar ji nurodyta, patikrinkite patys.
+`--path` baigiasi `/1`, `info.version` – `"1"`. Jos `spinta udts oas` netikrina: nenurodžius laukas lieka
+tuščias, todėl, ar ji nurodyta, patikrinkite patys.
 
 `servers[].url` – **vartų** bazinis adresas, ne agento. Vartai jį rodo kūrėjų
 portalo dokumentacijoje, o `endpoint.targetUrl` nustatomas rankomis. Serveris
@@ -306,7 +306,7 @@ externalDocs:
 | `info.title` | taip | Vardas, kuriuo paslauga matoma vartų portale; rekomenduojama toks pat, kaip Kataloge. Kiekvienai paslaugai atskiras. |
 | `info.summary` | ne | Trumpas paslaugos aprašas. OpenAPI 3.0 `info` šio lauko neturi, todėl jis tampa pirma `info.description` pastraipa. |
 | `info.description` | taip (vartams) | Išsamesnis paslaugos aprašas. Nenurodžius įrašomas bendras angliškas tekstas; rekomenduojama nurodyti savo paslaugos aprašą lietuviškai. |
-| `info.version` | taip | Paslaugos versija, sutampanti su UDTS URL versijos segmentu, pvz., `"1"`. Generatorius jos netikrina – nenurodžius įrašoma `1.0.0`. Galima nurodyti ir parametru `--api-version`. |
+| `info.version` | taip | Paslaugos versija, sutampanti su UDTS URL versijos segmentu, pvz., `"1"`. Generatorius jos netikrina – nenurodžius laukas lieka tuščias. Galima nurodyti ir parametru `--api-version`. |
 | `info.termsOfService` | ne | Nuoroda į paslaugos naudojimo sąlygas; pilnas URL. |
 | `info.contact.name` | taip | Institucijos, į kurią kreipiasi paslaugos naudotojai, pavadinimas. |
 | `info.contact.url` | taip | Tos institucijos interneto svetainė; pilnas URL. |

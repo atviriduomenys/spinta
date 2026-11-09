@@ -22,6 +22,7 @@ Stulpelis „Ką daryti“:
 |----------|---------------|-----------|
 | [Pakeitimai pagal versijas](versiju-pakeitimai.md) | Papildyta 1.3.1 ir 2.0.0 versijų pakeitimais; `uvicorn` trūkumo eilutė perkelta prie 1.3.1, kurioje requirements failai perkurti. | **Patikrinti** konfigūraciją, jei atnaujinate į 2.0.0. |
 | [OAS generavimas](oas-generavimas.md), [Apie SPINTA agentą](index.md), [Sprendimai prieš diegimą](sprendimai.md), [Registracija ir diegimas į vartus](registracija.md) | Papildyta išorinių TEST vartų adresu `test-api.gov.lt`. | **Patikrinti** – jei testinė agento aplinka su testiniais duomenimis jungiama prie išorinių vartų, OAS `servers.url` turi būti `https://test-api.gov.lt`. |
+| [OAS generavimas](oas-generavimas.md) | Ištaisytas `info.version` aprašymas: nenurodžius versijos laukas lieka tuščias, o ne `1.0.0`, kaip buvo parašyta anksčiau. | **Patikrinti** – jei OAS `info.version` tuščias, nurodyti versiją (ji turi sutapti su UDTS URL versija) ir sugeneruoti OAS iš naujo. |
 
 ### 2026-10-29
 
