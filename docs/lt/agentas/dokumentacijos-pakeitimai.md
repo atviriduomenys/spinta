@@ -16,6 +16,12 @@ Stulpelis „Ką daryti“:
 
 ## Pakeitimai
 
+### 2026-11-09
+
+| Puslapis | Kas pasikeitė | Ką daryti |
+|----------|---------------|-----------|
+| [Pakeitimai pagal versijas](versiju-pakeitimai.md) | Papildyta 1.3.1 ir 2.0.0 versijų pakeitimais; `uvicorn` trūkumo eilutė perkelta prie 1.3.1, kurioje requirements failai perkurti. | **Patikrinti** konfigūraciją, jei atnaujinate į 2.0.0. |
+
 ### 2026-10-29
 
 | Puslapis | Kas pasikeitė | Ką daryti |

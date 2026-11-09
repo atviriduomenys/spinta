@@ -71,7 +71,7 @@ Oficialiame `vssadevops/spinta` atvaizde komanda `spinta` yra tiesiai `PATH`, to
 
 `docker compose pull` parsisiunčia tą versijos žymą, kuri nurodyta jūsų
 `docker-compose.yml` (`latest` = naujausia). Norėdami pereiti prie konkrečios versijos,
-faile pakeiskite žymą, pvz. `vssadevops/spinta:1.2.0`, ir tik tada vykdykite `pull`.
+faile pakeiskite žymą, pvz. `vssadevops/spinta:2.0.0`, ir tik tada vykdykite `pull`.
 :::
 
 :::{caution}
