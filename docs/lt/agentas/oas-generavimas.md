@@ -256,6 +256,7 @@ Tai normalu – kelias paimamas iš `--path`, konfigūracijoje jo rašyti nereik
 |---|---|---|
 | Vidiniai, TEST | Testinė agento aplinka su testiniais duomenimis | `https://test-apigw.gov.lt` |
 | Vidiniai, PROD | Produkcinė agento aplinka (testiniai arba produkciniai duomenys); testinė agento aplinka su produkciniais duomenimis | `https://apigw.gov.lt` |
+| Išoriniai, TEST | Testinė agento aplinka su testiniais duomenimis | `https://test-api.gov.lt` |
 | Išoriniai, PROD | Produkcinė agento aplinka (testiniai arba produkciniai duomenys); testinė agento aplinka su produkciniais duomenimis | `https://api.gov.lt` |
 
 - Kiekvienai aplinkai generuojamas **atskiras** OAS failas su savo `servers` adresu.

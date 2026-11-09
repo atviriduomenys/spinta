@@ -180,7 +180,7 @@ nuskaitys OAS automatiškai.
 - **PROD vartai** — registruojamas **Gamybinės** aplinkos agentas, taip pat **Testavimo**
   (DSA testavimo) aplinkos agentas, dirbantis su **PROD duomenimis**. Testavimo agentui
   VSSA, diegdama paslaugą, nustato atskirą API context-path (pvz. `/stage` priešdėlį).
-- **TEST vartai** (`test-apigw.gov.lt`) — registruojamas **Testavimo** aplinkos agentas,
+- **TEST vartai** (vidiniai – `test-apigw.gov.lt`, išoriniai – `test-api.gov.lt`) — registruojamas **Testavimo** aplinkos agentas,
   dirbantis su **DEMO (testiniais) duomenimis**.
 
 Kokį vartų adresą nurodyti OAS – žr. {ref}`OAS generavimas – Kokius adresus nurodyti <oas-adresai>`.

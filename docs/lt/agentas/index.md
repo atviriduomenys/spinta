@@ -80,7 +80,8 @@ Prie kurių vartų jungiamas TEST agentas, priklauso nuo jo duomenų:
 - **TEST agentas su PROD duomenimis** jungiamas prie **PROD vartų** (vidiniai – `apigw.gov.lt`,
   išoriniai – `api.gov.lt`), tik atskiru API context-path (pvz. `/stage` priešdėliu). Jį nustato
   VSSA, diegdama paslaugą į vartus.
-- **TEST agentas su DEMO duomenimis** jungiamas prie **TEST vartų** (`test-apigw.gov.lt`).
+- **TEST agentas su DEMO duomenimis** jungiamas prie **TEST vartų** (vidiniai – `test-apigw.gov.lt`,
+  išoriniai – `test-api.gov.lt`).
 
 Kokį adresą tada nurodyti OAS – žr. {ref}`OAS generavimas – Kokius adresus nurodyti <oas-adresai>`.
 
