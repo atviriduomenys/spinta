@@ -191,7 +191,7 @@ def eq(env: SqlQueryBuilder, fpr: ForeignProperty, dtype: DataType, value: list)
 @ufunc.resolver(SqlQueryBuilder, DataType, list)
 def ne(env: SqlQueryBuilder, dtype: DataType, value: list[Any]):
     column = env.backend.get_column(env.table, dtype.prop)
-    return ~column.in_(value)
+    return ~column.in_([prepare_temporal_value(column, v) for v in value])
 
 
 @ufunc.resolver(SqlQueryBuilder, Text, list)
@@ -209,14 +209,14 @@ def ne(
 ):
     table = env.joins.get_table(env, fpr)
     column = env.backend.get_column(table, fpr.right.prop)
-    return ~column.in_(value)
+    return ~column.in_([prepare_temporal_value(column, v) for v in value])
 
 
 @ufunc.resolver(SqlQueryBuilder, ForeignProperty, list)
 def ne(env: SqlQueryBuilder, fpr: ForeignProperty, value: list[Any]):
     table = env.joins.get_table(env, fpr)
     column = env.backend.get_column(table, fpr.right.prop)
-    return ~column.in_(value)
+    return ~column.in_([prepare_temporal_value(column, v) for v in value])
 
 
 @ufunc.resolver(SqlQueryBuilder, object)

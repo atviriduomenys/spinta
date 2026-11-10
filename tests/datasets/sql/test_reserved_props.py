@@ -1193,6 +1193,35 @@ class TestPrimaryKeyLookups:
         resp = app.get('/example/Person?created="2020-01-01T10:00:00"')
         assert [row["name"] for row in resp.json()["_data"]] == ["Jonas"]
 
+    @pytest.mark.parametrize(
+        "query, expected",
+        [
+            ('created=["2020-01-01T10:00:00"]', ["Jonas"]),
+            ('created!=["2020-01-01T10:00:00"]', []),
+        ],
+    )
+    def test_filter_by_datetime_list(
+        self, context, rc: RawConfig, tmp_path: Path, datetime_db, query: str, expected: list[str]
+    ):
+        create_tabular_manifest(
+            context,
+            tmp_path / "manifest.csv",
+            striptable("""
+        d | r | b | m | property | type     | ref           | source  | access
+        example                  |          |               |         |
+          | data                 |          | sqlite        |         |
+          |   |   | Person       |          | name, created | person  |
+          |   |   |   | name     | string   |               | name    | open
+          |   |   |   | created  | datetime |               | created | open
+        """),
+        )
+        app = create_client(rc, tmp_path, datetime_db, mode="external")
+        app.authmodel("example/Person", ["getall", "search"])
+
+        resp = app.get(f"/example/Person?{query}")
+        assert resp.status_code == 200, resp.json()
+        assert [row["name"] for row in resp.json()["_data"]] == expected
+
     def test_ref_with_datetime_in_primary_key(self, context, rc: RawConfig, tmp_path: Path, datetime_db):
         create_tabular_manifest(
             context,
