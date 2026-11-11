@@ -110,5 +110,8 @@ def param(env: LinkBuilder, prop: Property, bind: Bind) -> None:
 
     """
     if bind.name not in env.params:
+        # Model params are resolved at read time, there is no resource param to link.
+        if prop.model and any(p.name == bind.name for p in prop.model.params):
+            return
         raise ParamNotFound(param=bind.name)
     prop.param = env.params[bind.name]

@@ -979,6 +979,26 @@ def test_check_query_conflicts_no_clash_ok(context: Context, rc, cli: SpintaCliR
     cli.invoke(rc, ["check", "--check-query-conflicts", tmp_path / "manifest.csv"])
 
 
+def test_check_param_prepare_refers_to_model_param(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # `param(code)` refers to a model param, not a resource `query()` param.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type    | ref  | source                   | prepare     | access
+    datasets/gov/example     |         |      |                          |             |
+      | resource             | json    |      | http://example.com/temps |             |
+      |   |   | Temperature  |         | code |                          |             |
+      |   |   |   |          | param   | code | 7                        |             |
+      |   |   |   |          |         |      | 20                       |             |
+      |   |   |   | code     | string  |      |                          | param(code) | open
+      |   |   |   | value    | number  |      | temp_{code}              |             | open
+    """),
+    )
+
+    cli.invoke(rc, ["check", tmp_path / "manifest.csv"])
+
+
 QUERY_WITHOUT_DEFAULT_MANIFEST = """
     d | r | b | m | property | type     | ref    | source                                 | prepare | access
     datasets/gov/example     |          |        |                                        |         |
