@@ -81,7 +81,7 @@ Also provide related issues and resources if any.
 
 Example for a `story`:
 
-.. code-block:: plain
+.. code-block:: text
 
     ### Feature
 

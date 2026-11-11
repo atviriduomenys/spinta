@@ -32,6 +32,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx_rtd_theme",
     "myst_parser",
+    "sphinxcontrib.mermaid",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -46,6 +47,9 @@ language = "lt"
 
 locale_dirs = ["locale/"]
 gettext_compact = False
+
+# Enable interactive pan/zoom (mouse wheel + drag) on mermaid diagrams.
+mermaid_d3_zoom = True
 
 
 def setup(app):
