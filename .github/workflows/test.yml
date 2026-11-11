@@ -45,7 +45,20 @@ jobs:
           poetry --version
           poetry install --all-extras -vv
 
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 60); do
+            pg_isready -h localhost -p 5432 -U ci -q && exit 0
+            sleep 1
+          done
+          docker logs postgres --tail 30
+          exit 1
+
       - name: Test with pytest
         env:
           SPINTA_BACKENDS__DEFAULT__DSN: postgresql://ci:secret@localhost:5432/spinta
         run: make test-github
+
+      - name: PostgreSQL logs
+        if: failure()
+        run: docker logs postgres --tail 100
