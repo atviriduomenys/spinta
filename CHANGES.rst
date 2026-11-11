@@ -120,8 +120,14 @@ Bug fixes:
   primary key property's name differs from its source column name
   (`#1924`_).
 
+- Generated OpenAPI specifications describe an array declared only by its
+  ``x[]`` row, such as a one-to-many ``backref``, with the visibility of that
+  row. Previously the array was left out, and response validation rejected it
+  as an additional property (`#2085`_).
+
 .. _#1924: https://github.com/atviriduomenys/spinta/issues/1924
 .. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
+.. _#2085: https://github.com/atviriduomenys/spinta/issues/2085
 .. _#2101: https://github.com/atviriduomenys/spinta/issues/2101
 
 2.1.0 (2026-11-11)
