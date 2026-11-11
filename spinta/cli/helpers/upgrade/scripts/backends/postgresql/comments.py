@@ -9,14 +9,12 @@ from spinta import commands
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import TableIdentifier, get_table_identifier, get_table_name
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model, Property
 from spinta.manifests.components import Manifest
 from spinta.types.datatype import Array, DataType, File
 
 
 def cli_requires_comments_migration(context: Context, **kwargs) -> bool:
-    ensure_store_is_loaded(context)
     store = context.get("store")
 
     inspectors = {}
@@ -138,7 +136,6 @@ def table_contains_all_comments(backend: PostgreSQL, inspector: PGInspector, tab
 
 
 def migrate_comments(context: Context, manifest: Manifest | None = None, verbose: bool = True, **kwargs) -> None:
-    ensure_store_is_loaded(context)
     store = context.get("store")
     if manifest is None:
         manifest = store.manifest

@@ -15,9 +15,11 @@ def run_all_scripts(
     force: bool = False,
     check_only: bool = False,
     status_cache: ScriptStatusCache | None = None,
+    targets: set[str] | None = None,
+    tags: set[str] | None = None,
     **kwargs,
 ):
-    scripts = script_registry.get_all(script_type)
+    scripts = script_registry.get_all(script_type, targets=targets, tags=tags)
     sorted_scripts = sort_scripts_by_required(scripts)
     for script_name in sorted_scripts.keys():
         run_specific_script(

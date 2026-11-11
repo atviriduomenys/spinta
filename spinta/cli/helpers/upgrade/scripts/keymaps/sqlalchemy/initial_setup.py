@@ -21,5 +21,5 @@ def sql_keymap_initial_migration(context: Context, **kwargs):
 
 def apply_migration(context: Context, keymap: "SqlAlchemyKeyMap", migration: str):
     # Initialize optional tables
-    keymap.get_table(keymap.sync_table_name)
-    keymap.get_table(keymap.migration_table_name)
+    keymap.db.get_table(keymap.sync_table_name)
+    keymap.db.get_table(keymap.migrations.migration_table_name)

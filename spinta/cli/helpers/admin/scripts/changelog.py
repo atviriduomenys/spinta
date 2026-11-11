@@ -18,7 +18,6 @@ from spinta.backends.postgresql.components import PostgreSQL
 from spinta.backends.postgresql.helpers.migrate.migrate import get_prop_names
 from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.cli.helpers.auth import require_auth
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.commands.write import dataitem_from_payload, prepare_data, prepare_data_for_write, prepare_patch
 from spinta.components import Context, DataItem, Model
 from spinta.core.enums import Action
@@ -312,7 +311,7 @@ async def _duplicate_mapping_to_dataitem(
 
 
 def models_with_pkey(context: Context, whitelist: list[str]) -> Generator[Model]:
-    store = ensure_store_is_loaded(context)
+    store = context.get("store")
 
     for model_name in whitelist:
         model = commands.get_model(context, store.manifest, model_name)

@@ -24,6 +24,14 @@ from spinta.cli.helpers.upgrade.scripts.keymaps.sqlalchemy.redirect_support impo
     requires_sql_keymap_redirect_migration,
     sql_keymap_redirect_migration,
 )
+from spinta.cli.helpers.upgrade.scripts.push_state.initial_setup import (
+    push_state_initial_migration,
+    requires_push_state_initial_migration,
+)
+from spinta.cli.helpers.upgrade.scripts.push_state.rename_rev import (
+    push_state_rename_rev_migration,
+    requires_push_state_rename_rev_migration,
+)
 from spinta.cli.helpers.upgrade.scripts.redirect import cli_requires_redirect_migration, migrate_redirect
 
 # For convenience, easier access to upgrade scripts
@@ -40,6 +48,7 @@ script_registry.register(
 script_registry.register(
     UpgradeScript(
         name=Script.REDIRECT.value,
+        requires_store=True,
         run=migrate_redirect,
         check=cli_requires_redirect_migration,
         targets={ScriptTarget.BACKEND.value},
@@ -51,6 +60,7 @@ script_registry.register(
 script_registry.register(
     UpgradeScript(
         name=Script.POSTGRESQL_COMMENTS.value,
+        requires_store=True,
         run=migrate_comments,
         check=cli_requires_comments_migration,
         targets={ScriptTarget.BACKEND.value, ScriptTarget.POSTGRESQL.value},
@@ -61,6 +71,7 @@ script_registry.register(
 script_registry.register(
     UpgradeScript(
         name=Script.POSTGRESQL_SCHEMAS.value,
+        requires_store=True,
         run=migrate_schemas,
         check=cli_requires_schema_migration,
         targets={ScriptTarget.BACKEND.value, ScriptTarget.POSTGRESQL.value},
@@ -73,6 +84,7 @@ script_registry.register(
 script_registry.register(
     UpgradeScript(
         name=Script.SQL_KEYMAP_INITIAL.value,
+        requires_store=True,
         run=sql_keymap_initial_migration,
         check=requires_sql_keymap_initial_migration,
         targets={ScriptTarget.SQLALCHEMY_KEYMAP.value},
@@ -82,6 +94,7 @@ script_registry.register(
 script_registry.register(
     UpgradeScript(
         name=Script.SQL_KEYMAP_REDIRECT.value,
+        requires_store=True,
         run=sql_keymap_redirect_migration,
         check=requires_sql_keymap_redirect_migration,
         required=[Script.SQL_KEYMAP_INITIAL.value],
@@ -92,10 +105,32 @@ script_registry.register(
 script_registry.register(
     UpgradeScript(
         name=Script.SQL_KEYMAP_MODIFIED.value,
+        requires_store=True,
         run=sql_keymap_modified_migration,
         check=requires_sql_keymap_modified_migration,
         required=[Script.SQL_KEYMAP_REDIRECT.value],
         targets={ScriptTarget.SQLALCHEMY_KEYMAP.value},
         tags={ScriptTag.DB_MIGRATION.value},
+    )
+)
+
+# Push state migrations
+script_registry.register(
+    UpgradeScript(
+        name=Script.PUSH_STATE_INITIAL.value,
+        run=push_state_initial_migration,
+        check=requires_push_state_initial_migration,
+        targets={ScriptTarget.PUSH_STATE_DB.value},
+        tags={ScriptTag.DB_MIGRATION.value},
+    )
+)
+script_registry.register(
+    UpgradeScript(
+        name=Script.PUSH_REV_RENAME.value,
+        run=push_state_rename_rev_migration,
+        check=requires_push_state_rename_rev_migration,
+        targets={ScriptTarget.PUSH_STATE_DB.value},
+        tags={ScriptTag.DB_MIGRATION.value},
+        required=[Script.PUSH_STATE_INITIAL.value],
     )
 )
