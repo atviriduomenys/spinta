@@ -210,6 +210,11 @@ class BackRef(DataType):
     }
 
 
+# Types whose target model can supply an undeclared intermediate property:
+# `ref` since #397, `backref` since #2033.
+NESTING_TYPES = Ref | BackRef
+
+
 class Generic(DataType):
     schema = {
         "model": {"type": "string"},
@@ -291,6 +296,8 @@ class Object(DataType):
 
     properties: dict[str, Property] = None
     requires_source = False
+    # Replaces a `ref`/`backref` to a model missing from the manifest (#1872).
+    downgraded: bool = False
 
     def load(self, value: Any):
         if value is None or value is NA:

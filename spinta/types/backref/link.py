@@ -62,7 +62,13 @@ def find_backref_ref(dtype: Denorm, backref_model: str, given_ref: object):
         yield from result
 
 
-def _link_backref(context: Context, dtype: BackRef):
+def _link_backref(context: Context, dtype: BackRef) -> bool:
+    """Link a backref to its target model.
+
+    Returns False, when the target model is not declared in this manifest and
+    the property was downgraded to an object, so `dtype` is no longer used by
+    the property.
+    """
     set_dtype_backend(dtype)
     backref_model = dtype.prop.model.name if isinstance(dtype.prop.model, Model) else dtype.prop.model
     backref_target_model = dtype.model.name if isinstance(dtype.model, Model) else dtype.model
@@ -73,7 +79,7 @@ def _link_backref(context: Context, dtype: BackRef):
         if not commands.has_model(context, dtype.prop.model.manifest, backref_target_model):
             replace_undeclared_ref_with_object(context, dtype.prop, TYPE_BACKREF, backref_target_model)
             dtype.refprop = None
-            return
+            return False
         dtype.model = commands.get_model(context, dtype.prop.model.manifest, backref_target_model)
     given_refprop = dtype.refprop
     if dtype.refprop:
@@ -94,11 +100,16 @@ def _link_backref(context: Context, dtype: BackRef):
                     count += 1
             else:
                 raise MultipleBackRefReferencesFound(dtype, model=dtype.model.name)
+    return True
 
 
 @commands.link.register(Context, BackRef)
 def link(context: Context, dtype: BackRef) -> None:
-    _link_backref(context, dtype)
+    if not _link_backref(context, dtype):
+        # Property was downgraded to an object, there is no target model left
+        # to link nested properties against. `ref` does the same, see
+        # spinta/types/ref/link.py.
+        return
 
     if dtype.properties:
         for inner_prop in dtype.properties.values():
