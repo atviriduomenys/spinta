@@ -9,4 +9,4 @@ if [ "${SPINTA_AUTO_UPGRADE:-false}" = "true" ]; then
   spinta upgrade
 fi
 
-uvicorn spinta.asgi:app --log-level info --host 0.0.0.0
+gunicorn -b 0.0.0.0:8000 -k uvicorn.workers.UvicornWorker spinta.asgi:app
