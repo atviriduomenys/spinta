@@ -250,11 +250,17 @@ services:
     volumes:
       - redis_keymap_data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
 volumes:
   redis_keymap_data:
 EOF
 ```
+
+:::{caution}
+Redis prievadą publikuokite **tik `127.0.0.1`** adresu. Docker publikuojami prievadai apeina
+ugniasienę (pvz., `ufw`), todėl nurodžius `"6379:6379"` Redis būtų pasiekiamas iš tinklo, o
+per jį – galima skaityti ir keisti keymap duomenis.
+:::
 
 :::{caution} **SVARBU! Redis būtinai turi būti leidžiamas persistent režimu (appendonly:yes ir appendfsync:always
 parametrai)**

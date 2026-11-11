@@ -133,8 +133,6 @@ services:
     image: valkey/valkey:9
     restart: always
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"] # šie nustatymai užtikrina pilną apsaugojimą nuo duomenų praradimo
-    ports:
-      - "6379:6379"
     volumes:
       - redis_keymap_data:/data
   spinta:
@@ -142,7 +140,7 @@ services:
     container_name: spinta
     restart: always
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
       HOME: /app/spinta_config
       SPINTA_CONFIG: /app/spinta_config/config.yml
@@ -154,6 +152,24 @@ volumes:
   redis_keymap_data:
 EOF
 ```
+
+:::{caution}
+Redis prievado (`6379`) **nepublikuokite** (`ports:`). Spinta Redis pasiekia per vidinį
+Docker tinklą (`redis-keymap:6379`). Docker publikuojami prievadai apeina ugniasienę
+(pvz., `ufw`), todėl publikuotas Redis būtų pasiekiamas iš tinklo, o per jį – galima
+skaityti ir keisti keymap duomenis.
+:::
+
+:::{caution}
+Agento prievadą (`8000`) publikuokite **tik `127.0.0.1`** adresu. Agentas šiuo prievadu
+veikia be TLS, o Docker publikuojami prievadai apeina ugniasienę (pvz., `ufw`), todėl
+nurodžius `"8000:8000"` Agentas būtų pasiekiamas iš tinklo tiesiogiai – aplenkiant Reverse
+Proxy, TLS ir IP apribojimus.
+
+Jei Reverse Proxy (pvz., F5 ar WAF) veikia kitame serveryje, nurodykite vidinio tinklo
+sąsajos adresą (`"<VIDINIS_IP>:8000:8000"`) ir tinklo įrangoje leiskite jungtis prie šio
+prievado tik iš Reverse Proxy.
+:::
 
 :::{caution} **SVARBU! Redis būtinai turi būti leidžiamas persistent režimu (appendonly:yes ir appendfsync:always
 parametrai)**

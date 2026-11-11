@@ -16,6 +16,13 @@ Stulpelis „Ką daryti“:
 
 ## Pakeitimai
 
+### 2026-11-11
+
+| Puslapis | Kas pasikeitė | Ką daryti |
+|----------|---------------|-----------|
+| [Diegimas su Docker](diegimas/docker.md), [Diegimas OS](diegimas/os.md) | Redis (keymap) nebepublikuojamas į tinklą: Docker diegime Redis `ports:` pašalintas, OS diegime prievadas susietas tik su `127.0.0.1` (`"127.0.0.1:6379:6379"`). Docker publikuojami prievadai apeina ugniasienę. | **Pataisyti** – jei `docker-compose.yml` Redis nurodyta `"6379:6379"`, pakeiskite pagal naują aprašą ir paleiskite `docker compose up -d`. |
+| [Diegimas su Docker](diegimas/docker.md) | Agento prievadas susietas tik su `127.0.0.1` (`"127.0.0.1:8000:8000"`), kad Agentas nebūtų pasiekiamas tiesiogiai be TLS, aplenkiant Reverse Proxy. Aprašyta, ką daryti, kai Reverse Proxy veikia kitame serveryje. | **Pataisyti** – jei `docker-compose.yml` Agentui nurodyta `"8000:8000"`, pakeiskite pagal naują aprašą ir paleiskite `docker compose up -d`. |
+
 ### 2026-11-09
 
 | Puslapis | Kas pasikeitė | Ką daryti |
