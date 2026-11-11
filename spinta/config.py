@@ -285,6 +285,10 @@ CONFIG = {
     "default_distribution_property": "_id",
     # Script configuration parameters
     "citus_reference_script_size": "10g",
+    # Default limit of objects returned by getall, None - no limit
+    "default_limit_objects": None,
+    # Default approximate size of maximum JSON return that gets used to calculate limits of each model
+    "default_limit_bytes": "1g",
     "environments": {
         "dev": {
             "keymaps.default": {

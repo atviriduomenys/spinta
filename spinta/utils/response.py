@@ -27,8 +27,13 @@ from spinta.cli.helpers.errors import ErrorCounter
 from spinta.cli.helpers.message import cli_message
 from spinta.components import Context, Model, Node, Store, UrlParams
 from spinta.core.enums import Action
-from spinta.exceptions import BaseError, NoBackendConfigured, error_response
-from spinta.formats.components import Format
+from spinta.exceptions import (
+    BaseError,
+    ExceededMaximumLimit,
+    LimitOrPageIsRequired,
+    NoBackendConfigured,
+    error_response,
+)
 from spinta.renderer import render
 
 T = TypeVar("T")
@@ -71,6 +76,19 @@ class RequestResult:
 
         if not self.ok and self.response is not None:
             self.response.raise_for_status()
+
+    def has_error(self, code: str) -> bool:
+        return self.get_error(code) is not None
+
+    def get_error(self, code: str) -> dict | None:
+        if not isinstance(self.data, dict):
+            return None
+        errors = self.data.get("errors")
+        if isinstance(errors, list):
+            for error in errors:
+                if isinstance(error, dict) and error.get("code") == code:
+                    return error
+        return None
 
 
 async def _check_post(context: Context, request: Request, params: UrlParams):
@@ -288,13 +306,33 @@ async def create_http_response(
 
 
 def _enforce_limit(context: Context, params: UrlParams):
-    fmt: Format = params.fmt
-    # XXX: I think this is not the best way to enforce limit, maybe simply
-    #      an error should be raised?
-    # XXX: Max resource count should be configurable.
-    if not fmt.streamable and (params.limit is None or params.limit > 100):
-        params.limit = params.limit_enforced_to + 1
-        params.limit_enforced = True
+    if params.limit_enforced_to is None:
+        return
+
+    model = params.model
+    if hasattr(model, "limit") and params.fmt.streamable:
+        if params.limit is None and params.page is None:
+            raise LimitOrPageIsRequired(
+                model,
+                model_name=model.name,
+                maximum_limit=params.limit_enforced_to,
+            )
+
+    if params.limit:
+        # No need to enforce limit if the limit is lower
+        if params.limit <= params.limit_enforced_to:
+            return
+
+        if params.limit > params.limit_enforced_to:
+            raise ExceededMaximumLimit(
+                model,
+                model_name=model.name,
+                maximum_limit=params.limit_enforced_to,
+                given_limit=params.limit,
+            )
+
+    params.limit = params.limit_enforced_to
+    params.limit_enforced = True
 
 
 def peek_and_stream(stream):
@@ -413,6 +451,7 @@ def get_request_with_retries(
     *,
     error_counter: ErrorCounter | None = None,
     progress_bar: tqdm.tqdm | None = None,
+    stop_on_errors: list[str] | None = None,
 ) -> RequestResult:
     resp = request(
         client,
@@ -426,6 +465,8 @@ def get_request_with_retries(
         cli_message(format_request_error(resp, server, timeout), progress_bar=progress_bar)
 
     for i in range(retries):
+        if any(resp.has_error(code) for code in stop_on_errors or []):
+            break
         delay = delay_range[min(i, len(delay_range) - 1)]
 
         cli_message(f"Retrying ({i + 1}/{retries}) in {delay} seconds...", progress_bar=progress_bar)
