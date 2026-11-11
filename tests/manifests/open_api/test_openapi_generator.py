@@ -55,6 +55,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SHAPED_EXAMPLES,
     MANIFEST_WITH_SOAP_PREPARE,
+    MANIFEST_WITH_UNDECLARED_ARRAYS,
     MANIFEST_WITH_UNNAMABLE_NAMES,
     MANIFEST_WITH_UUID_ID,
 )
@@ -1287,6 +1288,22 @@ def test_unpublished_metadata_leaves_a_valid_document(open_manifest_path_factory
             open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY, publish=False
         )
     openapi_spec_validator.validate(open_api_spec)
+
+
+def test_array_takes_visibility_of_its_item_row(open_manifest_path_factory):
+    """An array declared only by its `x[]` row is published as that row is."""
+    open_api_spec = _service_spec(
+        open_manifest_path_factory, manifest_data=MANIFEST_WITH_UNDECLARED_ARRAYS, publish=False
+    )
+    properties = open_api_spec["components"]["schemas"]["ds_Salis"]["properties"]
+
+    assert properties["miestai"]["type"] == "array"
+    assert properties["miestai"]["items"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Miestas_Ref"}
+    assert properties["zymos"]["type"] == "array"
+    assert properties["zymos"]["items"]["type"] == "string"
+    assert "slaptos" not in properties
+    # One-to-one `backref` is a reference to the referencing object.
+    assert properties["sostine"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Miestas_Ref"}
 
 
 def test_whole_number_identifier_is_bounded(open_manifest_path_factory):
