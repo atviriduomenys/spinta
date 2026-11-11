@@ -4,9 +4,9 @@
 # =============================================================================
 
 
-export CURRENT_VERSION=1.3.1
-export RELEASE_VERSION=2.0.0
-export FUTURE_VERSION=2.1.0
+export CURRENT_VERSION=2.0.0
+export RELEASE_VERSION=2.1.0
+export FUTURE_VERSION=2.2.0
 export NEW_VERSION=$RELEASE_VERSION
 
 # Host ports for the docker containers (docker-compose.yml reads both variables).
@@ -394,6 +394,26 @@ echo "--- Updating manifest repo and copying datasets ---"
       datasets/gov/rc/jar/iregistruoti.csv
   [ $? -eq 0 ] || { echo "ERROR: spinta show failed"; exit 1; }
 )
+
+echo "--- Updating and validating metadata repo ---"
+# ivpk/metadata is private, so it is not checked in release_check.yml.
+# All dsa.csv files are checked in one call, so refs between datasets resolve.
+(
+  cd ${METADATA_DIR:-/home/karina/work/vssa/metadata}
+  [ $? -eq 0 ] || { echo "ERROR: metadata repo not found, set METADATA_DIR"; exit 1; }
+
+  git status
+
+  git checkout main
+  [ $? -eq 0 ] || { echo "ERROR: Failed to checkout main in metadata"; exit 1; }
+
+  git pull
+  [ $? -eq 0 ] || { echo "ERROR: Failed to pull metadata"; exit 1; }
+
+  find datasets -iname "dsa.csv" | xargs spinta check
+  [ $? -eq 0 ] || { echo "ERROR: spinta check failed on metadata"; exit 1; }
+)
+[ $? -eq 0 ] || exit 1
 
 echo "--- Validating manifest against instance config ---"
 # Validate the copied manifest against the spinta instance config

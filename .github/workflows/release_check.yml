@@ -10,6 +10,11 @@ on:
   push:
     branches: ["release_*"]
   workflow_dispatch:
+    inputs:
+      manifest_ref:
+        # e.g. a manifest fix that is not merged into get.data.gov.lt yet
+        description: atviriduomenys/manifest branch or commit
+        default: get.data.gov.lt
 
 env:
   SPINTA_DB_PORT: 54321
@@ -40,7 +45,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: atviriduomenys/manifest
-          ref: get.data.gov.lt
+          ref: ${{ inputs.manifest_ref || 'get.data.gov.lt' }}
           path: manifest
 
       - name: Start PostgreSQL (Citus + PostGIS)
