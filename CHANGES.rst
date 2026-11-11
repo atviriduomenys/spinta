@@ -4,6 +4,43 @@ Changes
 2.1.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Resource parameters defined with ``query()`` in ``prepare`` are now sent to
+  the data source with ``dask/csv``, ``dask/json``, ``dask/xml`` and
+  ``dask/soap`` resources. Previously they were silently dropped from the
+  request (`#2066`_):
+
+  - ``query('default')`` is always sent with the default value, unless a value
+    is given in the request URL for a property linked to it with ``param()``,
+    in which case the URL value is sent instead.
+  - ``query()`` without a default requires a value from the request URL through
+    a property linked with ``param()``. If it is missing, the request fails with
+    ``400`` before reaching the data source.
+  - A property linked with ``param()`` is not used as a row filter; its value is
+    sent to the data source instead. For example, ``/example/Street?client=ABC``
+    sends ``?CLIENT_NAME=ABC``.
+  - A request URL value for a resource parameter that is not linked to any
+    property with ``param()`` now fails with ``400`` instead of being ignored.
+
+- A ``query()`` resource parameter without a default that is not linked to any
+  property with ``param()`` makes the manifest invalid (`#2066`_).
+
+New features:
+
+- ``spinta inspect`` reads ``xs:key`` from XSD schemas and writes the key
+  fields to the model's ``ref`` column. Composite keys are supported
+  (`#1472`_).
+
+Improvements:
+
+- Query parameters given in a resource ``source`` URL are merged with
+  ``query()`` resource parameters into one query string. If the same parameter
+  is defined in both places, ``spinta check --check-query-conflicts`` reports
+  it (`#2066`_).
+
+.. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
+.. _#1472: https://github.com/atviriduomenys/spinta/issues/1472
 
 2.0.0 (2026-10-29)
 =====================
@@ -46,45 +83,11 @@ Bug fixes:
   so later configuration reads in the same process lost environment specific
   settings, such as test backend DSNs (`#1990`_).
 
-- Resource parameters defined with ``query()`` in ``prepare`` are now sent to
-  the data source with ``dask/csv``, ``dask/json``, ``dask/xml`` and
-  ``dask/soap`` resources. Previously they were silently dropped from the
-  request (`#2066`_):
-
-  - ``query('default')`` is always sent with the default value, unless a value
-    is given in the request URL for a property linked to it with ``param()``,
-    in which case the URL value is sent instead.
-  - ``query()`` without a default requires a value from the request URL through
-    a property linked with ``param()``. If it is missing, the request fails with
-    ``400`` before reaching the data source.
-  - A property linked with ``param()`` is not used as a row filter; its value is
-    sent to the data source instead. For example, ``/example/Street?client=ABC``
-    sends ``?CLIENT_NAME=ABC``.
-  - A request URL value for a resource parameter that is not linked to any
-    property with ``param()`` now fails with ``400`` instead of being ignored.
-
-- Query parameters given in a resource ``source`` URL are merged with
-  ``query()`` resource parameters into one query string. If the same parameter
-  is defined in both places, ``spinta check --check-query-conflicts`` reports
-  it (`#2066`_).
-
-- A ``query()`` resource parameter without a default that is not linked to any
-  property with ``param()`` makes the manifest invalid (`#2066`_).
-
 .. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 .. _#2080: https://github.com/atviriduomenys/spinta/issues/2080
-.. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
 
 1.3.1 (2026-10-22)
 =====================
-
-New features:
-
-- ``spinta inspect`` reads ``xs:key`` from XSD schemas and writes the key
-  fields to the model's ``ref`` column. Composite keys are supported
-  (`#1472`_).
-
-.. _#1472: https://github.com/atviriduomenys/spinta/issues/1472
 
 Improvements:
 
