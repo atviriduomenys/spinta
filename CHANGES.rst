@@ -4,12 +4,25 @@ Changes
 2.1.0 (unreleased)
 =====================
 
-Backwards incompatible:
+New features:
 
-- Resource parameters defined with ``query()`` in ``prepare`` are now sent to
-  the data source with ``dask/csv``, ``dask/json``, ``dask/xml`` and
-  ``dask/soap`` resources. Previously they were silently dropped from the
-  request (`#2066`_):
+- ``spinta inspect`` reads ``xs:key`` from XSD schemas and writes the key
+  fields to the model's ``ref`` column. Composite keys are supported
+  (`#1472`_).
+
+Improvements:
+
+- Query parameters given in a resource ``source`` URL are merged with
+  ``query()`` resource parameters into one query string. If the same parameter
+  is defined in both places, ``spinta check --check-query-conflicts`` reports
+  it (`#2066`_).
+
+Bug fixes:
+
+- Backwards incompatible: resource parameters defined with ``query()`` in
+  ``prepare`` are now sent to the data source with ``dask/csv``,
+  ``dask/json``, ``dask/xml`` and ``dask/soap`` resources. Previously they
+  were silently dropped from the request (`#2066`_):
 
   - ``query('default')`` is always sent with the default value, unless a value
     is given in the request URL for a property linked to it with ``param()``,
@@ -23,21 +36,9 @@ Backwards incompatible:
   - A request URL value for a resource parameter that is not linked to any
     property with ``param()`` now fails with ``400`` instead of being ignored.
 
-- A ``query()`` resource parameter without a default that is not linked to any
-  property with ``param()`` makes the manifest invalid (`#2066`_).
-
-New features:
-
-- ``spinta inspect`` reads ``xs:key`` from XSD schemas and writes the key
-  fields to the model's ``ref`` column. Composite keys are supported
-  (`#1472`_).
-
-Improvements:
-
-- Query parameters given in a resource ``source`` URL are merged with
-  ``query()`` resource parameters into one query string. If the same parameter
-  is defined in both places, ``spinta check --check-query-conflicts`` reports
-  it (`#2066`_).
+- Backwards incompatible: a ``query()`` resource parameter without a default
+  that is not linked to any property with ``param()`` makes the manifest
+  invalid (`#2066`_).
 
 .. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
 .. _#1472: https://github.com/atviriduomenys/spinta/issues/1472
