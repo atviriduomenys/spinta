@@ -51,7 +51,6 @@ jobs:
             pg_isready -h localhost -p 5432 -U ci -q && exit 0
             sleep 1
           done
-          docker logs postgres --tail 30
           exit 1
 
       - name: Test with pytest
