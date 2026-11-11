@@ -296,6 +296,8 @@ class Object(DataType):
 
     properties: dict[str, Property] = None
     requires_source = False
+    # Replaces a `ref`/`backref` to a model missing from the manifest (#1872).
+    downgraded: bool = False
 
     def load(self, value: Any):
         if value is None or value is NA:

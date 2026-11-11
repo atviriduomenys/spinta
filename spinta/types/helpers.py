@@ -91,6 +91,7 @@ def replace_undeclared_ref_with_object(
     new_dtype.type_args = []
     new_dtype.prop = prop
     new_dtype.properties = {}
+    new_dtype.downgraded = True
     prop.dtype = new_dtype
     set_dtype_backend(new_dtype)
 
@@ -111,6 +112,17 @@ def replace_undeclared_ref_with_object(
             prepare=f'update(type:"{original_type}", ref:"{ref_str}")',
             level=4,
         )
+    )
+
+
+def is_downgraded_ref(prop: Property) -> bool:
+    """`prop` was downgraded by `replace_undeclared_ref_with_object`, either now
+    or before the manifest was written out, which leaves only the comment."""
+    if getattr(prop.dtype, "downgraded", False):
+        return True
+    return any(
+        comment.parent == "type" and str(comment.prepare or "").startswith("update(type:")
+        for comment in prop.comments or []
     )
 
 

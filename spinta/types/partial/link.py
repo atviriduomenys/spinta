@@ -15,7 +15,7 @@ from spinta.types.datatype import (
     Partial,
     Ref,
 )
-from spinta.types.helpers import set_dtype_backend
+from spinta.types.helpers import is_downgraded_ref, set_dtype_backend
 
 
 def _resolve_model(context: Context, prop: Property, dtype: DataType, *, downgrade: bool = True) -> Model | None:
@@ -75,16 +75,23 @@ def _take_dtype_from(context: Context, dtype: Partial, source: Property) -> None
     # For internal mode leave it as is, because it breaks multi-level denormalization
     if source.external and prop.model.mode == Mode.external:
         prop.external = copy(source.external)
-    if isinstance(prop.dtype, Ref):
+    if isinstance(prop.dtype, Object) and is_downgraded_ref(source):
+        prop.dtype.downgraded = True
+    elif isinstance(prop.dtype, Ref):
         # refprops belong to the model the property was taken from, `link`
         # resolves them again for this model.
         prop.dtype.refprops = []
     elif isinstance(prop.dtype, BackRef):
-        # refprop points back to the model the property was taken from, `link`
-        # has to look it up for this model instead. `_link_backref` compares a
-        # given refprop by name, so a copied Property never matches.
-        prop.dtype.refprop = None
-        prop.dtype.explicit = False
+        # refprop points back to the model the property was taken from, so a
+        # given one (a name before `link`, explicit after) is kept only there.
+        refprop = source.dtype.refprop
+        if isinstance(refprop, Property) and not source.dtype.explicit:
+            refprop = None
+        if source.model is prop.model and refprop is not None:
+            prop.dtype.refprop = refprop.name if isinstance(refprop, Property) else refprop
+        else:
+            prop.dtype.refprop = None
+            prop.dtype.explicit = False
     commands.link(context, prop.dtype)
 
 
@@ -100,6 +107,7 @@ def _replace_with_object(context: Context, dtype: Partial) -> None:
     object_dtype.prop = prop
     object_dtype.properties = dtype.properties
     object_dtype.inherited = True
+    object_dtype.downgraded = True
     prop.dtype = object_dtype
     prop.given.explicit = False
     prop.given.name = ""
@@ -127,7 +135,7 @@ def link(context: Context, dtype: Partial):
             missing_property_name=prop.name,
         )
 
-    if isinstance(parent.dtype, Object) and parent.dtype.inherited:
+    if isinstance(parent.dtype, Object) and is_downgraded_ref(parent):
         _replace_with_object(context, dtype)
         return
 

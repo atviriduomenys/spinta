@@ -836,6 +836,61 @@ def test_with_denormalized_data_backref_undefined_error(manifest_type, tmp_path,
 
 
 @pytest.mark.manifests("internal_sql", "csv")
+@pytest.mark.parametrize("children_first", [False, True])
+def test_with_denormalized_data_backref_keeps_given_refprop(manifest_type, tmp_path, rc, children_first):
+    # Within the same model the given `Node[parent]` selector is kept, otherwise
+    # both `parent` and `other_parent` match and the backref is ambiguous.
+    children = "      |   |   |   | children             | backref | Node[parent] | open\n"
+    refs = (
+        "      |   |   |   | parent               | ref     | Node         | open\n"
+        "      |   |   |   | parent.children.name | string  |              | open\n"
+        "      |   |   |   | other_parent         | ref     | Node         | open\n"
+    )
+    check(
+        tmp_path,
+        rc,
+        """
+    d | r | b | m | property             | type    | ref          | access
+    example                              |         |              |
+                                         |         |              |
+      |   |   | Node                     |         | id           |
+      |   |   |   | id                   | integer |              | open
+      |   |   |   | name                 | string  |              | open
+"""
+        + (children + refs if children_first else refs + children),
+        manifest_type,
+    )
+
+
+@pytest.mark.manifests("internal_sql", "csv")
+def test_with_denormalized_data_declared_object_error(manifest_type, tmp_path, rc):
+    # Only an object downgraded from a missing model accepts undeclared nested
+    # properties, a declared object still reports a typo in the path.
+    with pytest.raises(PartialTypeNotFound) as e:
+        check(
+            tmp_path,
+            rc,
+            """
+        d | r | b | m | property                | type   | ref     | access
+        example                                 |        |         |
+                                                |        |         |
+          |   |   | Country                     |        | code    |
+          |   |   |   | code                    | string |         | open
+          |   |   |   | address                 | object |         | open
+          |   |   |   | address.street          | string |         | open
+                                                |        |         |
+          |   |   | City                        |        | name    |
+          |   |   |   | name                    | string |         | open
+          |   |   |   | country                 | ref    | Country | open
+          |   |   |   | country.address.typo.id | string |         | open
+        """,
+            manifest_type,
+        )
+    assert e.value.context["parent_property_type"] == "object"
+    assert e.value.context["model"] == "example/City"
+
+
+@pytest.mark.manifests("internal_sql", "csv")
 def test_with_denormalized_data_ref_error(manifest_type, tmp_path, rc):
     with pytest.raises(ParentNodeNotFound) as e:
         check(
