@@ -12,7 +12,7 @@ def inspect(
     ctx: TyperContext,
     manifest: str | None = Argument(None, help="Path to manifest."),
     resource: tuple[str, str] | None = Option(
-        (None, None),
+        None,
         "-r",
         "--resource",
         help=("Resource type and source URI (-r sql sqlite:////tmp/db.sqlite)"),

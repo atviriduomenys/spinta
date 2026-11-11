@@ -40,6 +40,9 @@ Bug fixes:
   that is not linked to any property with ``param()`` makes the manifest
   invalid (`#2066`_).
 
+- Fixed ``spinta inspect`` failing with ``Invalid value for '-r' /
+  '--resource'`` when ``typer`` 0.29 or newer is installed.
+
 .. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
 .. _#1472: https://github.com/atviriduomenys/spinta/issues/1472
 
