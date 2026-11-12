@@ -132,7 +132,7 @@ services:
   redis-keymap:  # sqlite faster alternative
     image: valkey/valkey:9
     restart: always
-    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"] # šie nustatymai užtikrina pilną apsaugojimą nuo duomenų praradimo
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always"] # šie nustatymai užtikrina pilną apsaugojimą nuo duomenų praradimo
     # Redis prievadas (6379) neatveriamas: Spinta jį pasiekia vidiniu Docker tinklu (redis://redis-keymap:6379/1)
     volumes:
       - redis_keymap_data:/data
@@ -241,7 +241,7 @@ Slaptažodis apsaugo Redis net tada, kai prievadas per klaidą tampa pasiekiamas
 2. `docker-compose.yml` Redis servise prie `command` pridėkite `--requirepass`:
 
    ```yaml
-       command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--requirepass", "${REDIS_PASSWORD}"]
+       command: ["redis-server", "--appendonly", "yes", "--appendfsync", "always", "--requirepass", "${REDIS_PASSWORD}"]
    ```
 
 3. `config.yml` keymap adrese nurodykite tą patį slaptažodį:
