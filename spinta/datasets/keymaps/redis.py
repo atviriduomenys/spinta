@@ -159,7 +159,18 @@ class RedisKeyMap(KeyMap):
 
 
 def _serialize_value(value: Any) -> str:
-    return json.dumps(fix_data_for_json(value), sort_keys=True)
+    return json.dumps(fix_data_for_json(_uuid_to_str(value)), sort_keys=True)
+
+
+def _uuid_to_str(value: Any) -> Any:
+    # Synchronized UUIDs come from the API hyphenated, while fix_data_for_json gives .hex
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, list | tuple):
+        return [_uuid_to_str(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _uuid_to_str(v) for k, v in value.items()}
+    return value
 
 
 @commands.configure.register(Context, RedisKeyMap)
