@@ -4,6 +4,15 @@ Changes
 2.2.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- Generated OpenAPI specifications describe an array declared only by its
+  ``x[]`` row, such as a one-to-many ``backref``, with the visibility of that
+  row. Previously the array was left out, and response validation rejected it
+  as an additional property (`#2085`_).
+
+.. _#2085: https://github.com/atviriduomenys/spinta/issues/2085
+
 
 2.1.0 (2026-11-11)
 =====================

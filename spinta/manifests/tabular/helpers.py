@@ -995,6 +995,8 @@ def _get_parent_data_array(reader: PropertyReader, given_row: dict, full_name: s
             "property": full_name,
             "type": DataTypeEnum._PARTIAL_ARRAY.value,
             "access": given_row["access"],
+            # Only the `x[]` row describes the array itself; `x[].y` describes one of its fields.
+            "visibility": given_row.get("visibility") if full_name == given_row.get("property") else None,
         },
     )
 

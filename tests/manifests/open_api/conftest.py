@@ -435,6 +435,24 @@ id | d | r | b | m | property    | type            | ref   | source    | prepare
 """)
 
 
+# Arrays declared only by their `x[]` row, without a row of the array itself:
+# one-to-many and one-to-one `backref`, a plain array and a private one.
+MANIFEST_WITH_UNDECLARED_ARRAYS = striptable("""
+id | d | r | b | m | property  | type            | ref     | source  | level | access | visibility
+   | datasets/gov/rc/jadis/at280/1/ds |          |         |         |       |        |
+   |   | test                   | memory          |         |         |       |        |
+   |   |   |   | Salis          |                 | kodas   | salys   |       | open   | public
+   |   |   |   |   | kodas      | string required |         | kodas   | 4     | open   | public
+   |   |   |   |   | miestai[]  | backref         | Miestas |         | 4     | open   | public
+   |   |   |   |   | sostine    | backref         | Miestas |         | 4     | open   | public
+   |   |   |   |   | zymos[]    | string          |         | zymos   | 4     | open   | public
+   |   |   |   |   | slaptos[]  | string          |         | slaptos | 4     | open   | private
+   |   |   |   | Miestas        |                 | kodas   | miestai |       | open   | public
+   |   |   |   |   | kodas      | string required |         | kodas   | 4     | open   | public
+   |   |   |   |   | salis      | ref             | Salis   | salis   | 4     | open   | public
+""")
+
+
 # A model whose identifier is a whole number of its data.
 MANIFEST_WITH_INTEGER_ID = striptable("""
 id | d | r | b | m | property | type             | ref | source  | level | access
