@@ -6,14 +6,26 @@ diegimo instrukcijos, skirtos institucijoms, pradedančioms diegiančioms SPINTA
 :::
 
 :::{warning}
-Nuo Spinta versijos **0.2dev22** `config.access` numatytoji reikšmė pasikeitė: `protected` → `open`. Jei `config.yml` nėra išskirtinai nurodytas `access` laukas, ir
-DSA modeliai naudoja `access=protected` arba `access=public` — po atnaujinimo
-tokie modeliai grąžins `ModelNotFound` klaidą.
-**Sprendimas:** į `config.yml` pridėti:
-```yaml
-access: protected
-```
-Patikrinkite savo konfigūraciją **prieš** atnaujinant Spintą.
+**Dokumentacijos pataisymas: Redis prievadas Docker pavyzdžiuose (2026-11-12)**
+
+Ankstesniuose `docker-compose.yml` pavyzdžiuose Redis (keymap) prievadas buvo atveriamas
+visose serverio tinklo sąsajose (`"6379:6379"`). Tai buvo pavyzdys, o ne privalomas nurodymas.
+
+Pagal mūsų rekomendacijas sukonfigūruotame tinkle Agentas pasiekiamas tik per vartus ir tik
+443 prievadu (vidiniams vartams – per SVDPT, išoriniams – per WAF), todėl Redis prievadas iš
+interneto nepasiekiamas. Tačiau jei tinklas sukonfigūruotas kitaip ir serveris (VM), kuriame
+veikia Agentas, iš interneto pasiekiamas 6379 prievadu, šia spraga gali pasinaudoti
+piktavaliai: Redis veikia be slaptažodžio, todėl prie jo galima prisijungti.
+
+Primename, kad išoriniams vartams **privaloma**:
+
+- **whitelist** – Agentas pasiekiamas tik iš vartų IP adreso ir IP adresų, iš kurių atliekami
+  testai;
+- į internetą atveriamas **tik HTTPS (443)** prievadas.
+
+Daugiau: {doc}`Tinklo konfigūravimas <agentas/tinklo-konfigūravimas>`.
+
+Kaip patikrinti ir pataisyti: {ref}`Redis ir prievadų saugumas <redis-saugumas>`.
 :::
 
 ## Kas yra Spinta?

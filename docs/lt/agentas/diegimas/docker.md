@@ -133,8 +133,7 @@ services:
     image: valkey/valkey:9
     restart: always
     command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"] # šie nustatymai užtikrina pilną apsaugojimą nuo duomenų praradimo
-    ports:
-      - "6379:6379"
+    # Redis prievadas (6379) neatveriamas: Spinta jį pasiekia vidiniu Docker tinklu (redis://redis-keymap:6379/1)
     volumes:
       - redis_keymap_data:/data
   spinta:
@@ -142,7 +141,7 @@ services:
     container_name: spinta
     restart: always
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"  # tik šiam serveriui, žr. „Redis ir prievadų saugumas"
     environment:
       HOME: /app/spinta_config
       SPINTA_CONFIG: /app/spinta_config/config.yml
@@ -155,6 +154,12 @@ volumes:
 EOF
 ```
 
+:::{note}
+Pavyzdyje Spintos prievadas 8000 atveriamas tik šiam serveriui (`127.0.0.1:8000:8000`), nes
+daroma prielaida, kad reverse proxy veikia tame pačiame serveryje. Jei reverse proxy ar WAF
+veikia kitame serveryje, šią vietą pakeiskite.
+:::
+
 :::{caution} **SVARBU! Redis būtinai turi būti leidžiamas persistent režimu (appendonly:yes ir appendfsync:always
 parametrai)**
 
@@ -162,6 +167,121 @@ Yra keli persistent režimai (žr. Redis/Valkey dokumentaciją). Numatytasis re�
 užtikrina didžiausią duomenų nepraradimo patikimumą, tačiau turi mažiausią greitį naujo rakto kūrimo metu, lyginant su
 kitais režimais.
 :::
+
+(redis-saugumas)=
+### Redis ir prievadų saugumas
+
+:::{danger}
+**Redis prievado (6379) neatverkite į išorę.** Docker atvaizde Redis (Valkey) veikia
+**be slaptažodžio ir be apsaugos režimo** (*protected mode*). Jei prievadas pasiekiamas
+tinklu, bet kas gali prisijungti prie Redis, keisti ar ištrinti keymap duomenis ir vykdyti
+komandas.
+
+Docker atvertus prievadus publikuoja apeidamas paties serverio ugniasienę (pvz., `ufw`),
+todėl ji nuo to **neapsaugo**. Apsaugo tinklo lygis prieš serverį – žr.
+{ref}`Kas dar apsaugo <kas-dar-apsaugo>`.
+:::
+
+Redis konfigūruokite dviem sluoksniais:
+
+1. **Tinklas (privaloma)** – Redis prievadas neatveriamas arba atveriamas tik šiam serveriui.
+2. **Slaptažodis (rekomenduojama)** – žr. {ref}`Redis slaptažodis <redis-slaptazodis>`.
+
+- **Redis** – pavyzdyje `ports:` nenurodytas. Spinta Redis pasiekia vidiniu Docker tinklu,
+  adresu `redis://redis-keymap:6379/1`, todėl atverti prievado nereikia.
+- **Spinta (8000)** – pavyzdyje prievadas atveriamas tik šiam serveriui (`127.0.0.1:8000:8000`),
+  nes užklausas Agentui perduoda tame pačiame serveryje veikiantis reverse proxy (žr.
+  [Web serverio konfigūravimas](../web-serverio-konfigūravimas.md)). Jei reverse proxy veikia
+  kitame serveryje, prievadą atverkite tik jam ir prieigą apribokite tinklo lygiu.
+
+#### Kaip patikrinti jau įdiegtą Agentą
+
+1. Peržiūrėkite, kokie prievadai atverti:
+
+   ```bash
+   docker ps --format 'table {{.Names}}\t{{.Ports}}'
+   ```
+
+   Jei prie Redis konteinerio matote `0.0.0.0:6379->6379/tcp` arba `[::]:6379->6379/tcp`,
+   prievadas atviras visiems. Saugi būsena – prievadų nėra arba `127.0.0.1:6379->6379/tcp`.
+
+2. Pataisykite `docker-compose.yml` pagal pavyzdį aukščiau ir perkurkite konteinerius:
+
+   ```bash
+   docker compose up -d
+   ```
+
+3. Patikrinkite, ar nėra įsilaužimo požymių:
+
+   - nežinomi procesai ar nuolat didelė procesoriaus apkrova (pvz., `xmrig`):
+
+     ```bash
+     top
+     docker top <redis konteinerio pavadinimas>
+     ```
+
+   - pakeisti Redis nustatymai – komanda turi grąžinti `/data`:
+
+     ```bash
+     docker compose exec redis-keymap valkey-cli CONFIG GET dir
+     ```
+
+(redis-slaptazodis)=
+#### Redis slaptažodis (rekomenduojama)
+
+Slaptažodis apsaugo Redis net tada, kai prievadas per klaidą tampa pasiekiamas.
+
+1. Šalia `docker-compose.yml` sukurkite `.env` failą su slaptažodžiu ir apribokite jo teises:
+
+   ```bash
+   echo "REDIS_PASSWORD=$(openssl rand -hex 32)" > .env
+   chmod 600 .env
+   ```
+
+2. `docker-compose.yml` Redis servise prie `command` pridėkite `--requirepass`:
+
+   ```yaml
+       command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--requirepass", "${REDIS_PASSWORD}"]
+   ```
+
+3. `config.yml` keymap adrese nurodykite tą patį slaptažodį:
+
+   ```yaml
+   keymaps:
+     default:
+       type: redis
+       dsn: redis://:SLAPTAZODIS@redis-keymap:6379/1
+   ```
+
+4. Perkurkite konteinerius (`docker compose up -d`) ir patikrinkite, ar Agentas veikia
+   (`docker logs spinta`).
+
+Slaptažodį keiskite abiejose vietose kartu – kitaip Agentas nebepasieks Redis
+(klaida `NOAUTH Authentication required`).
+
+(kas-dar-apsaugo)=
+#### Kas dar apsaugo
+
+Jei tinklas sukonfigūruotas pagal {doc}`Tinklo konfigūravimas <../tinklo-konfigūravimas>`
+rekomendacijas, Redis prievadas iš išorės nepasiekiamas net ir atvertas visose sąsajose:
+
+- **vidiniams vartams** Agentas pasiekiamas tik per SVDPT ir tik 443 prievadu;
+- **išoriniams vartams** privaloma: whitelist (Agentas pasiekiamas tik iš vartų ir testavimo
+  IP adresų) ir į internetą atveriamas tik HTTPS (443) prievadas, pvz., per WAF.
+
+Be to, pavyzdyje Redis konteineris neturi prieigos prie Spintos konfigūracijos katalogo
+(`/opt/spinta`), todėl duomenų bazių slaptažodžiai ir raktai per jį nepasiekiami.
+
+#### Jei aptikote įsilaužimo požymių
+
+Laikykite serverį pažeistu:
+
+1. atjunkite jį nuo tinklo ir įdiekite Agentą iš naujo švarioje aplinkoje;
+2. pakeiskite klientų slaptažodžius (`secret`) ir raktus, saugomus `config_path` kataloge;
+3. keymap duomenimis nepasitikėkite – atkurkite juos iš atsarginės kopijos, padarytos prieš
+   incidentą.
+
+Kilus klausimų, kreipkitės į das@vssa.lt.
 
 Paleiskite Docker konteinerius:
 

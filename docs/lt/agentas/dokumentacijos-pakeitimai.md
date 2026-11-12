@@ -16,6 +16,15 @@ Stulpelis „Ką daryti“:
 
 ## Pakeitimai
 
+### 2026-11-12
+
+| Puslapis | Kas pasikeitė | Ką daryti |
+|----------|---------------|-----------|
+| [Diegimas su Docker](diegimas/docker.md) | **Saugumo pataisymas.** Iš `docker-compose.yml` pavyzdžio pašalintas Redis prievado publikavimas (`"6379:6379"`), Spintos prievadas atveriamas tik šiam serveriui (`"127.0.0.1:8000:8000"`). Naujas skyrius „Redis ir prievadų saugumas“: kaip konfigūruoti Redis (tinklas ir slaptažodis), kaip patikrinti jau įdiegtą Agentą ir ką daryti radus įsilaužimo požymių. | **Pataisyti** – jei diegėte pagal ankstesnę instrukciją, pašalinkite Redis `ports`, perkurkite konteinerius (`docker compose up -d`) ir patikrinkite pagal naują skyrių. |
+| [Diegimas OS](diegimas/os.md) | **Saugumo pataisymas.** Redis konteinerio prievadas atveriamas tik šiam serveriui (`"127.0.0.1:6379:6379"`). | **Pataisyti** – pakeiskite `"6379:6379"` į `"127.0.0.1:6379:6379"`, perkurkite konteinerį ir patikrinkite pagal skyrių „Redis ir prievadų saugumas“. |
+| [Pradžia](../index.md) | Pradžios puslapio įspėjimas apie `access` numatytąją reikšmę pakeistas įspėjimu dėl galimos Redis saugumo spragos. Informacija apie `access` lieka puslapyje [Pakeitimai pagal versijas](versiju-pakeitimai.md). | **Nieko** |
+| [Pakeitimai pagal versijas](versiju-pakeitimai.md) | Papildyta 2.1.0 versijos pakeitimais (`query()` parametrai). | **Patikrinti**, jei DSA naudoja `query()`. |
+
 ### 2026-11-09
 
 | Puslapis | Kas pasikeitė | Ką daryti |

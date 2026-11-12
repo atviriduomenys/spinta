@@ -250,7 +250,7 @@ services:
     volumes:
       - redis_keymap_data:/data
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"  # tik šiam serveriui – Redis neturi slaptažodžio
 volumes:
   redis_keymap_data:
 EOF
@@ -262,6 +262,15 @@ parametrai)**
 Yra keli persistent režimai (žr. Redis/Valkey dokumentaciją). Numatytasis režimas (appendonly:yes ir appendfsync:always)
 užtikrina didžiausią duomenų nepraradimo patikimumą, tačiau turi mažiausią greitį naujo rakto kūrimo metu, lyginant su
 kitais režimais.
+:::
+
+:::{danger}
+Redis prievadą atverkite **tik šiam serveriui** (`127.0.0.1:6379:6379`), ne `6379:6379`.
+Docker atvaizde Redis veikia be slaptažodžio ir be apsaugos režimo, o Docker atvertus
+prievadus publikuoja apeidamas serverio ugniasienę. Rekomenduojame nustatyti ir Redis
+slaptažodį (tada `config.yml` adresas bus `redis://:SLAPTAZODIS@localhost:6379/1`). Kaip tai
+padaryti, kaip patikrinti jau įdiegtą Agentą ir ką daryti radus įsilaužimo požymių – žr.
+{ref}`Redis ir prievadų saugumas <redis-saugumas>`.
 :::
 
 Paleiskite dockerį ir patikrinkite:
