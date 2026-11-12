@@ -1,5 +1,6 @@
 import datetime
 import json
+import uuid
 from unittest import mock
 
 import fakeredis
@@ -180,6 +181,17 @@ def test_encode_date_values_matches_synchronized_value(redis_in_memory_keymap):
     redis_in_memory_keymap.synchronize(data)
 
     assert redis_in_memory_keymap.encode("person", ("Jonas", datetime.date(1990, 1, 2))) == "k1"
+
+
+def test_encode_uuid_value_matches_synchronized_value(redis_in_memory_keymap):
+    from spinta.datasets.keymaps.components import KeymapSyncData
+
+    value = uuid.UUID("3f2504e0-4f89-11d3-9a0c-0305e82c3301")
+    data = KeymapSyncData(name="person", identifier="k1", value=["Jonas", str(value)], data={})
+    redis_in_memory_keymap.synchronize(data)
+
+    assert redis_in_memory_keymap.contains("person", ("Jonas", value))
+    assert redis_in_memory_keymap.encode("person", ("Jonas", value)) == "k1"
 
 
 def test_encode_all_none_values(redis_in_memory_keymap):

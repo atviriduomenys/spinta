@@ -10,9 +10,10 @@ Bug fixes:
   ``time`` properties now work in more cases (`#1924`_):
 
   - the ``redis`` keymap no longer fails with ``TypeError: Object of type
-    date is not JSON serializable``; ``date``/``datetime``/``time``,
-    ``Decimal`` and ``UUID`` values are stored the same way as in the
-    ``sqlalchemy`` keymap;
+    date is not JSON serializable``; ``date``/``datetime``/``time`` and
+    ``Decimal`` values are stored the same way as in the ``sqlalchemy``
+    keymap, and ``UUID`` values are stored hyphenated, as the API returns
+    them;
   - a ``base32`` ``_id`` no longer fails when the primary key contains a
     ``datetime`` without a time zone or a ``time``;
   - for SQL data sources, getting an object by ``_id``, resolving a ``ref``
