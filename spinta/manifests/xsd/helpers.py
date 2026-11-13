@@ -559,13 +559,20 @@ class XSDReader:
             for model in self.top_level_complex_type_models[prop.xsd_type_to]:
                 # this complexType is also used by non-top level elements, we need to leave it and work on it's copy
                 # or more than one top level element uses it
-                if prop.xsd_type_to in self.properties_xsd_type_to_set or model in processed_models:
+                is_copy = prop.xsd_type_to in self.properties_xsd_type_to_set or model in processed_models
+                if is_copy:
                     model = deepcopy(model)
                     self.models.append(model)
                 model.is_partial = False
                 model.is_entry_model = True
                 model.source = f"/{prop.xsd_name}"
-                model.set_name(deduplicator(to_model_name(prop.xsd_name)))
+                name = to_model_name(prop.xsd_name)
+                local_name = deduplicator(name)
+                # copies and renamed models need a name unique across all models, not only root elements
+                if is_copy:
+                    model.set_name(self.deduplicate_model_name(name))
+                elif local_name != model.basename:
+                    model.set_name(self.deduplicate_model_name(local_name))
                 processed_models.append(model)
 
     def _add_refs_for_backrefs(self):
