@@ -4,6 +4,15 @@ Changes
 2.2.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- ``spinta copy`` from XSD no longer fails with "model already defined" when
+  a ``complexType`` is used by both a top-level element and a nested element.
+  The model created for the top-level element now gets a deduplicated name
+  (`#1469`_).
+
+.. _#1469: https://github.com/atviriduomenys/spinta/issues/1469
+
 
 2.1.0 (2026-11-11)
 =====================
