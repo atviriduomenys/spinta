@@ -92,13 +92,16 @@ Arguments
   One or more manifest files that will be loaded.
 
 - ``<path-to-output-file>``
-  OPTIONAL. Output file name. If specified, manifest will be written to this file. If file extension is `.mmd`, UML diagram will be generated in Mermaid syntax.
+  OPTIONAL. Output file name. If specified, manifest will be written to this file. If file extension is `.mmd`, UML diagram will be generated in Mermaid syntax. If file extension is `.ttl`, manifest will be written as RDF Turtle, see `RDF Turtle output`_.
 
 - ``<dataset-name>``
   The name of the dataset. This is used only for Mermaid diagram. Specified dataset will not be wrapped in Mermaid class diagram `namespace <https://mermaid.js.org/syntax/classDiagram.html#define-namespace>`_
 
+Mermaid.js output
+-----------------
+
 Example
--------
+~~~~~~~
 
 **Input Manifest file (`manifest.csv`)**:
 
@@ -158,6 +161,74 @@ Example
   `example/dataset/City` --> "[0..1]" `example/dataset/Country` : city<br/>«optional»
   classDef Concept stroke:#8FB58F,fill:#F0FDF0,color:#000000;
   classDef Entity stroke:#9D8787,fill:#F5E8DF,color:#000000;
+
+RDF Turtle output
+-----------------
+
+A manifest written to a ``.ttl`` file is described with SHACL shapes. Every
+model and property is described by a shape, which validates the values of the
+model. Classes, properties and concepts are also described with RDFS classes,
+RDFS properties and SKOS concepts, if they are described in the file, see
+`Which items are described`_. Enums are described as SKOS concept schemes.
+
+Which items are described
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A class, property or concept is described in the file if:
+
+- it has no ``uri``, or
+- its ``uri`` is under ``uri_prefix``, either as a full IRI, such as
+  ``https://data.gov.lt/id/datasets/gov/example/Country``, or as a prefixed
+  name, such as ``ex:Country`` when ``ex`` is declared as
+  ``https://data.gov.lt/id/``, or
+- its ``uri`` is a relative path. A relative path is relative to ``uri_prefix``,
+  so ``uri: Country`` is ``{uri_prefix}Country``.
+
+Other items, for example ``uri: dct:title`` or ``uri: https://schema.org/Person``,
+are only referenced by their ``uri``. Their definitions are not written to the
+file. Enum concept schemes are always generated.
+
+Generated URIs
+~~~~~~~~~~~~~~
+
+Generated URIs are built from the ``uri_prefix`` configuration option, for
+example ``-o uri_prefix=https://data.gov.lt/id/`` or
+``SPINTA_URI_PREFIX=https://data.gov.lt/id/``. If it is not set, the default
+``https://example.com/id/`` is used. A trailing slash in ``uri_prefix`` is
+optional:
+
+.. code-block:: bash
+
+   spinta -o uri_prefix=https://data.gov.lt/id/ copy manifest.csv -o manifest.ttl
+
+Generated URIs use these patterns:
+
+- classes: ``{uri_prefix}{dataset}/{model}``
+- properties: ``{uri_prefix}{dataset}/{property}``. A property has one URI for
+  all models that use it.
+- concepts (enum items): ``{uri_prefix}{dataset}/{code}``, where ``{code}`` is
+  percent-encoded, so ``CITY/TOWN`` is ``CITY%2FTOWN``. Concepts of different
+  enums in the same dataset with the same code get the same URI, so give them a
+  ``uri`` if they must stay apart.
+- concept schemes (enums): ``{uri_prefix}{dataset}/{enum}``. Inline enums are
+  named after their model and property, for example ``DatasetEvent_type``.
+
+If there is no dataset, the ``{dataset}/`` part is left out.
+
+If a ``uri`` uses a prefix that is not declared in the manifest, the command
+fails with an error, instead of writing a wrong URI.
+
+The file is split into sections, each introduced by a comment: prefixes,
+classes, properties, concepts and SHACL shapes.
+
+RDF files can also be read as manifests. Web IRIs, such as ``owl:imports``,
+concept schemes and labels missing in the files, are dereferenced only when the
+``rdf_fetch_remote`` configuration option is ``true``. It is ``false`` by
+default, so the result depends only on the given files:
+
+.. code-block:: bash
+
+   spinta -o rdf_fetch_remote=true copy shapes.ttl -o manifest.csv
 
 .. _cli_udts_oas:
 

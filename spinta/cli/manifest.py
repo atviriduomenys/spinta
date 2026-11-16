@@ -11,6 +11,7 @@ from spinta.manifests.components import ManifestPath
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
 from spinta.manifests.mermaid.helpers import write_mermaid_manifest
+from spinta.manifests.rdf.writer import write_rdf_manifest
 from spinta.manifests.tabular.components import ManifestColumn, ManifestRow
 from spinta.manifests.tabular.helpers import (
     datasets_to_tabular,
@@ -87,8 +88,10 @@ def copy_manifest(
 
     if output and output.endswith(".mmd"):
         output_type = "mermaid"
+    elif output and output.endswith(".ttl"):
+        output_type = "rdf"
 
-    if internal or output_type == "mermaid":
+    if internal or output_type in ("mermaid", "rdf"):
         rows = _read_and_return_manifest(
             context,
             manifests,
@@ -113,6 +116,8 @@ def copy_manifest(
     if output:
         if output_type == "mermaid":
             write_mermaid_manifest(context, rows, dataset, output)
+        elif output_type == "rdf":
+            write_rdf_manifest(context, rows, output, access=access)
         elif internal:
             write_internal_sql_manifest(context, output, rows)
         else:

@@ -243,6 +243,16 @@ CONFIG = {
     "resource_server_url": None,
     # Limit access to specified namespace root.
     "root": None,
+    # Base URI for generated RDF URIs, used for classes, properties and concepts
+    # without an explicit `uri` when a manifest is written as RDF Turtle, for
+    # example `spinta copy manifest.csv -o manifest.ttl`. Example:
+    # `https://data.gov.lt/id/`.
+    "uri_prefix": "https://example.com/id/",
+    # Allow RDF manifests to dereference web IRIs when they are read, to get
+    # titles and descriptions of classes, properties and concepts, and to
+    # follow `owl:imports` and concept schemes. Off by default, so that the
+    # result does not depend on the network.
+    "rdf_fetch_remote": False,
     "env": "prod",
     # Default limit of objects in a page
     # If None is given default is 100000

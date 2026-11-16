@@ -1498,6 +1498,7 @@ class EnumReader(TabularReader):
             "visibility": row[VISIBILITY],
             "eli": row[ELI],
             "count": row[COUNT],
+            "uri": row[URI],
         }
 
         node_data: PropertyRow = self._get_node_data()
@@ -2262,6 +2263,7 @@ def _enums_to_tabular(
                     "visibility": item.visibility.name if item.visibility else "",
                     "eli": item.eli,
                     "count": item.count,
+                    "uri": item.uri,
                 },
             )
             if lang := list(_lang_to_tabular(item.lang)):

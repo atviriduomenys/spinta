@@ -1136,6 +1136,10 @@ class Config:
     always_show_id: bool = False
     # Limit access to specified namespace root.
     root: str = None
+    # Base URI for generated RDF URIs, see `spinta.config.CONFIG`.
+    uri_prefix: str | None = None
+    # Dereference web IRIs when reading RDF manifests, see `spinta.config.CONFIG`.
+    rdf_fetch_remote: bool = False
     credentials_file: pathlib.Path
     data_path: pathlib.Path
     AccessLog: type[AccessLog]
