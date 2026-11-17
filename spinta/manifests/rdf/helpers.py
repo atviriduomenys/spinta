@@ -868,6 +868,11 @@ def _shacl_rows(graph: Graph, lang: str = "en") -> Iterator[dict]:
 
 
 def _collect_property(graph: Graph, cls: _ClassConstraints, prop_shape: Node, lang: str) -> None:
+    if _is_deactivated(graph, prop_shape):
+        # SHACL disables deactivated shapes, so their paths and constraints
+        # must not become manifest properties.
+        return
+
     path = graph.value(prop_shape, SH.path)
     if not isinstance(path, URIRef):
         # Inverse, sequence and alternative paths can't be expressed as a
@@ -911,7 +916,9 @@ def _is_reporting_only(graph: Graph, shape: Node) -> bool:
 
 def _has_definitions(graph: Graph, shape: Node) -> bool:
     """Return True if a node shape defines at least one property."""
-    return any(not _is_reporting_only(graph, ps) for ps in graph.objects(shape, SH.property))
+    return any(
+        not _is_deactivated(graph, ps) and not _is_reporting_only(graph, ps) for ps in graph.objects(shape, SH.property)
+    )
 
 
 def _defining_texts(texts: list[tuple[bool, str]]) -> list[str]:

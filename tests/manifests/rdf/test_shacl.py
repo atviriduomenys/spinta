@@ -145,6 +145,22 @@ def test_shacl_deactivated_shape_is_ignored():
     assert list(models["dcat/Dataset"]["properties"]) == ["title"]
 
 
+def test_shacl_deactivated_property_shape_is_ignored():
+    models = _models("""
+        ex:DatasetShape a sh:NodeShape ;
+            sh:targetClass dcat:Dataset ;
+            sh:property [ sh:path dct:title ; sh:datatype xsd:string ] ;
+            sh:property [
+                sh:deactivated true ;
+                sh:path dct:issued ;
+                sh:minCount 1 ;
+                sh:datatype xsd:integer
+            ] .
+    """)
+
+    assert list(models["dcat/Dataset"]["properties"]) == ["title"]
+
+
 def test_shacl_node_reference_is_a_ref_to_the_target_class():
     # The value of `dct:publisher` must conform to a shape that targets
     # `foaf:Agent`, so the property is a reference to `Agent`, a single value
