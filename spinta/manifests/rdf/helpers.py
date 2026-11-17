@@ -1518,7 +1518,9 @@ def _common_superclass(graph: Graph, classes: set[URIRef]) -> URIRef | None:
     """
     common = set.intersection(*(_superclasses(graph, c) for c in classes))
     declared = {c for c in common if _is_declared(graph, c)}
-    specific = [c for c in declared if not (_superclasses(graph, c) - {c}) & declared]
+    # A candidate is too general if it is a superclass of another candidate.
+    too_general = set().union(*(_superclasses(graph, c) - {c} for c in declared))
+    specific = [c for c in declared if c not in too_general]
     return specific[0] if len(specific) == 1 else None
 
 

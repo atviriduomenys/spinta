@@ -264,6 +264,23 @@ def test_union_of_subclasses_is_ref_to_superclass():
     assert rows[URIRef("http://example.com/ns#about")]["type"] == URIRef("http://example.com/ns#Resource")
 
 
+def test_union_of_subclasses_is_most_specific_common_superclass():
+    graph = Graph(bind_namespaces="none")
+    graph.parse(
+        data=PREFIXES
+        + ONTOLOGY
+        + """
+        ex:Root a owl:Class ; rdfs:label "Root"@en .
+        ex:Resource rdfs:subClassOf ex:Root .
+        """,
+        format="turtle",
+    )
+
+    assert _common_superclass(
+        graph, {URIRef("http://example.com/ns#Dataset"), URIRef("http://example.com/ns#Service")}
+    ) == URIRef("http://example.com/ns#Resource")
+
+
 def test_union_without_common_superclass_is_string():
     graph = Graph(bind_namespaces="none")
     graph.parse(
