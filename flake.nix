@@ -67,6 +67,7 @@
           pkgs.sqlite
           pkgs.postgresql  # psql
           pkgs.gettext     # envsubst
+          pkgs.mermaid-cli # mmdc, renders .mmd diagrams (notes/manifests/rdf.md)
           ruff             # pinned to poetry.lock version
           markout
         ];

@@ -1,7 +1,9 @@
+import re
+
 from spinta.cli.manifest import _read_and_return_manifest
 from spinta.components import Context
 from spinta.exceptions import InvalidName
-from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, MermaidClassDef, write_mermaid_manifest
+from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, MermaidClassDef, _mermaid_id, write_mermaid_manifest
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.context import create_test_context
@@ -43,7 +45,7 @@ def test_copy_mmd(context: Context, rc, cli: SpintaCliRunner, tmp_path):
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 + id : integer [1..1]
 «optional»
@@ -93,7 +95,7 @@ def test_copy_mmd_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_pat
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 ~ id : integer [1..1]
 «optional»
@@ -143,7 +145,7 @@ def test_copy_mmd_array(context: Context, rc, cli: SpintaCliRunner, tmp_path):
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 + id : integer [1..1]
 «optional»
@@ -195,20 +197,20 @@ def test_copy_mmd_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 + id : integer [1..1]
 «optional»
 + name : string [0..1]
 }}
-class `datasets/gov/example/CountryContinent`["Continent"]:::Concept {{
+class `datasets_x2f_gov_x2f_example_x2f_CountryContinent`["Continent"]:::Concept {{
 <<enumeration>>
 Africa
 Asia
 Europe
 }}
 }}
-`datasets/gov/example/Country` ..> "[0..1]" `datasets/gov/example/CountryContinent` : continent<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_Country` ..> "[0..1]" `datasets_x2f_gov_x2f_example_x2f_CountryContinent` : continent<br/>«optional»
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
@@ -254,20 +256,20 @@ def test_copy_mmd_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 }}
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 }}
 }}
-`datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_City` --> "[0..1]" `datasets_x2f_gov_x2f_example_x2f_Country` : country<br/>«optional»
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
@@ -313,20 +315,20 @@ def test_copy_mmd_ref_required(context: Context, rc, cli: SpintaCliRunner, tmp_p
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 }}
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 }}
 }}
-`datasets/gov/example/City` --> "[1..1]" `datasets/gov/example/Country` : country<br/>«mandatory»
+`datasets_x2f_gov_x2f_example_x2f_City` --> "[1..1]" `datasets_x2f_gov_x2f_example_x2f_Country` : country<br/>«mandatory»
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
@@ -373,21 +375,21 @@ def test_copy_mmd_backref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 }}
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 }}
 }}
-`datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
-`datasets/gov/example/Country` --> "[0..*]" `datasets/gov/example/City` : cities<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_City` --> "[0..1]" `datasets_x2f_gov_x2f_example_x2f_Country` : country<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_Country` --> "[0..*]" `datasets_x2f_gov_x2f_example_x2f_City` : cities<br/>«optional»
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
@@ -434,21 +436,21 @@ def test_copy_mmd_backref_not_array(context: Context, rc, cli: SpintaCliRunner, 
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 }}
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 }}
 }}
-`datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
-`datasets/gov/example/Country` --> "[0..1]" `datasets/gov/example/City` : capital<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_City` --> "[0..1]" `datasets_x2f_gov_x2f_example_x2f_Country` : country<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_Country` --> "[0..1]" `datasets_x2f_gov_x2f_example_x2f_City` : capital<br/>«optional»
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
@@ -495,21 +497,21 @@ def test_copy_mmd_backref_required(context: Context, rc, cli: SpintaCliRunner, t
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 + id : integer [1..1]
 «optional»
 + name : string [0..1]
 }}
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «mandatory»
 + id : integer [1..1]
 «optional»
 + name : string [0..1]
 }}
 }}
-`datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
-`datasets/gov/example/Country` --> "[1..1]" `datasets/gov/example/City` : cities<br/>«mandatory»
+`datasets_x2f_gov_x2f_example_x2f_City` --> "[0..1]" `datasets_x2f_gov_x2f_example_x2f_Country` : country<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_Country` --> "[1..1]" `datasets_x2f_gov_x2f_example_x2f_City` : cities<br/>«mandatory»
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
@@ -555,18 +557,18 @@ def test_copy_mmd_base(context: Context, rc, cli: SpintaCliRunner, tmp_path):
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Settlement`["Settlement"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Settlement`["Settlement"]:::Entity {{
 «mandatory»
 + id : integer [1..1]
 «optional»
 + name : string [0..1]
 }}
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «optional»
 + council : string [0..1]
 }}
 }}
-`datasets/gov/example/City` --|> `datasets/gov/example/Settlement`
+`datasets_x2f_gov_x2f_example_x2f_City` --|> `datasets_x2f_gov_x2f_example_x2f_Settlement`
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
@@ -612,18 +614,18 @@ def test_copy_mmd_base_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path)
             == f"""{MERMAID_CONFIG}
 classDiagram
 namespace `datasets/gov/example` {{
-class `datasets/gov/example/Settlement`["Settlement"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Settlement`["Settlement"]:::Entity {{
 «mandatory»
 + id : integer [1..1]
 «optional»
 + name : string [0..1]
 }}
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «optional»
 + council : string [0..1]
 }}
 }}
-`datasets/gov/example/City` --|> `datasets/gov/example/Settlement` : id<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_City` --|> `datasets_x2f_gov_x2f_example_x2f_Settlement` : id<br/>«optional»
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
@@ -671,7 +673,7 @@ def test_copy_with_two_datasets_and_main_specified(context: Context, rc, cli: Sp
             contents
             == f"""{MERMAID_CONFIG}
 classDiagram
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «optional»
 + name : string [0..1]
 + id : string [0..1]
@@ -679,7 +681,7 @@ class `datasets/gov/example/City`["City"]:::Entity {{
 }}
 
 namespace `datasets/gov/example2` {{
-class `datasets/gov/example2/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example2_x2f_Country`["Country"]:::Entity {{
 «optional»
 + name : string [0..1]
 + id : string [0..1]
@@ -721,7 +723,7 @@ def test_write_mermaid_manifest_output_as_string(context: Context, rc, cli: Spin
         mermaid
         == f"""{MERMAID_CONFIG}
 classDiagram
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «mandatory»
 + name : string [1..1]
 «optional»
@@ -730,7 +732,7 @@ class `datasets/gov/example/City`["City"]:::Entity {{
 }}
 
 namespace `datasets/gov/example2` {{
-class `datasets/gov/example2/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example2_x2f_Country`["Country"]:::Entity {{
 «optional»
 + name : string [0..1]
 + id : string [0..1]
@@ -775,27 +777,27 @@ def test_write_mermaid_manifest_nested_properties(context: Context, rc, cli: Spi
         mermaid
         == f"""{MERMAID_CONFIG}
 classDiagram
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 size : integer [0..1]
 }}
-class `datasets/gov/example/City`["City"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity {{
 «mandatory»
 id : integer [1..1]
 «optional»
 name : string [0..1]
 }}
-class `datasets/gov/example/Continent`["Continent"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Continent`["Continent"]:::Entity {{
 «optional»
 population : integer [0..1]
 name : string [0..1]
 }}
 
-`datasets/gov/example/City` --> "[0..1]" `datasets/gov/example/Country` : country<br/>«optional»
-`datasets/gov/example/Country` --> "[0..1]" `datasets/gov/example/Continent` : continent<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_City` --> "[0..1]" `datasets_x2f_gov_x2f_example_x2f_Country` : country<br/>«optional»
+`datasets_x2f_gov_x2f_example_x2f_Country` --> "[0..1]" `datasets_x2f_gov_x2f_example_x2f_Continent` : continent<br/>«optional»
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
 """
@@ -826,11 +828,11 @@ def test_write_mermaid_manifest_model_without_properties(context: Context, rc, c
         mermaid
         == f"""{MERMAID_CONFIG}
 classDiagram
-class `datasets/gov/example/Country`["Country"]:::Entity {{
+class `datasets_x2f_gov_x2f_example_x2f_Country`["Country"]:::Entity {{
 «optional»
 name : string [0..1]
 }}
-class `datasets/gov/example/City`["City"]:::Entity
+class `datasets_x2f_gov_x2f_example_x2f_City`["City"]:::Entity
 
 classDef Concept {MermaidClassDef.Concept.value};
 classDef Entity {MermaidClassDef.Entity.value};
@@ -949,3 +951,11 @@ def test_copy_mmd_property_name_breakout_chars_rejected(context: Context, rc, cl
     assert result.exit_code != 0
     assert isinstance(result.exception, InvalidName)
     assert not (tmp_path / "result.mmd").exists()
+
+
+def test_mermaid_id_is_css_safe_and_unique():
+    names = ["shacl/LegalResource", "shacl_LegalResource", "shacl/Legal_Resource", "a/b", "a_x2f_b", "ąžuolas/Medis"]
+    ids = [_mermaid_id(name) for name in names]
+
+    assert len(set(ids)) == len(names)
+    assert all(re.fullmatch(r"[A-Za-z0-9_]+", mermaid_id) for mermaid_id in ids)
