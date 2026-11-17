@@ -380,6 +380,86 @@ def test_copy_to_ttl_undeclared_prefix_is_an_error(rc, cli: SpintaCliRunner, tmp
     assert not (tmp_path / "result.ttl").exists()
 
 
+def test_copy_to_ttl_expands_uris_with_their_own_dataset_prefixes(rc, cli: SpintaCliRunner, tmp_path):
+    # Both datasets declare `ex`, but for different namespaces. Each `ex:` URI
+    # must be expanded with the prefix of the dataset that declares it.
+    rows = [
+        {"dataset": "datasets/a"},
+        {"type": "prefix", "ref": "ex", "uri": "http://a.example/ns#"},
+        {"model": "Country", "uri": "ex:Country", "access": "open"},
+        {"property": "name", "type": "string", "access": "open", "uri": "ex:name"},
+        {"dataset": "datasets/b"},
+        {"type": "prefix", "ref": "ex", "uri": "http://b.example/ns#"},
+        {"model": "Country", "uri": "ex:Country", "access": "open"},
+        {"property": "name", "type": "string", "access": "open", "uri": "ex:name"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    # Each namespace is declared once, under its own name.
+    assert {"http://a.example/ns#", "http://b.example/ns#"} <= {str(ns) for _, ns in graph.namespaces()}
+    assert set(graph.objects(None, SH.targetClass)) == {
+        URIRef("http://a.example/ns#Country"),
+        URIRef("http://b.example/ns#Country"),
+    }
+    assert {URIRef("http://a.example/ns#name"), URIRef("http://b.example/ns#name")} <= set(graph.objects(None, SH.path))
+
+
+def test_copy_to_ttl_expands_concept_uris_with_their_own_dataset_prefixes(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": "datasets/a"},
+        {"type": "prefix", "ref": "ex", "uri": "http://a.example/ns#"},
+        {"model": "Country", "uri": "ex:Country", "access": "open"},
+        {"property": "status", "type": "string", "access": "open"},
+        {"type": "enum", "prepare": "'ACTIVE'", "uri": "ex:active"},
+        {"dataset": "datasets/b"},
+        {"type": "prefix", "ref": "ex", "uri": "http://b.example/ns#"},
+        {"model": "Country", "uri": "ex:Country", "access": "open"},
+        {"property": "status", "type": "string", "access": "open"},
+        {"type": "enum", "prepare": "'ACTIVE'", "uri": "ex:active"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    schemes = set(graph.objects(None, SKOS.inScheme))
+    concepts = {s for s, _, _ in graph.triples((None, SKOS.inScheme, None))}
+    assert URIRef("http://a.example/ns#active") in concepts
+    assert URIRef("http://b.example/ns#active") in concepts
+    assert len(schemes) == 2
+
+
+def test_copy_to_ttl_same_uri_in_two_datasets_is_one_prefix(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": "datasets/a"},
+        {"type": "prefix", "ref": "cv", "uri": "http://data.example/m8g/"},
+        {"model": "Unit", "uri": "cv:AdminUnit", "access": "open"},
+        {"dataset": "datasets/b"},
+        {"type": "prefix", "ref": "cv", "uri": "http://data.example/m8g/"},
+        {"model": "Unit", "uri": "cv:AdminUnit", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    text = (tmp_path / "result.ttl").read_text(encoding="utf-8")
+    assert text.count("@prefix cv:") == 1
+    assert "cv_2" not in text
+
+
+def test_copy_to_ttl_uris_differing_by_trailing_slash_get_different_prefixes(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": "datasets/a"},
+        {"type": "prefix", "ref": "cv", "uri": "http://data.example/m8g"},
+        {"model": "Unit", "uri": "cv:AdminUnit", "access": "open"},
+        {"dataset": "datasets/b"},
+        {"type": "prefix", "ref": "cv", "uri": "http://data.example/m8g/"},
+        {"model": "Unit", "uri": "cv:AdminUnit", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    text = (tmp_path / "result.ttl").read_text(encoding="utf-8")
+    assert "@prefix cv: <http://data.example/m8g> ." in text
+    assert "@prefix cv_2: <http://data.example/m8g/> ." in text
+
+
 # SHACL vocabulary described in SHACL, used to check that generated shapes are valid SHACL.
 SHACL_SHACL = pathlib.Path(pyshacl.__file__).parent / "assets" / "shacl-shacl.ttl"
 EX = Namespace("https://example.com/data/")

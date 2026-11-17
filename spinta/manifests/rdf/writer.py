@@ -22,9 +22,10 @@ Generated URIs are built from `uri_prefix` configuration option, for example
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.parse import quote
 
 import click
@@ -39,6 +40,10 @@ from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
 from spinta.manifests.rdf.turtle import Section, TurtleDocument
 from spinta.types.datatype import Array, ArrayBackRef, BackRef, DataType, Ref
+
+if TYPE_CHECKING:
+    from spinta.components import Namespace
+    from spinta.datasets.components import Dataset
 
 log = logging.getLogger(__name__)
 
@@ -100,6 +105,8 @@ class _Enum:
     dataset: str
     scheme: URIRef
     values: EnumValue
+    # Prefixes of the dataset that declares the enum, or of the manifest.
+    prefixes: dict[str, str]
 
 
 @dataclass
@@ -123,10 +130,16 @@ class _RdfExporter:
         # properties that use it.
         self.enums: dict[int, _Enum] = {}
         self.definitions: dict[URIRef, _PropertyDefinition] = {}
+        # Prefixes are not shared between datasets, a URI is expanded with the prefixes of its owner.
+        self._manifest_prefixes: dict[str, str] = {}
+        self._dataset_prefixes: dict[str, dict[str, str]] = {}
+        self._namespace_owner: dict[str, str] = {}
 
     def export(self) -> TurtleDocument:
         models = [m for m in commands.get_models(self.context, self.manifest).values() if self._is_exported(m)]
-        self._bind_prefixes(models)
+        namespaces = list(commands.get_namespaces(self.context, self.manifest).values())
+        self._load_prefixes(models)
+        self._bind_prefixes(models, namespaces)
 
         # Sections are written in the order they are created.
         classes = self.doc.section("Classes")
@@ -134,11 +147,11 @@ class _RdfExporter:
         concepts = self.doc.section("Concepts")
         shapes = self.doc.section("SHACL shapes")
 
-        for namespace in commands.get_namespaces(self.context, self.manifest).values():
+        for namespace in namespaces:
             for name, values in (namespace.enums or {}).items():
-                self._register_enum(values, namespace.name, name)
+                self._register_enum(values, namespace.name, name, self._namespace_owner.get(namespace.name))
         for name, values in (self.manifest.enums or {}).items():
-            self._register_enum(values, "", name)
+            self._register_enum(values, "", name, None)
 
         for model in models:
             if self._is_described(self._class_iri(model)):
@@ -158,17 +171,55 @@ class _RdfExporter:
             return False
         return model.access is None or model.access >= self.access
 
-    def _bind_prefixes(self, models: list[Model]) -> None:
-        datasets = {_dataset_name(m): m.external.dataset for m in models if m.external and m.external.dataset}
-        sources: list[dict[str, UriPrefix]] = [ds.prefixes or {} for ds in datasets.values()]
-        sources.append(self.manifest.prefixes or {})
+    def _load_prefixes(self, models: list[Model]) -> None:
+        """Collect prefixes of the manifest and of every dataset, and the dataset that owns each namespace."""
+        self._manifest_prefixes = _declared(self.manifest.prefixes)
+        for dataset in commands.get_datasets(self.context, self.manifest).values():
+            self._add_dataset(dataset)
+        for model in models:
+            if model.external and model.external.dataset:
+                self._add_dataset(model.external.dataset)
+
+    def _add_dataset(self, dataset: Dataset) -> None:
+        self._dataset_prefixes[dataset.name] = _declared(dataset.prefixes)
+        if dataset.ns is not None:
+            self._namespace_owner[dataset.ns.name] = dataset.name
+
+    def _prefixes(self, owner: str | None) -> dict[str, str]:
+        """Return prefixes that URIs of an owner are expanded with.
+
+        The owner's own prefixes win over the manifest's, so the same name can
+        mean different namespaces in different datasets.
+        """
+        own = self._dataset_prefixes.get(owner, {}) if owner else {}
+        return {**self._manifest_prefixes, **own}
+
+    def _bind_prefixes(self, models: list[Model], namespaces: list[Namespace]) -> None:
+        """Declare each namespace once, under one name.
+
+        Datasets declare prefixes independently, so one name can stand for
+        different namespaces. The first declaration keeps the name, a later one
+        for another namespace gets a number suffix, like `ex_2`. Full IRIs are
+        abbreviated with these names, so every abbreviation is unambiguous.
+        """
+        owners = {_owner(m) for m in models}
+        owners.update(
+            self._namespace_owner[ns.name] for ns in namespaces if ns.enums and ns.name in self._namespace_owner
+        )
+        sources = [self._dataset_prefixes.get(owner, {}) for owner in sorted(o for o in owners if o)]
+        sources.append(self._manifest_prefixes)
+
+        bound: dict[str, str] = {}  # Namespace -> name it is declared under.
         for prefixes in sources:
-            for name, prefix in prefixes.items():
-                if not prefix.uri:
+            for name, namespace in prefixes.items():
+                if namespace in bound:
                     continue
-                if name in self.doc.prefixes and self.doc.prefixes[name] != prefix.uri:
-                    log.warning("Prefix %r is declared more than once, only the first declaration is used.", name)
-                self.doc.bind(name, prefix.uri)
+                output, number = name, 1
+                while output in self.doc.prefixes:
+                    number += 1
+                    output = f"{name}_{number}"
+                self.doc.bind(output, namespace)
+                bound[namespace] = output
         for name, namespace in _STANDARD_PREFIXES.items():
             self.doc.bind(name, namespace)
 
@@ -194,7 +245,7 @@ class _RdfExporter:
         section.add(enum.scheme, SKOS.prefLabel, Literal(enum.name))
         for code, item in enum.values.items():
             if item.uri:
-                iri = self._uri_term(item.uri, enum.name)
+                iri = self._uri_term(item.uri, enum.name, enum.prefixes)
             else:
                 iri = self._generated(enum.dataset, _code(code, item))
             if not self._is_described(iri):
@@ -251,7 +302,7 @@ class _RdfExporter:
         inverse = raw.startswith("<")
         if inverse:
             raw = raw[1:].strip()
-        term = self._uri_term(raw, prop.name)
+        term = self._uri_term(raw, prop.name, self._prefixes(_owner(model)))
         if term is None:
             term = self._generated(_dataset_name(model), prop.name)
         return term, inverse
@@ -290,11 +341,17 @@ class _RdfExporter:
         if (enum := self.enums.get(id(owner.enum))) is not None:
             return enum
         name = owner.given.enum or f"{model.basename}_{prop.name}"
-        return self._register_enum(owner.enum, _dataset_name(model), name)
+        return self._register_enum(owner.enum, _dataset_name(model), name, _owner(model))
 
-    def _register_enum(self, values: EnumValue, dataset: str, name: str) -> _Enum:
+    def _register_enum(self, values: EnumValue, dataset: str, name: str, owner: str | None) -> _Enum:
         if (enum := self.enums.get(id(values))) is None:
-            enum = _Enum(name=name, dataset=dataset, scheme=self._generated(dataset, name), values=values)
+            enum = _Enum(
+                name=name,
+                dataset=dataset,
+                scheme=self._generated(dataset, name),
+                values=values,
+                prefixes=self._prefixes(owner),
+            )
             self.enums[id(values)] = enum
         return enum
 
@@ -307,10 +364,10 @@ class _RdfExporter:
 
     def _class_iri(self, model: Model) -> URIRef:
         if model.uri:
-            return self._uri_term(model.uri, model.name)
+            return self._uri_term(model.uri, model.name, self._prefixes(_owner(model)))
         return self._generated(_dataset_name(model), model.basename)
 
-    def _uri_term(self, raw: str | None, owner: str) -> URIRef | None:
+    def _uri_term(self, raw: str | None, owner: str, prefixes: Mapping[str, str]) -> URIRef | None:
         """Expand a URI given in a manifest to an IRI, `None` if no URI is given.
 
         A URI is a full IRI, a prefixed name, like `dct:title`, or a relative path,
@@ -324,8 +381,8 @@ class _RdfExporter:
         if "://" in raw:
             return URIRef(raw)
         prefix, sep, local = raw.partition(":")
-        if sep and local and prefix in self.doc.prefixes:
-            return URIRef(self.doc.prefixes[prefix] + local)
+        if sep and local and prefix in prefixes:
+            return URIRef(prefixes[prefix] + local)
         if not sep:
             return URIRef(self._base() + raw.lstrip("/"))
         if local:
@@ -377,6 +434,18 @@ def _uri_of(prop: Property) -> str | None:
     if isinstance(prop.dtype, Array) and prop.dtype.items is not None and prop.dtype.items.uri:
         return prop.dtype.items.uri
     return prop.uri
+
+
+def _declared(prefixes: dict[str, UriPrefix] | None) -> dict[str, str]:
+    """Return prefixes that have a URI, by their name."""
+    return {name: prefix.uri for name, prefix in (prefixes or {}).items() if prefix.uri}
+
+
+def _owner(model: Model) -> str | None:
+    """Return name of the dataset that declares the model, `None` if it has no dataset."""
+    if model.external and model.external.dataset:
+        return model.external.dataset.name
+    return None
 
 
 def _dataset_name(model: Model) -> str:
