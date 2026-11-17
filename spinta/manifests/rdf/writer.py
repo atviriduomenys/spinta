@@ -30,7 +30,7 @@ from urllib.parse import quote
 
 import click
 from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import RDF, RDFS, SH, SKOS, XSD
+from rdflib.namespace import OWL, RDF, RDFS, SH, SKOS, XSD
 
 from spinta import commands
 from spinta.components import Context, Model, Property
@@ -38,7 +38,7 @@ from spinta.core.enums import Access
 from spinta.dimensions.enum.components import EnumItem, EnumValue
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
-from spinta.manifests.rdf.turtle import Section, TurtleDocument
+from spinta.manifests.rdf.turtle import Section, TurtleDocument, TurtleList
 from spinta.types.datatype import Array, ArrayBackRef, BackRef, DataType, Ref
 
 if TYPE_CHECKING:
@@ -234,8 +234,7 @@ class _RdfExporter:
     def _property_definition(self, section: Section, iri: URIRef, definition: _PropertyDefinition) -> None:
         section.add(iri, RDF.type, RDF.Property)
         _add_texts(section, iri, definition.title, definition.description, RDFS.label, RDFS.comment)
-        for domain in definition.domains:
-            section.add(iri, RDFS.domain, domain)
+        _domain(section, iri, list(definition.domains))
         # Ranges of a property shared by several models are used only if all of them agree.
         ranges = [r for r in definition.ranges if r is not None]
         if len(definition.ranges) == 1 and ranges:
@@ -490,3 +489,20 @@ def _add_texts(
         section.add(subject, title_predicate, Literal(title))
     if description:
         section.add(subject, description_predicate, Literal(description))
+
+
+def _domain(section: Section, iri: URIRef, domains: list[URIRef]) -> None:
+    """Write `rdfs:domain` of a property.
+
+    Several `rdfs:domain` triples mean that a subject is an instance of all of
+    them, not one of them. A property shared by several models is therefore
+    written with the union of its domains, `owl:unionOf` of a Turtle list.
+    """
+    if len(domains) == 1:
+        section.add(iri, RDFS.domain, domains[0])
+    elif domains:
+        section.doc.bind("owl", OWL)
+        union = BNode()
+        section.add(iri, RDFS.domain, union)
+        section.doc.add(union, RDF.type, OWL.Class)
+        section.doc.add(union, OWL.unionOf, TurtleList(tuple(domains)))

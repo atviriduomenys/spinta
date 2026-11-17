@@ -4,8 +4,9 @@ from types import SimpleNamespace
 
 import pyshacl
 from rdflib import Graph, Literal, Namespace, URIRef
+from rdflib.collection import Collection
 from rdflib.compare import isomorphic
-from rdflib.namespace import DCTERMS, RDF, RDFS, SH, SKOS, XSD
+from rdflib.namespace import DCTERMS, OWL, RDF, RDFS, SH, SKOS, XSD
 
 from spinta.manifests.rdf.writer import _code
 from spinta.testing.cli import SpintaCliRunner
@@ -217,6 +218,30 @@ def test_copy_to_ttl_defines_property_with_uri_under_uri_prefix(rc, cli: SpintaC
     # Properties with an external `uri` are only referenced.
     assert (URIRef("https://other.example.com/org"), RDF.type, None) not in graph
     assert (None, SH.path, URIRef("https://other.example.com/org")) in graph
+
+
+def test_copy_to_ttl_writes_union_domain_of_property_shared_by_models(rc, cli: SpintaCliRunner, tmp_path):
+    # Generated property IRIs are shared, several `rdfs:domain` triples would mean an intersection.
+    rows = [
+        {"dataset": DATASET},
+        {"model": "Country", "access": "open"},
+        {"property": "code", "type": "string", "access": "open"},
+        {"model": "Organization", "access": "open"},
+        {"property": "code", "type": "string", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    code = _uri(f"{DATASET}/code")
+    assert (code, RDFS.domain, None) in graph
+    assert (code, RDFS.domain, _uri(f"{DATASET}/Country")) not in graph
+    assert (code, RDFS.domain, _uri(f"{DATASET}/Organization")) not in graph
+    unions = list(graph.objects(code, RDFS.domain))
+    assert len(unions) == 1
+    union = unions[0]
+    assert (union, RDF.type, OWL.Class) in graph
+    members = set(Collection(graph, graph.value(union, OWL.unionOf)))
+    assert members == {_uri(f"{DATASET}/Country"), _uri(f"{DATASET}/Organization")}
 
 
 def test_copy_to_ttl_defines_concept_with_uri_under_uri_prefix(rc, cli: SpintaCliRunner, tmp_path):

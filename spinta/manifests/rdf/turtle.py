@@ -4,6 +4,7 @@ Triples are written in the order they were added, which keeps the output stable
 and in the same order as the manifest it was generated from. The document is
 split into sections, each section is introduced by a comment. Blank nodes that
 are objects of other triples are written inline, nested in their subject.
+Lists are written as Turtle collections, `( a b c )`.
 """
 
 from __future__ import annotations
@@ -17,7 +18,16 @@ from rdflib.namespace import RDF, RDFS, SH, SKOS, XSD
 
 Subject = URIRef | BNode
 Predicate = URIRef
-Object = URIRef | BNode | Literal
+
+
+@dataclass(frozen=True)
+class TurtleList:
+    """Ordered values written as a Turtle collection, `( a b c )`."""
+
+    items: tuple[URIRef | BNode, ...]
+
+
+Object = URIRef | BNode | Literal | TurtleList
 
 # Predicates written first, in this order. Other predicates are written after
 # them, in the order they were added.
@@ -91,7 +101,7 @@ class TurtleDocument:
     def render(self) -> str:
         """Return the document as Turtle text."""
         # Blank nodes that are objects are written inline, not as subjects.
-        referenced = {obj for pairs in self._triples.values() for _, obj in pairs if isinstance(obj, BNode)}
+        referenced = {node for pairs in self._triples.values() for _, obj in pairs for node in _nodes(obj)}
         blocks = [self._render_prefixes()]
         for section in self._sections:
             subjects = [s for s in section.subjects if s not in referenced]
@@ -122,6 +132,9 @@ class TurtleDocument:
     def _object(self, obj: Object, depth: int) -> str:
         if isinstance(obj, BNode):
             return f"[\n{self._render_predicates(obj, depth)}\n{_INDENT * depth}]"
+        if isinstance(obj, TurtleList):
+            items = " ".join(self._object(item, depth) for item in obj.items)
+            return f"({items})" if items else "()"
         if isinstance(obj, Literal):
             return self._literal(obj)
         return self._iri(obj)
@@ -159,6 +172,15 @@ class TurtleDocument:
         if best is None:
             return f"<{value}>"
         return f"{best[0]}:{value[len(best[1]) :]}"
+
+
+def _nodes(obj: Object) -> list[BNode]:
+    """Return blank nodes of an object, the items of a list are written inline too."""
+    if isinstance(obj, BNode):
+        return [obj]
+    if isinstance(obj, TurtleList):
+        return [item for item in obj.items if isinstance(item, BNode)]
+    return []
 
 
 def _predicate_rank(predicate: Predicate) -> int:
