@@ -179,6 +179,33 @@ def test_imported_classes_and_properties_are_used_only_when_needed(tmp_path):
     assert "identifier" in rows["Dataset"]["properties"]
 
 
+def test_domain_of_property_in_given_file_is_model(tmp_path):
+    # Neither declared nor targeted by shapes, the domain is still a model.
+    main = _write(
+        tmp_path,
+        "main.ttl",
+        PREFIXES + "ex:name a rdf:Property ; rdfs:domain ex:Country ; rdfs:range xsd:string .",
+    )
+
+    rows = _schemas([_manifest(main)])
+
+    assert rows["Country"]["properties"]["name"]["uri"] == "ex:name"
+    assert rows["Country"]["properties"]["name"]["type"] == "string"
+
+
+def test_domain_of_imported_property_is_not_model(tmp_path):
+    main = _write(tmp_path, "main.ttl", PREFIXES + SHAPES + "<> owl:imports <onto.ttl> .")
+    _write(
+        tmp_path,
+        "onto.ttl",
+        PREFIXES + "ex:code a owl:DatatypeProperty ; rdfs:domain ex:Country ; rdfs:range xsd:string .",
+    )
+
+    rows = _schemas([_manifest(main)])
+
+    assert "Country" not in rows
+
+
 def test_ontology_in_given_file_defines_classes_and_properties(tmp_path):
     main = _write(tmp_path, "onto.ttl", PREFIXES + ONTOLOGY)
 

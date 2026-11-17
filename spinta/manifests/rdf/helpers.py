@@ -1402,9 +1402,10 @@ def _ontology_rows(graph: Graph, sources: Graph, shacl_rows: list[dict]) -> Iter
     Imported ontologies describe far more classes and properties than a profile
     uses, and the properties a profile uses are defined by its SHACL shapes. So:
 
-    - classes are used if they are declared in the given files, or targeted by
-      SHACL shapes, plus their superclasses, so that the class hierarchy is kept,
-      and the ranges of used properties,
+    - classes are used if they are declared in the given files, targeted by
+      SHACL shapes, or domains of properties in the given files, plus their
+      superclasses, so that the class hierarchy is kept, and the ranges of used
+      properties,
     - properties are taken from the given files only, if their domain is used,
       properties that SHACL shapes already define are skipped.
 
@@ -1415,6 +1416,12 @@ def _ontology_rows(graph: Graph, sources: Graph, shacl_rows: list[dict]) -> Iter
     defined = {(row["model"], row["property"]) for row in shacl_rows if row["property"] is not None}
 
     used: set[URIRef] = shacl_models | _declared_classes(sources)
+    # Domains of properties in the given files are used even if they are not
+    # declared there, for example `ex:Country` in `ex:name rdfs:domain ex:Country`.
+    # Domains that come only from imported ontologies are not seeded here.
+    used.update(
+        domain for prop in _property_candidates(sources) for domain in _domains(sources, prop) if _is_model_type(domain)
+    )
     included: dict[tuple[URIRef | None, URIRef], URIRef | None] = {}
 
     changed = True
