@@ -336,6 +336,27 @@ def test_shacl_concept_scheme_not_available_is_a_string(monkeypatch):
     assert "enums" not in dataset
 
 
+def test_shacl_concept_notation_is_the_prepared_value(monkeypatch):
+    # The local name of a concept is its source, its `skos:notation` is what is prepared for it.
+    monkeypatch.setattr(helpers, "_fetch_vocabulary", _no_fetch)
+    dataset, _ = _load(COLOR_SCHEME + 'ex:Blue skos:notation "sky" .' + COLOR_PROPERTY % "sh:maxCount 1 ;")
+
+    colors = dataset["enums"]["colors"]
+    assert colors["Blue"]["source"] == "Blue"
+    assert colors["Blue"]["prepare"] == "sky"
+    # Without a notation the source is the prepared value.
+    assert colors["Red"]["prepare"] == "Red"
+
+
+def test_shacl_concept_notation_is_read_from_fetched_scheme(monkeypatch):
+    remote = Graph(bind_namespaces="none")
+    remote.parse(data=PREFIXES + COLOR_SCHEME + 'ex:Blue skos:notation "sky" .', format="turtle")
+    monkeypatch.setattr(helpers, "_fetch_vocabulary", lambda scheme: remote)
+    dataset, _ = _load(COLOR_PROPERTY % "sh:maxCount 1 ;", fetch_remote=True)
+
+    assert dataset["enums"]["colors"]["Blue"]["prepare"] == "sky"
+
+
 # Two schemes with the same local name, `status`, but different IRIs.
 STATUS_SCHEMES = """
     <https://a.example/status> a skos:ConceptScheme .

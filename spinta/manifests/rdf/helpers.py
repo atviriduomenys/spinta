@@ -1053,6 +1053,9 @@ def _load_enum(
     Enums are dataset level, so properties that use the same set of schemes
     share one enum. Schemes with the same local name are different vocabularies,
     they get separate enums, see `_enum_name`.
+
+    The key of an item is the local name of its concept, its prepared value is
+    the `skos:notation` of the concept, see `_prepared_value`.
     """
     key = (dataset["name"], frozenset(str(scheme) for scheme in schemes))
     if key in enums:
@@ -1079,7 +1082,7 @@ def _load_enum(
         iris[source] = iri
         items[source] = {
             "source": source,
-            "prepare": source,
+            "prepare": _prepared_value(definitions.notation(iri), source),
             "title": title,
             "description": description,
             "uri": _concept_uri(dataset, concept),
@@ -1096,6 +1099,19 @@ def _load_enum(
     dataset.setdefault("enums", {})[enum_name] = items
     enums[key] = enum_name
     return enum_name
+
+
+def _prepared_value(notation: Node | None, source: str) -> str:
+    """Return the prepared value of an enum item, the value that is matched against data.
+
+    The prepared value is the `skos:notation` of the concept, as a string, because
+    enum properties are read as strings, `"true"^^xsd:boolean` is `"true"`. Without
+    a notation the prepared value is the source, the local name of the concept, as
+    it is for source-only enums.
+    """
+    if notation is None:
+        return source
+    return str(notation)
 
 
 def _enum_name(dataset: dict, schemes: list[URIRef]) -> str:
@@ -1257,6 +1273,13 @@ class _Definitions:
         title, description = self._local(iri)
         remote_title, remote_description = self._remote.get(iri, ("", ""))
         return title or remote_title, description or remote_description
+
+    def notation(self, iri: str) -> Node | None:
+        """Return `skos:notation` of an IRI, looked up in the same graphs as definitions."""
+        for graph in (self.graph, *self._sources):
+            if (notation := graph.value(URIRef(iri), SKOS.notation)) is not None:
+                return notation
+        return None
 
     def _local(self, iri: str) -> tuple[str, str]:
         title = description = ""

@@ -16,7 +16,9 @@ Generated URIs are built from `uri_prefix` configuration option, for example
 - properties: `{uri_prefix}{dataset}/{property}`
 - concept schemes (enums): `{uri_prefix}{dataset}/{enum}`. Inline enums are
   named `{model}_{property}`.
-- concepts: `{uri_prefix}{dataset}/{code}`
+- concepts: `{uri_prefix}{dataset}/{code}`. The prepared value of a concept is
+  its `skos:notation`, written only when it differs from the local name of the
+  concept, which is the source of an enum item.
 """
 
 from __future__ import annotations
@@ -38,8 +40,10 @@ from spinta.core.enums import Access
 from spinta.dimensions.enum.components import EnumItem, EnumValue
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.manifests.components import Manifest
+from spinta.manifests.rdf.helpers import _local_name
 from spinta.manifests.rdf.turtle import Section, TurtleDocument, TurtleList
 from spinta.types.datatype import Array, ArrayBackRef, BackRef, DataType, Ref
+from spinta.utils.schema import NA
 
 if TYPE_CHECKING:
     from spinta.components import Namespace
@@ -251,6 +255,10 @@ class _RdfExporter:
                 iri = self._uri_term(item.uri, enum.name, enum.prefixes)
             else:
                 iri = self._generated(enum.dataset, _code(code, item))
+            # The key of an item is its source, which is the local name of the concept, so the prepared
+            # value is written only when it differs from it. Source-only items have no notation.
+            if item.prepare is not NA and item.prepare is not None and str(item.prepare) != _local_name(str(iri)):
+                section.add(iri, SKOS.notation, Literal(item.prepare))
             if not self._is_described(iri):
                 # Concepts that are not described here are only referenced by their URI.
                 section.add(iri, SKOS.inScheme, enum.scheme)

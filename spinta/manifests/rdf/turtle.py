@@ -35,6 +35,7 @@ _PREDICATE_ORDER = [
     RDF.type,
     RDFS.label,
     SKOS.prefLabel,
+    SKOS.notation,
     SH.name,
     RDFS.comment,
     SKOS.definition,

@@ -288,6 +288,55 @@ def test_copy_to_ttl_concept_uri_is_percent_encoded(rc, cli: SpintaCliRunner, tm
     assert (_uri(f"{DATASET}/%C3%84%C5%BD"), SKOS.prefLabel, Literal("Raidė")) in graph
 
 
+def _copy_back(rc, cli: SpintaCliRunner, tmp_path: pathlib.Path) -> list[dict[str, str]]:
+    """Copy `result.ttl` back to a manifest, and return its rows."""
+    rc = rc.fork({"uri_prefix": PREFIX})
+    cli.invoke(rc, ["copy", "--access", "open", "-o", tmp_path / "back.csv", tmp_path / "result.ttl"])
+    with open(tmp_path / "back.csv", newline="", encoding="utf-8") as file:
+        return list(csv.DictReader(file))
+
+
+def test_copy_to_ttl_round_trip_keeps_prepared_values_that_differ_from_source(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": DATASET},
+        # Source `l` is prepared as `left`, the concept is `/l`, so its prepared value must be kept.
+        {"type": "enum", "ref": "Side", "source": "l", "prepare": "'left'", "access": "open", "title": "Kairė"},
+        {"type": "enum", "ref": "Side", "source": "r", "prepare": "'right'", "access": "open", "title": "Dešinė"},
+        # Source-only item, its source is its prepared value.
+        {"type": "enum", "ref": "Side", "source": "c", "access": "open"},
+        {"model": "Country", "access": "open"},
+        {"property": "side", "type": "string", "ref": "Side", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    # Only the first item of an enum has `type` and `ref`, the other items have only `source` and `prepare`.
+    enums = {row["source"]: row["prepare"] for row in _copy_back(rc, cli, tmp_path) if row["source"]}
+    assert enums == {"l": "'left'", "r": "'right'", "c": "'c'"}
+
+
+def test_copy_to_ttl_writes_notation_only_when_prepared_value_differs_from_source(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": DATASET},
+        {"type": "enum", "ref": "Side", "source": "l", "prepare": "'left'", "access": "open"},
+        {"type": "enum", "ref": "Side", "source": "ACTIVE", "prepare": "'ACTIVE'", "access": "open"},
+        {"type": "enum", "ref": "Side", "source": "c", "access": "open"},
+        {"type": "enum", "ref": "Flag", "source": "True", "prepare": "true", "access": "open"},
+        {"model": "Country", "access": "open"},
+        {"property": "side", "type": "string", "ref": "Side", "access": "open"},
+        {"property": "flag", "type": "boolean", "ref": "Flag", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert (_uri(f"{DATASET}/l"), SKOS.notation, Literal("left")) in graph
+    # Prepared value of the same text as the source is not repeated.
+    assert (_uri(f"{DATASET}/ACTIVE"), SKOS.notation, None) not in graph
+    # Source-only item has no notation.
+    assert (_uri(f"{DATASET}/c"), SKOS.notation, None) not in graph
+    # Boolean code is `true`, its prepared value is the boolean itself.
+    assert (_uri(f"{DATASET}/true"), SKOS.notation, Literal(True)) in graph
+
+
 def test_copy_to_ttl_uri_prefix_trailing_slash_is_optional(rc, cli: SpintaCliRunner, tmp_path):
     _write_manifest(tmp_path / "manifest.csv", _manifest_rows())
 
