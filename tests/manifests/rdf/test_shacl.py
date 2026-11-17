@@ -336,6 +336,66 @@ def test_shacl_concept_scheme_not_available_is_a_string(monkeypatch):
     assert "enums" not in dataset
 
 
+# Two schemes with the same local name, `status`, but different IRIs.
+STATUS_SCHEMES = """
+    <https://a.example/status> a skos:ConceptScheme .
+    ex:Open a skos:Concept ; skos:inScheme <https://a.example/status> .
+    <https://b.example/status> a skos:ConceptScheme .
+    ex:Closed a skos:Concept ; skos:inScheme <https://b.example/status> .
+"""
+
+
+def test_shacl_schemes_with_the_same_local_name_are_separate_enums(monkeypatch):
+    # Both schemes are named `status`, but they are different vocabularies, so
+    # each property must get its own enum with the concepts of its own scheme.
+    monkeypatch.setattr(helpers, "_fetch_vocabulary", _no_fetch)
+    dataset, models = _load(
+        STATUS_SCHEMES
+        + """
+        ex:DatasetShape a sh:NodeShape ;
+            sh:targetClass dcat:Dataset ;
+            sh:property [
+                sh:path ex:a_status ; sh:maxCount 1 ; sh:class skos:Concept ;
+                sh:node [ sh:property [ sh:path skos:inScheme ; sh:hasValue <https://a.example/status> ] ]
+            ] ;
+            sh:property [
+                sh:path ex:b_status ; sh:maxCount 1 ; sh:class skos:Concept ;
+                sh:node [ sh:property [ sh:path skos:inScheme ; sh:hasValue <https://b.example/status> ] ]
+            ] .
+        """
+    )
+
+    props = models["dcat/Dataset"]["properties"]
+    a_enum = props["a_status"]["enum"]
+    b_enum = props["b_status"]["enum"]
+    assert a_enum != b_enum
+    assert set(dataset["enums"][a_enum]) == {"Open"}
+    assert set(dataset["enums"][b_enum]) == {"Closed"}
+
+
+def test_shacl_properties_with_the_same_scheme_share_one_enum(monkeypatch):
+    monkeypatch.setattr(helpers, "_fetch_vocabulary", _no_fetch)
+    dataset, models = _load(
+        STATUS_SCHEMES
+        + """
+        ex:DatasetShape a sh:NodeShape ;
+            sh:targetClass dcat:Dataset ;
+            sh:property [
+                sh:path ex:a_status ; sh:maxCount 1 ; sh:class skos:Concept ;
+                sh:node [ sh:property [ sh:path skos:inScheme ; sh:hasValue <https://a.example/status> ] ]
+            ] ;
+            sh:property [
+                sh:path ex:other_status ; sh:maxCount 1 ; sh:class skos:Concept ;
+                sh:node [ sh:property [ sh:path skos:inScheme ; sh:hasValue <https://a.example/status> ] ]
+            ] .
+        """
+    )
+
+    props = models["dcat/Dataset"]["properties"]
+    assert props["a_status"]["enum"] == props["other_status"]["enum"]
+    assert list(dataset["enums"]) == [props["a_status"]["enum"]]
+
+
 def test_shacl_concept_without_scheme_is_a_ref():
     models = _models("""
         ex:DatasetShape a sh:NodeShape ;

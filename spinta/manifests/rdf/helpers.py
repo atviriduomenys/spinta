@@ -332,6 +332,7 @@ def _get_schemas(
     """
     definitions = _Definitions(graph, lang, fetch_remote=fetch_remote)
     definitions.prefetch(_definition_iris(graph, schemas))
+    enums: _EnumCache = {}
 
     for row in schemas:
         if "schema" in row:
@@ -348,7 +349,7 @@ def _get_schemas(
         if "properties" in row:
             target = datasets[_model_dataset(row["name"])] if datasets else dataset
             for name, prop in list(row["properties"].items()):
-                row["properties"][name] = _finalize_property(graph, target, models, name, prop, definitions)
+                row["properties"][name] = _finalize_property(graph, target, models, name, prop, definitions, enums)
 
     # Enums are added to the dataset while its properties are finalized, so
     # rows are yielded only after all of them are processed.
@@ -384,6 +385,7 @@ def _finalize_property(
     name: str,
     prop: dict,
     definitions: _Definitions,
+    enums: _EnumCache,
 ) -> dict:
     prop.pop("schema", None)
     required = prop.pop("required", None)
@@ -394,7 +396,7 @@ def _finalize_property(
     prop["type"], ref_model = _to_type_name(graph, dataset, models, prop["type"])
     if ref_model:
         prop["model"] = ref_model
-    if schemes and (enum := _load_enum(graph, dataset, name, schemes, definitions)):
+    if schemes and (enum := _load_enum(graph, dataset, name, schemes, definitions, enums)):
         prop["enum"] = enum
     if required:
         prop["required"] = True
@@ -1033,55 +1035,88 @@ def _enum_schemes(constraints: _PropertyConstraints) -> list[URIRef]:
     return sorted(constraints.schemes, key=str)
 
 
+# Enums already added to datasets, keyed by dataset name and the set of concept
+# scheme URIs they were loaded from.
+_EnumCache = dict[tuple[str, frozenset[str]], str]
+
+
 def _load_enum(
     graph: Graph,
     dataset: dict,
     prop_name: str,
     schemes: list[URIRef],
     definitions: _Definitions,
+    enums: _EnumCache,
 ) -> str | None:
     """Add enum with all concepts of the schemes to the dataset, return its name.
 
-    Enums are dataset level, so properties that use the same schemes share
-    one enum.
+    Enums are dataset level, so properties that use the same set of schemes
+    share one enum. Schemes with the same local name are different vocabularies,
+    they get separate enums, see `_enum_name`.
     """
-    enum_name = "_".join(sorted({_scheme_name(scheme) for scheme in schemes}))
-    if enum_name not in dataset.get("enums", {}):
-        concepts = [concept for scheme in schemes for concept in _scheme_concepts(graph, scheme, definitions)]
-        definitions.prefetch(str(concept) for concept in concepts)
+    key = (dataset["name"], frozenset(str(scheme) for scheme in schemes))
+    if key in enums:
+        return enums[key]
 
-        items: dict[str, dict] = {}
-        iris: dict[str, str] = {}
-        for concept in concepts:
-            iri = str(concept)
-            source = _local_name(iri)
-            if source in items:
-                if iris[source] != iri:
-                    log.warning(
-                        "Concepts %r and %r have the same code %r, only the first one is used.",
-                        iris[source],
-                        iri,
-                        source,
-                    )
-                continue
-            title, description = definitions.get(iri)
-            iris[source] = iri
-            items[source] = {
-                "source": source,
-                "prepare": source,
-                "title": title,
-                "description": description,
-                "uri": _concept_uri(dataset, concept),
-            }
-        if not items:
-            log.warning(
-                "No concepts found for %s, property %r is not an enum.",
-                ", ".join(str(s) for s in schemes),
-                prop_name,
-            )
-            return None
-        dataset.setdefault("enums", {})[enum_name] = items
+    concepts = [concept for scheme in schemes for concept in _scheme_concepts(graph, scheme, definitions)]
+    definitions.prefetch(str(concept) for concept in concepts)
+
+    items: dict[str, dict] = {}
+    iris: dict[str, str] = {}
+    for concept in concepts:
+        iri = str(concept)
+        source = _local_name(iri)
+        if source in items:
+            if iris[source] != iri:
+                log.warning(
+                    "Concepts %r and %r have the same code %r, only the first one is used.",
+                    iris[source],
+                    iri,
+                    source,
+                )
+            continue
+        title, description = definitions.get(iri)
+        iris[source] = iri
+        items[source] = {
+            "source": source,
+            "prepare": source,
+            "title": title,
+            "description": description,
+            "uri": _concept_uri(dataset, concept),
+        }
+    if not items:
+        log.warning(
+            "No concepts found for %s, property %r is not an enum.",
+            ", ".join(str(s) for s in schemes),
+            prop_name,
+        )
+        return None
+
+    enum_name = _enum_name(dataset, schemes)
+    dataset.setdefault("enums", {})[enum_name] = items
+    enums[key] = enum_name
     return enum_name
+
+
+def _enum_name(dataset: dict, schemes: list[URIRef]) -> str:
+    """Return a name for a new enum of the schemes, which is not used by another enum of the dataset.
+
+    The name is made of local names of the schemes, `https://a.example/status`
+    -> `status`. When that name is already used, for example by
+    `https://b.example/status`, the authority is added, `a_example_status`. If
+    that is used too, a number is added, `status_2`.
+    """
+    used = set(dataset.get("enums", {}))
+    name = "_".join(sorted({_scheme_name(scheme) for scheme in schemes}))
+    if name in used:
+        authority = "_".join(sorted({to_snake_case(urllib.parse.urlsplit(str(s)).netloc) for s in schemes} - {""}))
+        if authority:
+            name = f"{authority}_{name}"
+    candidate, n = name, 1
+    while candidate in used:
+        n += 1
+        candidate = f"{name}_{n}"
+    return candidate
 
 
 def _scheme_name(scheme: URIRef) -> str:
