@@ -137,7 +137,8 @@ class _RdfExporter:
 
     def export(self) -> TurtleDocument:
         models = [m for m in commands.get_models(self.context, self.manifest).values() if self._is_exported(m)]
-        namespaces = list(commands.get_namespaces(self.context, self.manifest).values())
+        exported = _namespaces_with_exported_models(models)
+        namespaces = [ns for ns in commands.get_namespaces(self.context, self.manifest).values() if ns.name in exported]
         self._load_prefixes(models)
         self._bind_prefixes(models, namespaces)
 
@@ -244,6 +245,9 @@ class _RdfExporter:
         section.add(enum.scheme, RDF.type, SKOS.ConceptScheme)
         section.add(enum.scheme, SKOS.prefLabel, Literal(enum.name))
         for code, item in enum.values.items():
+            # Items below the access threshold are not exported, as in the tabular manifest.
+            if item.access is not None and item.access < self.access:
+                continue
             if item.uri:
                 iri = self._uri_term(item.uri, enum.name, enum.prefixes)
             else:
@@ -412,6 +416,19 @@ class _RdfExporter:
         """Return URI generated as `{uri_prefix}{dataset}/{name}`, `name` is percent-encoded completely."""
         segments = [quote(dataset, safe="/"), quote(name, safe="")]
         return URIRef(self._base() + "/".join(s for s in segments if s))
+
+
+def _namespaces_with_exported_models(models: list[Model]) -> set[str]:
+    """Return names of namespaces of the models, and of their parent namespaces.
+
+    Enums of a namespace are used by models of its child namespaces too, so a
+    namespace is exported if one of its child namespaces has an exported model.
+    """
+    names: set[str] = set()
+    for model in models:
+        names.add(model.ns.name)
+        names.update(ns.name for ns in model.ns.parents())
+    return names
 
 
 def _exported_properties(model: Model, access: Access) -> Iterator[Property]:

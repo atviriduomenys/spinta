@@ -501,6 +501,60 @@ def test_copy_to_ttl_shapes_validate_data(rc, cli: SpintaCliRunner, tmp_path):
     assert not conforms
 
 
+def test_copy_to_ttl_skips_enum_items_below_access(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": DATASET},
+        {"type": "enum", "ref": "Status", "prepare": "'ACTIVE'", "access": "open", "title": "Aktyvus"},
+        {"type": "enum", "prepare": "'SECRET'", "access": "private", "title": "Slaptas", "description": "Neskelbtinas"},
+        {"model": "Country", "access": "open"},
+        {"property": "status", "type": "string", "ref": "Status", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert (_uri(f"{DATASET}/ACTIVE"), SKOS.prefLabel, Literal("Aktyvus")) in graph
+    assert (_uri(f"{DATASET}/SECRET"), None, None) not in graph
+    assert (None, None, Literal("Slaptas")) not in graph
+    assert (None, None, Literal("Neskelbtinas")) not in graph
+
+
+def test_copy_to_ttl_does_not_export_enums_of_namespace_without_exported_models(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": DATASET},
+        {"type": "enum", "ref": "Status", "prepare": "'ACTIVE'", "access": "open"},
+        {"model": "Country", "access": "open"},
+        {"property": "code", "type": "string", "access": "open"},
+        {"dataset": "datasets/gov/hidden"},
+        {"type": "enum", "ref": "Secret", "prepare": "'X'", "access": "open", "title": "Paslaptis"},
+        {"model": "Hidden", "access": "private"},
+        {"property": "code", "type": "string", "access": "private"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert (_uri("datasets/gov/hidden/Secret"), None, None) not in graph
+    assert (_uri("datasets/gov/hidden/X"), None, None) not in graph
+    assert (None, None, Literal("Paslaptis")) not in graph
+    # The exported namespace keeps its enums.
+    assert (_uri(f"{DATASET}/Status"), RDF.type, SKOS.ConceptScheme) in graph
+
+
+def test_copy_to_ttl_exports_enums_of_namespace_with_exported_child_namespace(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": "datasets/gov"},
+        {"type": "enum", "ref": "Parent", "prepare": "'P'", "access": "open", "title": "Tevinis"},
+        {"dataset": DATASET},
+        {"model": "Country", "access": "open"},
+        {"property": "code", "type": "string", "access": "open"},
+        {"property": "parent", "type": "string", "ref": "Parent", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert (_uri("datasets/gov/Parent"), RDF.type, SKOS.ConceptScheme) in graph
+    assert (_uri("datasets/gov/P"), SKOS.prefLabel, Literal("Tevinis")) in graph
+
+
 def test_code_of_boolean_enum_is_lowercase():
     assert _code("True", SimpleNamespace(prepare=True)) == "true"
     assert _code("False", SimpleNamespace(prepare=False)) == "false"
