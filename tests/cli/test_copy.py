@@ -1,3 +1,4 @@
+import csv
 from pathlib import Path
 
 from pytest import mark
@@ -1458,3 +1459,40 @@ def test_copy_undeclared_base_drops_and_comments(context: Context, rc, cli: Spin
       |   |   |   | name     | string  |        |        |                                                |       | private
     """
     )
+
+
+@mark.parametrize("format_names", [False, True])
+def test_copy_xsd_with_arrays(rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path, format_names: bool):
+    xsd = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="Root">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="item" type="Item" maxOccurs="unbounded"/>
+                        <xs:element name="code" type="xs:string" maxOccurs="unbounded"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:complexType name="Item">
+                <xs:sequence>
+                    <xs:element name="name" type="xs:string"/>
+                </xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+    """
+    path = tmp_path / "manifest.xsd"
+    path.write_text(xsd)
+
+    args = ["copy", "-o", tmp_path / "result.csv", path]
+    if format_names:
+        args.insert(1, "--format-names")
+    cli.invoke(rc, args)
+
+    with open(tmp_path / "result.csv") as f:
+        rows = [(row["property"], row["type"], row["ref"]) for row in csv.DictReader(f) if row["property"]]
+    assert rows == [
+        ("name", "string required", ""),
+        ("root", "ref", "Root"),
+        ("code[]", "string required", ""),
+        ("item[]", "backref required", "Item"),
+    ]
