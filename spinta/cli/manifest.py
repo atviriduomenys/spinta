@@ -1,12 +1,13 @@
 from collections.abc import Iterator
 
-from typer import Argument, Option, Typer, echo
+from typer import Argument, Exit, Option, Typer, echo
 from typer import Context as TyperContext
 
 from spinta.cli.helpers.store import load_manifest
 from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.core.enums import Access
+from spinta.exceptions import WsdlReadError
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
@@ -44,18 +45,23 @@ def copy(
     """Copy models from CSV manifest files into another CSV manifest file"""
     context: Context = ctx.obj
     context = configure_context(context, manifests, check_names=not (format_names or rename_duplicates))
-    copy_manifest(
-        context,
-        source=source,
-        access=access,
-        format_names=format_names,
-        output=output,
-        columns=columns,
-        order_by=order_by,
-        rename_duplicates=rename_duplicates,
-        manifests=manifests,
-        dataset=dataset,
-    )
+    try:
+        copy_manifest(
+            context,
+            source=source,
+            access=access,
+            format_names=format_names,
+            output=output,
+            columns=columns,
+            order_by=order_by,
+            rename_duplicates=rename_duplicates,
+            manifests=manifests,
+            dataset=dataset,
+        )
+    except WsdlReadError as e:
+        # invalid or unreachable WSDL is a user error, traceback is not needed
+        echo(str(e), err=True)
+        raise Exit(code=1) from None
 
 
 def copy_manifest(

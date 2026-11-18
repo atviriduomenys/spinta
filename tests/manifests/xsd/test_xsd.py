@@ -744,6 +744,50 @@ def test_duplicate_removal(rc: RawConfig, tmp_path: Path):
     assert manifest == table
 
 
+def test_root_element_and_nested_element_of_same_complex_type(rc: RawConfig, tmp_path: Path):
+    xsd = """
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <xs:element name="address" type="tns:address"/>
+            <xs:complexType name="address">
+                <xs:sequence>
+                    <xs:element name="street" type="xs:string"/>
+                    <xs:element name="house" type="xs:string"/>
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="organization">
+                <xs:sequence>
+                    <xs:element name="name" type="xs:string"/>
+                    <xs:element name="address" type="tns:address"/>
+                </xs:sequence>
+            </xs:complexType>
+        </xs:schema>
+    """
+
+    table = """
+        id | d | r | b | m | property           | type            | ref     | source        | prepare  | level | access | uri | title | description
+           | manifest                           |                 |         |               |          |       |        |     |       |
+           |   | resource1                      | dask/xml        |         |               |          |       |        |     |       |
+           |                                    |                 |         |               |          |       |        |     |       |
+           |   |   |   | Address/:part          |                 |         |               |          |       |        |     |       |
+           |   |   |   |   | house              | string required |         | house/text()  |          |       |        |     |       |
+           |   |   |   |   | street             | string required |         | street/text() |          |       |        |     |       |
+           |                                    |                 |         |               |          |       |        |     |       |
+           |   |   |   | Address1               |                 |         | /address      |          |       |        |     |       |
+           |   |   |   |   | house              | string required |         | house/text()  |          |       |        |     |       |
+           |   |   |   |   | street             | string required |         | street/text() |          |       |        |     |       |
+           |                                    |                 |         |               |          |       |        |     |       |
+           |   |   |   | Organization/:part     |                 |         |               |          |       |        |     |       |
+           |   |   |   |   | address            | ref required    | Address | address       | expand() |       |        |     |       |
+           |   |   |   |   | name               | string required |         | name/text()   |          |       |        |     |       |
+    """
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as xsd_file:
+        xsd_file.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
 def test_duplicate_removal_backref(rc: RawConfig, tmp_path: Path):
     xsd = """
         <xs:schema xmlns="http://eTaarPlat.ServiceContracts/2007/08/Messages" elementFormDefault="qualified" targetNamespace="http://eTaarPlat.ServiceContracts/2007/08/Messages" xmlns:xs="http://www.w3.org/2001/XMLSchema">

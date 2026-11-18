@@ -12,6 +12,7 @@ from lxml.etree import QName, _Element
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
 
 logger = logging.getLogger(__name__)
@@ -227,12 +228,19 @@ class XSDProperty:
 
         data["description"] = self.description.strip()
 
-        property_name = self.name
-
         if self.is_array:
-            property_name = f"{property_name}[]"
+            # same structure as the tabular reader builds from a `name[]` row
+            data["given_name"] = f"{self.name}[]"
+            data = {
+                "type": DataTypeEnum._ARRAY_BACKREF.value
+                if self.type.name == DataTypeEnum.BACKREF.value
+                else DataTypeEnum._PARTIAL_ARRAY.value,
+                "given_name": f"{self.name}[]",
+                "explicitly_given": False,
+                "items": data,
+            }
 
-        return {property_name: data}
+        return {self.name: data}
 
 
 class XSDModel:
@@ -559,13 +567,20 @@ class XSDReader:
             for model in self.top_level_complex_type_models[prop.xsd_type_to]:
                 # this complexType is also used by non-top level elements, we need to leave it and work on it's copy
                 # or more than one top level element uses it
-                if prop.xsd_type_to in self.properties_xsd_type_to_set or model in processed_models:
+                is_copy = prop.xsd_type_to in self.properties_xsd_type_to_set or model in processed_models
+                if is_copy:
                     model = deepcopy(model)
                     self.models.append(model)
                 model.is_partial = False
                 model.is_entry_model = True
                 model.source = f"/{prop.xsd_name}"
-                model.set_name(deduplicator(to_model_name(prop.xsd_name)))
+                name = to_model_name(prop.xsd_name)
+                local_name = deduplicator(name)
+                # copies and renamed models need a name unique across all models, not only root elements
+                if is_copy:
+                    model.set_name(self.deduplicate_model_name(name))
+                elif local_name != model.basename:
+                    model.set_name(self.deduplicate_model_name(local_name))
                 processed_models.append(model)
 
     def _add_refs_for_backrefs(self):
@@ -595,13 +610,15 @@ class XSDReader:
         for model in self.models:
             model.properties = dict(sorted(model.properties.items()))
 
+    def _get_dataset_name(self) -> str:
+        return to_dataset_name(os.path.splitext(os.path.basename(self._path))[0])
+
     def start(self):
         # general part
         state = State()
         self._extract_root()
         self.namespaces = self.root.nsmap
-        dataset_name = to_dataset_name(os.path.splitext(os.path.basename(self._path))[0])
-        self.dataset_resource.dataset_name = dataset_name
+        self.dataset_resource.dataset_name = self._get_dataset_name()
 
         # registering custom simpleType
 

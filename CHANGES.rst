@@ -4,6 +4,32 @@ Changes
 2.2.0 (unreleased)
 =====================
 
+New features:
+
+- ``spinta copy`` generates DSA from WSDL 1.1 and 2.0 documents, given as a
+  local ``.wsdl`` file, a local ``.xml`` file with a WSDL root element or a
+  URL (``?wsdl`` or ``.wsdl``). A ``wsdl`` resource and a ``soap`` resource
+  for each SOAP operation are created. Request fields become ``input()``
+  resource parameters, the response element becomes a model, and XSD schemas
+  from WSDL ``types`` are converted with the existing XSD reader (`#1824`_).
+
+Bug fixes:
+
+- ``spinta copy`` from XSD no longer fails with "model already defined" when
+  a ``complexType`` is used by both a top-level element and a nested element.
+  The model created for the top-level element now gets a deduplicated name
+  (`#1469`_).
+
+- ``spinta copy`` from XSD no longer fails with ``InvalidName`` (or with
+  ``NotImplementedError`` when ``--format-names`` is used) when the schema has
+  elements with ``maxOccurs="unbounded"``. Array properties are now passed to
+  the manifest loader the same way as ``name[]`` rows from tabular manifests
+  (`#2099`_).
+
+.. _#1824: https://github.com/atviriduomenys/spinta/issues/1824
+.. _#1469: https://github.com/atviriduomenys/spinta/issues/1469
+.. _#2099: https://github.com/atviriduomenys/spinta/issues/2099
+
 
 2.1.0 (2026-11-11)
 =====================
