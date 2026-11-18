@@ -150,7 +150,7 @@ def test_copy_to_ttl_creates_scheme_for_global_enum(rc, cli: SpintaCliRunner, tm
 
     graph = _graph(tmp_path / "result.ttl")
     scheme = _uri(f"{DATASET}/Status")
-    active = _uri(f"{DATASET}/ACTIVE")
+    active = _uri(f"{DATASET}/Status/ACTIVE")
     assert (scheme, RDF.type, SKOS.ConceptScheme) in graph
     assert (active, RDF.type, SKOS.Concept) in graph
     assert (active, SKOS.inScheme, scheme) in graph
@@ -163,9 +163,30 @@ def test_copy_to_ttl_names_inline_enum_after_model_and_property(rc, cli: SpintaC
     graph = _graph(tmp_path / "result.ttl")
     scheme = _uri(f"{DATASET}/Country_kind")
     assert (scheme, RDF.type, SKOS.ConceptScheme) in graph
-    # Concepts are `{uri_prefix}{dataset}/{code}`, without the name of their enum.
-    assert (_uri(f"{DATASET}/CITY"), RDF.type, SKOS.Concept) in graph
-    assert (_uri(f"{DATASET}/TOWN"), SKOS.inScheme, scheme) in graph
+    # Concepts are `{uri_prefix}{dataset}/{enum}/{code}`.
+    assert (_uri(f"{DATASET}/Country_kind/CITY"), RDF.type, SKOS.Concept) in graph
+    assert (_uri(f"{DATASET}/Country_kind/TOWN"), SKOS.inScheme, scheme) in graph
+
+
+def test_copy_to_ttl_concepts_of_enums_with_same_code_are_different(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": DATASET},
+        {"type": "enum", "ref": "Status", "prepare": "'ACTIVE'", "access": "open", "title": "Aktyvus"},
+        {"type": "enum", "ref": "Kind", "prepare": "'ACTIVE'", "access": "open", "title": "Aktyvi"},
+        {"model": "Country", "access": "open"},
+        {"property": "status", "type": "string", "ref": "Status", "access": "open"},
+        {"property": "kind", "type": "string", "ref": "Kind", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    status = _uri(f"{DATASET}/Status/ACTIVE")
+    kind = _uri(f"{DATASET}/Kind/ACTIVE")
+    assert status != kind
+    assert (status, SKOS.inScheme, _uri(f"{DATASET}/Status")) in graph
+    assert (kind, SKOS.inScheme, _uri(f"{DATASET}/Kind")) in graph
+    assert (status, SKOS.prefLabel, Literal("Aktyvus")) in graph
+    assert (kind, SKOS.prefLabel, Literal("Aktyvi")) in graph
 
 
 def test_copy_to_ttl_defines_class_with_uri_under_uri_prefix(rc, cli: SpintaCliRunner, tmp_path):
@@ -284,8 +305,8 @@ def test_copy_to_ttl_concept_uri_is_percent_encoded(rc, cli: SpintaCliRunner, tm
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    assert (_uri(f"{DATASET}/CITY%2FTOWN"), SKOS.prefLabel, Literal("Miestas")) in graph
-    assert (_uri(f"{DATASET}/%C3%84%C5%BD"), SKOS.prefLabel, Literal("Raidė")) in graph
+    assert (_uri(f"{DATASET}/Country_kind/CITY%2FTOWN"), SKOS.prefLabel, Literal("Miestas")) in graph
+    assert (_uri(f"{DATASET}/Country_kind/%C3%84%C5%BD"), SKOS.prefLabel, Literal("Raidė")) in graph
 
 
 def _copy_back(rc, cli: SpintaCliRunner, tmp_path: pathlib.Path) -> list[dict[str, str]]:
@@ -328,13 +349,13 @@ def test_copy_to_ttl_writes_notation_only_when_prepared_value_differs_from_sourc
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    assert (_uri(f"{DATASET}/l"), SKOS.notation, Literal("left")) in graph
+    assert (_uri(f"{DATASET}/Side/l"), SKOS.notation, Literal("left")) in graph
     # Prepared value of the same text as the source is not repeated.
-    assert (_uri(f"{DATASET}/ACTIVE"), SKOS.notation, None) not in graph
+    assert (_uri(f"{DATASET}/Side/ACTIVE"), SKOS.notation, None) not in graph
     # Source-only item has no notation.
-    assert (_uri(f"{DATASET}/c"), SKOS.notation, None) not in graph
+    assert (_uri(f"{DATASET}/Side/c"), SKOS.notation, None) not in graph
     # Boolean code is `true`, its prepared value is the boolean itself.
-    assert (_uri(f"{DATASET}/true"), SKOS.notation, Literal(True)) in graph
+    assert (_uri(f"{DATASET}/Flag/true"), SKOS.notation, Literal(True)) in graph
 
 
 def test_copy_to_ttl_uri_prefix_trailing_slash_is_optional(rc, cli: SpintaCliRunner, tmp_path):
@@ -586,8 +607,8 @@ def test_copy_to_ttl_skips_enum_items_below_access(rc, cli: SpintaCliRunner, tmp
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    assert (_uri(f"{DATASET}/ACTIVE"), SKOS.prefLabel, Literal("Aktyvus")) in graph
-    assert (_uri(f"{DATASET}/SECRET"), None, None) not in graph
+    assert (_uri(f"{DATASET}/Status/ACTIVE"), SKOS.prefLabel, Literal("Aktyvus")) in graph
+    assert (_uri(f"{DATASET}/Status/SECRET"), None, None) not in graph
     assert (None, None, Literal("Slaptas")) not in graph
     assert (None, None, Literal("Neskelbtinas")) not in graph
 
@@ -626,7 +647,7 @@ def test_copy_to_ttl_exports_enums_of_namespace_with_exported_child_namespace(rc
 
     graph = _graph(tmp_path / "result.ttl")
     assert (_uri("datasets/gov/Parent"), RDF.type, SKOS.ConceptScheme) in graph
-    assert (_uri("datasets/gov/P"), SKOS.prefLabel, Literal("Tevinis")) in graph
+    assert (_uri("datasets/gov/Parent/P"), SKOS.prefLabel, Literal("Tevinis")) in graph
 
 
 def test_code_of_boolean_enum_is_lowercase():

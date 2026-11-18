@@ -16,9 +16,10 @@ Generated URIs are built from `uri_prefix` configuration option, for example
 - properties: `{uri_prefix}{dataset}/{property}`
 - concept schemes (enums): `{uri_prefix}{dataset}/{enum}`. Inline enums are
   named `{model}_{property}`.
-- concepts: `{uri_prefix}{dataset}/{code}`. The prepared value of a concept is
-  its `skos:notation`, written only when it differs from the local name of the
-  concept, which is the source of an enum item.
+- concepts: `{uri_prefix}{dataset}/{enum}/{code}`, so concepts of different
+  enums with the same code are different concepts. The prepared value of a
+  concept is its `skos:notation`, written only when it differs from the local
+  name of the concept, which is the source of an enum item.
 """
 
 from __future__ import annotations
@@ -254,7 +255,7 @@ class _RdfExporter:
             if item.uri:
                 iri = self._uri_term(item.uri, enum.name, enum.prefixes)
             else:
-                iri = self._generated(enum.dataset, _code(code, item))
+                iri = self._generated(enum.dataset, enum.name, _code(code, item))
             # The key of an item is its source, which is the local name of the concept, so the prepared
             # value is written only when it differs from it. Source-only items have no notation.
             if item.prepare is not NA and item.prepare is not None and str(item.prepare) != _local_name(str(iri)):
@@ -419,9 +420,12 @@ class _RdfExporter:
         """
         return bool(self.uri_prefix) and str(iri).startswith(self._base())
 
-    def _generated(self, dataset: str, name: str) -> URIRef:
-        """Return URI generated as `{uri_prefix}{dataset}/{name}`, `name` is percent-encoded completely."""
-        segments = [quote(dataset, safe="/"), quote(name, safe="")]
+    def _generated(self, dataset: str, *names: str) -> URIRef:
+        """Return URI generated as `{uri_prefix}{dataset}/{name}/...`, each name is percent-encoded completely.
+
+        Empty segments, for example the dataset of a manifest without a dataset, are left out.
+        """
+        segments = [quote(dataset, safe="/"), *(quote(name, safe="") for name in names)]
         return URIRef(self._base() + "/".join(s for s in segments if s))
 
 

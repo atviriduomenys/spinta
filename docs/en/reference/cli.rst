@@ -206,10 +206,9 @@ Generated URIs use these patterns:
 - classes: ``{uri_prefix}{dataset}/{model}``
 - properties: ``{uri_prefix}{dataset}/{property}``. A property has one URI for
   all models that use it.
-- concepts (enum items): ``{uri_prefix}{dataset}/{code}``, where ``{code}`` is
-  percent-encoded, so ``CITY/TOWN`` is ``CITY%2FTOWN``. Concepts of different
-  enums in the same dataset with the same code get the same URI, so give them a
-  ``uri`` if they must stay apart.
+- concepts (enum items): ``{uri_prefix}{dataset}/{enum}/{code}``, where
+  ``{code}`` is percent-encoded, so ``CITY/TOWN`` is ``CITY%2FTOWN``. Concepts
+  of different enums with the same code get different URIs.
 - concept schemes (enums): ``{uri_prefix}{dataset}/{enum}``. Inline enums are
   named after their model and property, for example ``DatasetEvent_type``.
 
