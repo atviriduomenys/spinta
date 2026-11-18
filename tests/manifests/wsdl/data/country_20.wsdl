@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:description
+    xmlns:wsdl="http://www.w3.org/ns/wsdl"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="urn:country"
+    targetNamespace="urn:country"
+    name="CountryService">
+    <wsdl:types>
+        <xs:schema targetNamespace="urn:country">
+            <xs:element name="GetCountryRequest">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="code" type="xs:string"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="GetCountryResponse">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="name" type="xs:string"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema>
+    </wsdl:types>
+    <wsdl:interface name="CountryInterface">
+        <wsdl:operation name="GetCountry" pattern="http://www.w3.org/ns/wsdl/in-out">
+            <wsdl:input element="tns:GetCountryRequest"/>
+            <wsdl:output element="tns:GetCountryResponse"/>
+        </wsdl:operation>
+    </wsdl:interface>
+    <wsdl:binding name="CountryBinding" interface="tns:CountryInterface" type="http://www.w3.org/ns/wsdl/soap"/>
+    <wsdl:binding name="CountryHttpBinding" interface="tns:CountryInterface" type="http://www.w3.org/ns/wsdl/http"/>
+    <wsdl:service name="CountryService" interface="tns:CountryInterface">
+        <wsdl:endpoint name="CountryEndpoint" binding="tns:CountryBinding" address="https://example.com/country"/>
+        <wsdl:endpoint name="CountryHttpEndpoint" binding="tns:CountryHttpBinding" address="https://example.com/http"/>
+    </wsdl:service>
+</wsdl:description>

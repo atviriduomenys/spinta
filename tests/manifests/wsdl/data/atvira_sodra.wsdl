@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:sch="http://atvira.sodra.lt/ws" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tns="http://atvira.sodra.lt/web-services/ws/" targetNamespace="http://atvira.sodra.lt/web-services/ws/">
+  <wsdl:types>
+    <s:schema xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://atvira.sodra.lt/ws" elementFormDefault="qualified" targetNamespace="http://atvira.sodra.lt/ws">
+
+    <!---
+    GetChartList
+    -->
+
+    <s:element id="GetChartList" name="GetChartListRequest">
+        <s:complexType>
+            <s:sequence>
+                <s:element maxOccurs="unbounded" minOccurs="0" name="chartCode" type="s:string"/>
+            </s:sequence>
+        </s:complexType>
+    </s:element>
+    <s:element name="GetChartListResponse">
+        <s:complexType>
+            <s:sequence>
+                <s:element maxOccurs="unbounded" minOccurs="0" name="ChartListResult" type="tns:Chart"/>
+                <s:element maxOccurs="1" minOccurs="1" name="Success" type="s:boolean"/>
+                <s:element maxOccurs="1" minOccurs="1" name="Message" type="s:string"/>
+            </s:sequence>
+        </s:complexType>
+    </s:element>
+    <s:complexType name="Chart">
+        <s:sequence>
+            <s:element maxOccurs="1" minOccurs="1" name="Name" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="1" name="Code" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="1" name="Description" type="s:string"/>
+            <s:element maxOccurs="unbounded" minOccurs="0" name="ConfigParameters" type="tns:ChartConfigParameter"/>
+        </s:sequence>
+    </s:complexType>
+    <s:complexType name="ChartConfigParameter">
+        <s:sequence>
+            <s:element maxOccurs="1" minOccurs="1" name="Name" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="1" name="Label" type="s:string"/>
+        </s:sequence>
+    </s:complexType>
+
+    <!---
+    GetChartParams
+    -->
+
+    <s:element id="GetChartParams" name="GetChartParamsRequest">
+        <s:complexType>
+            <s:sequence>
+                <s:element maxOccurs="1" minOccurs="1" name="chartCode" type="s:string"/>
+                <s:element maxOccurs="unbounded" minOccurs="1" name="paramCode" type="s:string"/>
+            </s:sequence>
+        </s:complexType>
+    </s:element>
+    <s:element name="GetChartParamsResponse">
+        <s:complexType>
+            <s:sequence>
+                <s:element maxOccurs="unbounded" minOccurs="1" name="ParameterValue" type="tns:ChartUniqueDataParameter"/>
+                <s:element maxOccurs="1" minOccurs="1" name="Success" type="s:boolean"/>
+                <s:element maxOccurs="1" minOccurs="1" name="Message" type="s:string"/>
+            </s:sequence>
+        </s:complexType>
+    </s:element>
+    <s:complexType name="ChartUniqueDataParameter">
+        <s:sequence>
+            <s:element maxOccurs="1" minOccurs="1" name="Name" type="s:string"/>
+            <s:element maxOccurs="unbounded" minOccurs="1" name="Value" type="s:string"/>
+        </s:sequence>
+    </s:complexType>
+
+    <!---
+    GetChartData
+    -->
+
+    <s:element id="GetChartData" name="GetChartDataRequest">
+        <s:complexType>
+            <s:sequence>
+                <s:element maxOccurs="1" minOccurs="1" name="chartCode" type="s:string"/>
+                <s:element maxOccurs="unbounded" minOccurs="0" name="DataParameter" type="tns:ChartDataParameter"/>
+            </s:sequence>
+        </s:complexType>
+    </s:element>
+    <s:element name="GetChartDataResponse">
+        <s:complexType>
+            <s:sequence>
+                <s:element maxOccurs="unbounded" minOccurs="0" name="ChartDataResult" type="tns:ChartData"/>
+                <s:element maxOccurs="1" minOccurs="1" name="Success" type="s:boolean"/>
+                <s:element maxOccurs="1" minOccurs="1" name="Message" type="s:string"/>
+            </s:sequence>
+        </s:complexType>
+    </s:element>
+    <s:complexType name="ChartDataParameter">
+        <s:sequence>
+            <s:element maxOccurs="1" minOccurs="1" name="Name" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="1" name="Value" type="s:string"/>
+        </s:sequence>
+    </s:complexType>
+    <s:complexType name="ChartData">
+        <s:sequence>
+            <s:element maxOccurs="1" minOccurs="1" name="Id" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="1" name="Name" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="1" name="Label" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val1" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val2" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val3" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val4" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val5" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val6" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val7" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val8" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val9" type="s:string"/>
+            <s:element maxOccurs="1" minOccurs="0" name="Val10" type="s:string"/>
+        </s:sequence>
+    </s:complexType>
+</s:schema>
+  </wsdl:types>
+  <wsdl:message name="GetChartListResponse">
+    <wsdl:part element="sch:GetChartListResponse" name="GetChartListResponse">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="GetChartListRequest">
+    <wsdl:part element="sch:GetChartListRequest" name="GetChartListRequest">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="GetChartParamsRequest">
+    <wsdl:part element="sch:GetChartParamsRequest" name="GetChartParamsRequest">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="GetChartDataResponse">
+    <wsdl:part element="sch:GetChartDataResponse" name="GetChartDataResponse">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="GetChartParamsResponse">
+    <wsdl:part element="sch:GetChartParamsResponse" name="GetChartParamsResponse">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="GetChartDataRequest">
+    <wsdl:part element="sch:GetChartDataRequest" name="GetChartDataRequest">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:portType name="AtviraPort">
+    <wsdl:operation name="GetChartList">
+      <wsdl:input message="tns:GetChartListRequest" name="GetChartListRequest">
+    </wsdl:input>
+      <wsdl:output message="tns:GetChartListResponse" name="GetChartListResponse">
+    </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetChartParams">
+      <wsdl:input message="tns:GetChartParamsRequest" name="GetChartParamsRequest">
+    </wsdl:input>
+      <wsdl:output message="tns:GetChartParamsResponse" name="GetChartParamsResponse">
+    </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetChartData">
+      <wsdl:input message="tns:GetChartDataRequest" name="GetChartDataRequest">
+    </wsdl:input>
+      <wsdl:output message="tns:GetChartDataResponse" name="GetChartDataResponse">
+    </wsdl:output>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="AtviraPortSoap11" type="tns:AtviraPort">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="GetChartList">
+      <soap:operation soapAction=""/>
+      <wsdl:input name="GetChartListRequest">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="GetChartListResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetChartParams">
+      <soap:operation soapAction=""/>
+      <wsdl:input name="GetChartParamsRequest">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="GetChartParamsResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="GetChartData">
+      <soap:operation soapAction=""/>
+      <wsdl:input name="GetChartDataRequest">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="GetChartDataResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="AtviraPortService">
+    <wsdl:port binding="tns:AtviraPortSoap11" name="AtviraPortSoap11">
+      <soap:address location="http://atvira.sodra.lt/web-services/ws/"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
