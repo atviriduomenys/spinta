@@ -208,5 +208,5 @@ def denorm_to_foreign_property(dtype: Denorm) -> ForeignProperty | Property:
                     fpr = ForeignProperty(fpr, root_parent.dtype, parent.dtype)
                     root_parent = parent
 
-    return ForeignProperty(fpr, root_parent.dtype, dtype.rel_prop.dtype)
+        return ForeignProperty(fpr, root_parent.dtype, dtype.rel_prop.dtype)
     return dtype.rel_prop
