@@ -131,6 +131,11 @@ Bug fixes:
   schema of its own, named after the property, instead of the shared one
   carrying only ``_id`` (`#2085`_).
 
+- A property without a type declared under a ``backref``, such as
+  ``miestai[].pavadinimas``, or under an object of a referenced model, such as
+  ``salis.adresas.gatve``, is looked up in the referenced model. Previously
+  the manifest failed to load with ``ReferencedPropertyNotFound`` (`#2085`_).
+
 .. _#1924: https://github.com/atviriduomenys/spinta/issues/1924
 .. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 .. _#2085: https://github.com/atviriduomenys/spinta/issues/2085

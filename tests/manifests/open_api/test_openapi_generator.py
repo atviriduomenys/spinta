@@ -1317,7 +1317,9 @@ def test_properties_declared_under_a_backref_are_described(open_manifest_path_fa
 
     miestai = schemas["ds_Salis"]["properties"]["miestai"]
     assert miestai["items"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Salis_miestai"}
-    assert set(schemas["ds_Salis_miestai"]["properties"]) == {"_id", "pavadinimas", "rajonas"}
+    assert set(schemas["ds_Salis_miestai"]["properties"]) == {"_id", "pavadinimas", "rajonas", "kodas"}
+    # `miestai[].kodas` without a type of its own is `kodas` of `Miestas`.
+    assert schemas["ds_Salis_miestai"]["properties"]["kodas"]["type"] == "string"
     assert schemas["ds_Salis_miestai"]["properties"]["rajonas"]["anyOf"][0] == {
         "$ref": "#/components/schemas/ds_Salis_miestai_rajonas"
     }
@@ -1338,8 +1340,22 @@ def test_properties_declared_under_a_ref_are_described(open_manifest_path_factor
         "$ref": "#/components/schemas/ds_Miestas_rajonas"
     }
     assert schemas["ds_Miestas_rajonas"]["properties"]["gyventojai"]["type"] == "integer"
+    # `adresas` of `salis.adresas.gatve` is an object Spinta creates, described with what is under it.
+    salis = schemas[schemas["ds_Miestas"]["properties"]["salis"]["anyOf"][0]["$ref"].split("/")[-1]]
+    assert salis["properties"]["adresas"]["properties"]["gatve"]["type"] == "string"
+    # The schema of `rajonas.apskritis` is not the one of the `rajonas_apskritis` object.
+    apskritis = schemas["ds_Miestas_rajonas"]["properties"]["apskritis"]["anyOf"][0]["$ref"].split("/")[-1]
+    assert set(schemas[apskritis]["properties"]) == {"pavadinimas"}
+    object_schema = next(
+        schema
+        for schema in schemas.values()
+        if schema.get("description", "").startswith("Property `rajonas_apskritis` of")
+    )
+    assert set(object_schema["properties"]) == {"_type", "_revision", "kodas"}
     # A reference with nothing declared under it keeps the shared schema.
-    assert schemas["ds_Miestas"]["properties"]["salis"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Salis_Ref"}
+    assert schemas["ds_Rajonas"]["properties"]["apskritis"]["anyOf"][0] == {
+        "$ref": "#/components/schemas/ds_Apskritis_Ref"
+    }
 
     # `rajonas` and `apskritis` of the chain are created by Spinta and carry only what is under them.
     assert set(schemas["ds_Gatve_miestas"]["properties"]) == {"_id", "rajonas"}

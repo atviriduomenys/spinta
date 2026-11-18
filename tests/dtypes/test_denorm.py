@@ -3,11 +3,12 @@ import uuid
 import pytest
 from _pytest.fixtures import FixtureRequest
 
+from spinta import commands
 from spinta.core.config import RawConfig
 from spinta.exceptions import InvalidDenormProperty, RefPropTypeMissmatch
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata, send
-from spinta.testing.manifest import bootstrap_manifest
+from spinta.testing.manifest import bootstrap_manifest, load_manifest_and_context
 
 
 def test_denorm_simple_level_4(
@@ -1344,3 +1345,56 @@ def test_denorm_external_nested_override_wipe(
 
     resp = app.get(city_model)
     assert listdata(resp, "id", "name", "country") == [(0, "Vilnius", None)]
+
+
+def test_denorm_under_backref_is_looked_up_in_the_referencing_model(rc: RawConfig):
+    """`cities[].name` of a `backref` is `name` of `City`, not of the model holding the backref."""
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
+    d | r | b | m | property             | type    | ref     | access
+    datasets/denorm/backref              |         |         |
+      |   |   | Country                  |         |         |
+      |   |   |   | code                 | string  |         | open
+      |   |   |   | cities[]             | backref | City    | open
+      |   |   |   | cities[].name        |         |         | open
+      |   |   |   | capital              | backref | City    | open
+      |   |   |   | capital.district.name |        |         | open
+      |   |   | City                     |         |         |
+      |   |   |   | name                 | string  |         | open
+      |   |   |   | country              | ref     | Country | open
+      |   |   |   | district             | ref     | District | open
+      |   |   | District                 |         |         |
+      |   |   |   | name                 | string  |         | open
+    """,
+    )
+    country = commands.get_model(context, manifest, "datasets/denorm/backref/Country")
+
+    name = country.properties["cities"].dtype.items.dtype.properties["name"]
+    assert name.dtype.rel_prop.model.name == "datasets/denorm/backref/City"
+    district = country.properties["capital"].dtype.properties["district"]
+    assert district.dtype.properties["name"].dtype.rel_prop.model.name == "datasets/denorm/backref/District"
+
+
+def test_denorm_under_object_of_referenced_model(rc: RawConfig):
+    """`country.address.street` is `street` of the `address` object of `Country`."""
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
+    d | r | b | m | property              | type    | ref     | access
+    datasets/denorm/object                |         |         |
+      |   |   | Country                   |         |         |
+      |   |   |   | code                  | string  |         | open
+      |   |   |   | address               | object  |         | open
+      |   |   |   | address.street        | string  |         | open
+      |   |   | City                      |         |         |
+      |   |   |   | name                  | string  |         | open
+      |   |   |   | country               | ref     | Country | open
+      |   |   |   | country.address.street |        |         | open
+    """,
+    )
+    city = commands.get_model(context, manifest, "datasets/denorm/object/City")
+
+    street = city.properties["country"].dtype.properties["address"].dtype.properties["street"]
+    country = commands.get_model(context, manifest, "datasets/denorm/object/Country")
+    assert street.dtype.rel_prop is country.properties["address"].dtype.properties["street"]

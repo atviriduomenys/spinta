@@ -189,16 +189,15 @@ def _innermost_property(model_property):
 
 
 def _nested_properties(dtype) -> dict[str, Property]:
-    """Published properties declared under a reference, `pavadinimas` of `miestai[].pavadinimas`."""
-    if isinstance(dtype, Object):
-        return {}
+    """Published properties declared under a reference or an object, `pavadinimas` of `miestai[].pavadinimas`."""
     return {name: prop for name, prop in (getattr(dtype, "properties", None) or {}).items() if _published_nested(prop)}
 
 
 def _published_nested(prop: Property) -> bool:
     if _published(prop):
         return True
-    # `rajonas` of `miestas.rajonas.pavadinimas` is created by Spinta, without a visibility of its own.
+    # `rajonas` of `miestas.rajonas.pavadinimas` or `adresas` of `salis.adresas.gatve` is created by Spinta,
+    # without a visibility of its own.
     return not getattr(prop, "explicitly_given", True) and bool(_nested_properties(prop.dtype))
 
 
@@ -411,6 +410,7 @@ class SchemaNamer:
         self._names: dict[str, str] = {}
         self._ref_shapes: dict[str, dict[Any, str]] = {}
         self._object_names: dict[tuple[str, str], str] = {}
+        self._nested_ref_names: dict[tuple[str, str], str] = {}
         self._file_ref_names: dict[tuple[str, str], str] = {}
         self._taken = set(reserved or ())
 
@@ -470,7 +470,18 @@ class SchemaNamer:
 
         What it carries is declared at this one place, so the schema is named after it.
         """
-        return self.object_name(model_property.model, model_property.place.replace(".", "_"))
+        key = (model_property.model.name, model_property.place)
+        if key not in self._nested_ref_names:
+            # Only the name is flattened, so `city.district` and `city_district` stay apart.
+            base = unnamable_re.sub("_", f"{self.name(model_property.model)}_{model_property.place}".replace(".", "_"))
+            name = base
+            number = 1
+            while any(derived in self._taken for derived in _derived_schema_names(name)):
+                number += 1
+                name = f"{base}_{number}"
+            self._taken.update(_derived_schema_names(name))
+            self._nested_ref_names[key] = name
+        return self._nested_ref_names[key]
 
     def file_ref_name(self, model: Model, prop_name: str) -> str:
         """Name of the schema of what is known about a file a property holds.
@@ -643,8 +654,7 @@ class DataTypeHandler:
         """
         return {
             name: self.property_schema(model_property, schemas=schemas)
-            for name, model_property in (dtype.properties or {}).items()
-            if _published(model_property)
+            for name, model_property in _nested_properties(dtype).items()
         }
 
     def convert_to_openapi_schema(
@@ -1643,9 +1653,7 @@ class SchemaGenerator:
                 continue
 
             if isinstance(dtype, Object):
-                self._create_schemas_of_references_in(
-                    schemas, [prop for prop in (dtype.properties or {}).values() if _published(prop)]
-                )
+                self._create_schemas_of_references_in(schemas, _nested_properties(dtype).values())
                 continue
 
             if not self.dtype_handler.is_reference_type(dtype):

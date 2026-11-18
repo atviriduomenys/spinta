@@ -454,7 +454,8 @@ id | d | r | b | m | property  | type            | ref     | source  | level | a
 
 
 # Properties declared under a reference: `miestai[].pavadinimas` of a `backref`,
-# `rajonas.gyventojai` of a `ref`, and a chain whose links Spinta creates itself.
+# `rajonas.gyventojai` of a `ref`, and chains whose links Spinta creates itself,
+# through a reference or through an object of the referenced model.
 MANIFEST_WITH_NESTED_REFERENCE_PROPERTIES = striptable("""
 id | d | r | b | m | property                  | type            | ref       | source  | level | access | visibility
    | datasets/gov/rc/jadis/at280/1/ds |          |           |         |       |        |
@@ -465,12 +466,19 @@ id | d | r | b | m | property                  | type            | ref       | s
    |   |   |   |   | miestai[].pavadinimas      | string          |           |         | 4     | open   | public
    |   |   |   |   | miestai[].rajonas          | ref             | Rajonas   |         | 4     | open   | public
    |   |   |   |   | miestai[].rajonas.pavadinimas | string       |           |         | 4     | open   | public
+   |   |   |   |   | miestai[].kodas            |                 |           |         | 4     | open   | public
+   |   |   |   |   | adresas                    | object          |           | adr     | 4     | open   | public
+   |   |   |   |   | adresas.gatve              | string          |           | g       | 4     | open   | public
    |   |   |   | Miestas                        |                 | kodas     | miestai |       | open   | public
    |   |   |   |   | kodas                      | string required |           | kodas   | 4     | open   | public
    |   |   |   |   | pavadinimas                | string          |           | pav     | 4     | open   | public
    |   |   |   |   | salis                      | ref             | Salis     | salis   | 4     | open   | public
    |   |   |   |   | rajonas                    | ref             | Rajonas   | raj     | 4     | open   | public
    |   |   |   |   | rajonas.gyventojai         |                 |           |         | 4     | open   | public
+   |   |   |   |   | rajonas.apskritis.pavadinimas |              |           |         | 4     | open   | public
+   |   |   |   |   | rajonas_apskritis          | object          |           | ra      | 4     | open   | public
+   |   |   |   |   | rajonas_apskritis.kodas    | string          |           | rak     | 4     | open   | public
+   |   |   |   |   | salis.adresas.gatve        |                 |           |         | 4     | open   | public
    |   |   |   | Rajonas                        |                 | kodas     | rajonai |       | open   | public
    |   |   |   |   | kodas                      | string required |           | kodas   | 4     | open   | public
    |   |   |   |   | pavadinimas                | string          |           | pav     | 4     | open   | public
