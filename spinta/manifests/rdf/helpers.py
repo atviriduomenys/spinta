@@ -78,7 +78,7 @@ def read_rdf_manifest(
     graph, sources = read_rdf_graph(manifests, fetch_remote=fetch_remote)
 
     main = _dataset_row(graph, get_dataset_name(manifests, dataset_name, sources, lang), dataset_name)
-    shacl = list(_shacl_rows(graph, lang))
+    shacl = list(_shacl_rows(graph, lang, main))
     rows = itertools.chain(
         shacl,
         _ontology_rows(graph, sources, shacl),
@@ -305,13 +305,32 @@ def _ontology_title(graph: Graph, lang: str) -> str:
 
 def _prepare_data(graph: Graph, query: Iterable[dict] | Result, dataset: dict, lang: str = "en") -> dict:
     data: dict = {}
-    for row in query:
+    rows = list(query)
+    owners = _owners(rows)
+    for row in rows:
         dim = _get_dimension(row["model"], row["property"])
         if dim == "model":
-            _read_model(graph, dataset, data, row, lang)
+            _read_model(graph, dataset, data, row, lang, owners)
         elif dim == "property":
-            _read_property(graph, dataset, data, row, lang)
+            _read_property(graph, dataset, data, row, lang, owners)
     return data
+
+
+def _owners(rows: list) -> dict[str, str]:
+    """Return model names of generated shapes, by the class IRI they own.
+
+    A generated shape owns the class IRI that is generated for its model, see
+    `_shacl_rows`. Rows that refer to this class, for example ontology rows and
+    references, must use the model of the shape, not a model named after the IRI.
+    """
+    return {str(row["model"]): row["shape_name"] for row in rows if row["property"] is None and row.get("shape_owner")}
+
+
+def _resolve_model(graph: Graph, dataset: dict, owners: dict[str, str], name: Any) -> tuple[str, str]:
+    """Return full model name and URI of a class IRI, a prefixed name or a model name."""
+    if name and str(name) in owners:
+        return owners[str(name)], _parse_uri(graph, URIRef(str(name)))
+    return _to_model_name(graph, dataset, name)
 
 
 def _get_schemas(
@@ -417,10 +436,13 @@ def _finalize_property(
     return prop
 
 
-def _read_model(graph: Graph, dataset: dict, data: dict, row: dict, lang: str = "en") -> None:
+def _read_model(graph: Graph, dataset: dict, data: dict, row: dict, lang: str, owners: dict[str, str]) -> None:
     schema = _load_schema(str(row["schema"]))
-    model, uri = _to_model_name(graph, dataset, row["model"])
-    base, _ = _to_model_name(graph, dataset, row["base"])
+    if row.get("shape_name"):
+        model, uri = row["shape_name"], row["shape_uri"]
+    else:
+        model, uri = _resolve_model(graph, dataset, owners, row["model"])
+    base = row.get("base_name") or _resolve_model(graph, dataset, owners, row["base"])[0]
     title = _get_value_for_language(row["title"], lang)
     properties = {}
     descriptions = []
@@ -452,7 +474,8 @@ def _read_model(graph: Graph, dataset: dict, data: dict, row: dict, lang: str = 
                 "schema": schema,
                 "name": model,
                 "base": {
-                    "name": base.split("/")[-1],
+                    # A base in another dataset keeps its dataset, otherwise it is read relative to this one.
+                    "name": base if _model_dataset(base) != _model_dataset(model) else base.split("/")[-1],
                     "parent": base,
                 }
                 if base
@@ -487,19 +510,24 @@ def _stub_model(name: str, uri: str) -> dict:
     }
 
 
-def _ensure_model(graph: Graph, dataset: dict, data: dict, name: Any) -> str:
+def _ensure_model(graph: Graph, dataset: dict, data: dict, name: Any, owners: dict[str, str]) -> str:
     """Make sure a model for a class exists, referenced by a property."""
-    model, model_uri = _to_model_name(graph, dataset, name)
+    model, model_uri = _resolve_model(graph, dataset, owners, name)
     if model not in data:
         data[model] = _stub_model(model, model_uri)
     return model
 
 
-def _read_property(graph: Graph, dataset: dict, data: dict, row: dict, lang: str = "en") -> None:
+def _read_property(graph: Graph, dataset: dict, data: dict, row: dict, lang: str, owners: dict[str, str]) -> None:
     schema = _load_schema(str(row["schema"]))
-    model, model_uri = _to_model_name(graph, dataset, row["model"] or "rdfs:Resource")
+    if row.get("shape_name"):
+        model, model_uri = row["shape_name"], row["shape_uri"]
+    else:
+        model, model_uri = _resolve_model(graph, dataset, owners, row["model"] or "rdfs:Resource")
     prop, prop_uri = _to_property_name(graph, row["property"])
     type = _type_iri(row["type"])
+    if type in owners:
+        type = owners[type]
     title = _get_value_for_language(row["title"], lang)
     descriptions = []
     required = bool(row.get("required"))
@@ -512,7 +540,7 @@ def _read_property(graph: Graph, dataset: dict, data: dict, row: dict, lang: str
     if type and _is_model_type(type):
         # Referenced class is not necessarily defined in the sources, but a
         # `ref` needs a model to point to, so add a placeholder for it.
-        _ensure_model(graph, dataset, data, type)
+        _ensure_model(graph, dataset, data, type, owners)
 
     if model not in data:
         # Add temporary model for property
@@ -807,6 +835,8 @@ class _PropertyConstraints:
 
 @dataclass
 class _ClassConstraints:
+    # Class IRI of the shape, for a generated shape it is the class of its model.
+    target: URIRef | None = None
     # Titles and descriptions are tagged with whether the shape they come from
     # defines properties. Shapes that only report violations, for example
     # deprecation warnings, usually have their own labels, which should not
@@ -814,13 +844,25 @@ class _ClassConstraints:
     titles: list[tuple[bool, str]] = field(default_factory=list)
     descriptions: list[tuple[bool, str]] = field(default_factory=list)
     properties: dict[URIRef, _PropertyConstraints] = field(default_factory=dict)
+    # Set only for a generated shape, which is one model, see `_shacl_rows`.
+    shape_name: str | None = None
+    # Empty if the model inherits the class IRI of its base.
+    shape_uri: str = ""
+    # The class IRI is generated for this model, it is not inherited.
+    shape_owner: bool = False
+    base_name: str | None = None
 
 
-def _shacl_rows(graph: Graph, lang: str = "en") -> Iterator[dict]:
+def _shacl_rows(graph: Graph, lang: str = "en", dataset: dict | None = None) -> Iterator[dict]:
     """Yield model and property rows for SHACL node shapes that target classes.
 
     All shapes targeting the same class are merged, because DCAT-AP spreads
     constraints of a single class over several files.
+
+    A generated shape, `{uri_prefix}shape/{dataset}/{model}`, is one model, and
+    shapes are not merged by class, because several models can share a class.
+    The model's base is the generated shape it refers to with `sh:node`. The
+    model has no URI of its own if its class is the class of its base.
     """
     classes: dict[URIRef, _ClassConstraints] = {}
 
@@ -830,27 +872,29 @@ def _shacl_rows(graph: Graph, lang: str = "en") -> Iterator[dict]:
             continue
         targets = sorted((t for t in graph.objects(shape, SH.targetClass) if isinstance(t, URIRef)), key=str)
         defines = _has_definitions(graph, shape)
+        if (parts := _shape_parts(str(shape))) is not None:
+            if targets:
+                cls = classes.setdefault(shape, _ClassConstraints(target=targets[0]))
+                _set_shape_model(graph, cls, shape, parts, dataset)
+                _collect_shape(graph, cls, shape, defines, lang)
+            continue
         for target in targets:
-            cls = classes.setdefault(target, _ClassConstraints())
-            if title := _pick_text(graph, shape, [RDFS.label, SH.name], lang):
-                cls.titles.append((defines, title))
-            if description := _pick_text(graph, shape, [RDFS.comment, SH.description], lang):
-                cls.descriptions.append((defines, description))
-            for prop_shape in graph.objects(shape, SH.property):
-                _collect_property(graph, cls, prop_shape, lang)
+            cls = classes.setdefault(target, _ClassConstraints(target=target))
+            _collect_shape(graph, cls, shape, defines, lang)
 
-    for cls_iri in sorted(classes, key=str):
-        cls = classes[cls_iri]
+    for key in sorted(classes, key=str):
+        cls = classes[key]
         yield {
             "schema": "shacl",
             "base": None,
-            "model": cls_iri,
+            "model": cls.target,
             "property": None,
             "type": None,
             "title": _pick_title(cls.titles),
             "description": _join(_defining_texts(cls.descriptions)),
             "required": None,
             "array": None,
+            **_shape_keys(cls),
         }
 
         for path, constraints in sorted(cls.properties.items(), key=lambda item: str(item[0])):
@@ -858,7 +902,7 @@ def _shacl_rows(graph: Graph, lang: str = "en") -> Iterator[dict]:
             yield {
                 "schema": "shacl",
                 "base": None,
-                "model": cls_iri,
+                "model": cls.target,
                 "property": path,
                 "type": None if schemes else _resolve_type(graph, constraints.classes, constraints.datatypes),
                 "title": _first_text(constraints.titles),
@@ -866,7 +910,82 @@ def _shacl_rows(graph: Graph, lang: str = "en") -> Iterator[dict]:
                 "required": constraints.required,
                 "array": constraints.array,
                 "schemes": schemes,
+                **_shape_keys(cls),
             }
+
+
+def _collect_shape(graph: Graph, cls: _ClassConstraints, shape: Node, defines: bool, lang: str) -> None:
+    if title := _pick_text(graph, shape, [RDFS.label, SH.name], lang):
+        cls.titles.append((defines, title))
+    if description := _pick_text(graph, shape, [RDFS.comment, SH.description], lang):
+        cls.descriptions.append((defines, description))
+    for prop_shape in graph.objects(shape, SH.property):
+        _collect_property(graph, cls, prop_shape, lang)
+
+
+def _shape_parts(iri: str) -> tuple[str, str] | None:
+    """Return dataset and model of a generated shape, `{uri_prefix}shape/{dataset}/{model}`.
+
+    Returns `None` for other shapes, for example shapes of DCAT-AP. Names are
+    percent-encoded in the IRI, as they are generated by the RDF writer.
+    """
+    _, sep, rest = iri.partition("/shape/")
+    if not sep:
+        return None
+    dataset, _, model = rest.rpartition("/")
+    if not model:
+        return None
+    return urllib.parse.unquote(dataset), urllib.parse.unquote(model)
+
+
+def _set_shape_model(graph: Graph, cls: _ClassConstraints, shape: URIRef, parts: tuple[str, str], dataset: dict | None):
+    """Name the model of a generated shape, and find its base and its URI.
+
+    The class of a generated model is `{uri_prefix}id/{dataset}/{model}`, the
+    shape is `{uri_prefix}shape/{dataset}/{model}`. A model owns this class IRI
+    if its class is the generated one.
+    """
+    target = cls.target
+    cls.shape_name = _shape_model_name(dataset, parts)
+    cls.shape_owner = str(target) == _generated_class(str(shape))
+
+    base_target = None
+    for base in sorted(graph.objects(shape, SH.node), key=str):
+        base_parts = _shape_parts(str(base)) if isinstance(base, URIRef) else None
+        if base_parts is None:
+            continue
+        cls.base_name = _shape_model_name(dataset, base_parts)
+        base_targets = sorted((t for t in graph.objects(base, SH.targetClass) if isinstance(t, URIRef)), key=str)
+        base_target = base_targets[0] if base_targets else None
+        break
+
+    # The same class as the base is inherited, so it is not written.
+    cls.shape_uri = "" if base_target == target else _parse_uri(graph, target)
+
+
+def _generated_class(shape: str) -> str:
+    """Return the class IRI generated for a shape, `shape/` is replaced by `id/`."""
+    head, _, rest = shape.partition("/shape/")
+    return f"{head}/id/{rest}"
+
+
+def _shape_model_name(dataset: dict | None, parts: tuple[str, str]) -> str:
+    """Return full model name of a generated shape, models without a dataset belong to `dataset`."""
+    dataset_name, model = parts
+    name = f"{dataset_name}/{model}" if dataset_name else model
+    return get_relative_model_name(dataset, name) if dataset else name
+
+
+def _shape_keys(cls: _ClassConstraints) -> dict:
+    """Return keys that tell rows of a generated shape apart from rows of a class."""
+    if cls.shape_name is None:
+        return {}
+    keys: dict[str, Any] = {"shape_name": cls.shape_name, "shape_uri": cls.shape_uri}
+    if cls.shape_owner:
+        keys["shape_owner"] = True
+    if cls.base_name:
+        keys["base_name"] = cls.base_name
+    return keys
 
 
 def _collect_property(graph: Graph, cls: _ClassConstraints, prop_shape: Node, lang: str) -> None:
@@ -1435,15 +1554,26 @@ def _ontology_rows(graph: Graph, sources: Graph, shacl_rows: list[dict]) -> Iter
     Imported ontologies still give superclasses, labels and descriptions.
     """
     declared = _declared_classes(graph)
-    shacl_models = {row["model"] for row in shacl_rows if row["property"] is None}
+    # Classes of generated shapes are used only by the model that owns them, other
+    # models of such a shape refer to a class that is described elsewhere.
+    shacl_models = {
+        row["model"]
+        for row in shacl_rows
+        if row["property"] is None and ("shape_name" not in row or row.get("shape_owner"))
+    }
     defined = {(row["model"], row["property"]) for row in shacl_rows if row["property"] is not None}
 
     used: set[URIRef] = shacl_models | _declared_classes(sources)
     # Domains of properties in the given files are used even if they are not
     # declared there, for example `ex:Country` in `ex:name rdfs:domain ex:Country`.
-    # Domains that come only from imported ontologies are not seeded here.
+    # Domains that come only from imported ontologies are not seeded here. A
+    # property that SHACL shapes define is not seeded from its domain, because
+    # the domain may be a class that is only referenced, for example `dct:Location`.
     used.update(
-        domain for prop in _property_candidates(sources) for domain in _domains(sources, prop) if _is_model_type(domain)
+        domain
+        for prop in _property_candidates(sources)
+        for domain in _domains(sources, prop)
+        if _is_model_type(domain) and (domain, prop) not in defined
     )
     included: dict[tuple[URIRef | None, URIRef], URIRef | None] = {}
 

@@ -247,7 +247,7 @@ CONFIG = {
     # without an explicit `uri` when a manifest is written as RDF Turtle, for
     # example `spinta copy manifest.csv -o manifest.ttl`. Example:
     # `https://data.gov.lt/id/`.
-    "uri_prefix": "https://example.com/id/",
+    "uri_prefix": "https://example.com",
     # Allow RDF manifests to dereference web IRIs when they are read, to get
     # titles and descriptions of classes, properties and concepts, and to
     # follow `owl:imports` and concept schemes. Off by default, so that the

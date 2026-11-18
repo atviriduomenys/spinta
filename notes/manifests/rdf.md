@@ -1,7 +1,12 @@
+All commands should run in nix shell:
+
+```nu
+nix develop path:. -c nu
+```
+
 Convert TTL to DSA:
 
 ```nu
-nix develop path:. -c zsh
 spinta -o rdf_fetch_remote=true copy ~/dev/contrib/semic/DCAT-AP/releases/3.0.1/html/shacl/*.ttl -o .tmp/manifest.csv
 spinta check --check-names .tmp/manifest.csv
 spinta copy .tmp/manifest.csv -o .tmp/manifest.mmd
@@ -16,8 +21,14 @@ spinta -o uri_prefix=https://data.gov.lt/id/ copy .tmp/manifest.csv -o .tmp/mani
 spinta copy ~/dev/data/metadata/datasets/gov/rc/ar/text_with_coordinates/dsa.csv -o .tmp/manifest.ttl
 spinta copy ~/dev/data/metadata/datasets/gov/rc/ar/text/dsa.csv -o .tmp/manifest.ttl
 
-spinta copy ~/dev/data/metadata/datasets/gov/rc/ar/*/dsa.csv -o .tmp/manifest.ttl
 spinta copy ~/dev/data/metadata/datasets/gov/rc/ar/*/dsa.csv --access=open -o .tmp/manifest_open.ttl
+spinta copy ~/dev/data/metadata/datasets/gov/rc/ar/*/dsa.csv -o .tmp/manifest.ttl
+
+spinta copy .tmp/manifest.ttl -o .tmp/manifest.csv
+spinta check --check-names .tmp/manifest.csv
+spinta copy .tmp/manifest.csv -o .tmp/manifest.mmd
+mmdc -i .tmp/manifest.mmd -o .tmp/manifest.svg
+
 ```
 
 Generate TTL for all manifests in `~/dev/data/manifest` and `~/dev/data/metadata`.

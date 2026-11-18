@@ -10,13 +10,14 @@ is under `uri_prefix`, or if its `uri` is a relative path, which is relative to
 `uri_prefix`. Other items are only referenced by their `uri`.
 
 Generated URIs are built from `uri_prefix` configuration option, for example
-`https://data.gov.lt/id/`. It defaults to `https://example.com/id/`:
+`https://data.gov.lt/id/`. It defaults to `https://example.com`:
 
 URIs follow the persistent URI rules of the Interoperable Europe SEMIC support
 centre, `{uri_prefix}{type}/{dataset}/{concept}/{reference}`. The type is `id`
 for models and properties, and `def` for concept schemes and concepts:
 
-- classes: `{uri_prefix}id/{dataset}/{model}`
+- classes: `{uri_prefix}id/{dataset}/{model}`, unless the model inherits its class
+  through `base`, see below
 - properties: `{uri_prefix}id/{dataset}/{model}/{property}`, so a property has
   its own IRI in each model. A property with a `uri` keeps it, and is shared
   by the models that give it.
@@ -26,6 +27,13 @@ for models and properties, and `def` for concept schemes and concepts:
   enums with the same code are different concepts. The prepared value of a
   concept is its `skos:notation`, written only when it differs from the local
   name of the concept, which is the source of an enum item.
+- shapes: `{uri_prefix}shape/{dataset}/{model}`, one SHACL node shape per model.
+
+A model without `uri` inherits the class IRI of its `base`: the IRI of the first
+ancestor with a `uri`, or, if there is none, the generated IRI of the deepest
+base. Only the model that owns the IRI describes the class, and `rdfs:subClassOf`
+is written only when the IRI of a model differs from the IRI of its base. Otherwise
+the base is carried by `sh:node` between the shapes, see `_shape`.
 """
 
 from __future__ import annotations
@@ -70,6 +78,7 @@ _STANDARD_PREFIXES = {
 # Type segments of generated URIs, see the module docstring.
 _ID = "id"
 _DEF = "def"
+_SHAPE = "shape"
 
 # Spinta types and their XSD datatypes. Other types have no datatype constraint.
 _XSD_TYPES: dict[str, URIRef] = {
@@ -170,7 +179,7 @@ class _RdfExporter:
             self._register_enum(values, "", name, None)
 
         for model in models:
-            if self._is_described(self._class_iri(model)):
+            if self._class_owner(model) is model and self._is_described(self._class_iri(model)):
                 self._class_definition(classes, model)
             self._shape(shapes, model)
 
@@ -243,8 +252,8 @@ class _RdfExporter:
         cls = self._class_iri(model)
         section.add(cls, RDF.type, RDFS.Class)
         _add_texts(section, cls, model.title, model.description, RDFS.label, RDFS.comment)
-        if model.base and model.base.parent:
-            section.add(cls, RDFS.subClassOf, self._class_iri(model.base.parent))
+        if (base := self._subclass_base(model)) is not None:
+            section.add(cls, RDFS.subClassOf, base)
 
     def _property_definition(self, section: Section, iri: URIRef, definition: _PropertyDefinition) -> None:
         section.add(iri, RDF.type, RDF.Property)
@@ -279,10 +288,15 @@ class _RdfExporter:
             _add_texts(section, iri, item.title, item.description, SKOS.prefLabel, SKOS.definition)
 
     def _shape(self, section: Section, model: Model) -> None:
-        shape = BNode()
+        shape = self._shape_iri(model)
         section.add(shape, RDF.type, SH.NodeShape)
         section.add(shape, SH.targetClass, self._class_iri(model))
         _add_texts(section, shape, model.title, model.description, SH.name, SH.description)
+        # A base without `rdfs:subClassOf` is carried by `sh:node`, so the base shape applies to the
+        # instances of the model. Several shapes can target the same class, and `sh:node` keeps them apart.
+        base = model.base.parent if model.base else None
+        if base is not None and self._is_exported(base) and self._subclass_base(model) is None:
+            section.add(shape, SH.node, self._shape_iri(base))
         for prop in _exported_properties(model, self.access):
             section.add(shape, SH.property, self._property_shape(section, model, prop))
 
@@ -385,9 +399,43 @@ class _RdfExporter:
         definition.ranges.setdefault(value.range)
 
     def _class_iri(self, model: Model) -> URIRef:
-        if model.uri:
-            return self._uri_term(model.uri, model.name, self._prefixes(_owner(model)))
-        return self._generated(_ID, _dataset_name(model), model.basename)
+        """Return IRI of the class of a model, see the module docstring for the rules."""
+        owner = self._class_owner(model)
+        if owner.uri:
+            return self._uri_term(owner.uri, owner.name, self._prefixes(_owner(owner)))
+        return self._generated(_ID, _dataset_name(owner), owner.basename)
+
+    def _class_owner(self, model: Model) -> Model:
+        """Return the model that owns the class IRI of a model.
+
+        That is the model itself if it has `uri`, otherwise the first ancestor along
+        `base` with `uri`, otherwise the deepest base, whose IRI is generated.
+        """
+        current = model
+        seen = {id(current)}
+        while not current.uri and current.base is not None and current.base.parent is not None:
+            current = current.base.parent
+            if id(current) in seen:
+                break
+            seen.add(id(current))
+        return current
+
+    def _subclass_base(self, model: Model) -> URIRef | None:
+        """Return the class IRI of the direct base if `rdfs:subClassOf` is written for the model, else `None`.
+
+        It is written only when the class IRIs differ and the model's class is described here.
+        Otherwise the base is carried by `sh:node`, see `_shape`.
+        """
+        if model.base is None or model.base.parent is None:
+            return None
+        cls = self._class_iri(model)
+        base = self._class_iri(model.base.parent)
+        if cls == base or not self._is_described(cls):
+            return None
+        return base
+
+    def _shape_iri(self, model: Model) -> URIRef:
+        return self._generated(_SHAPE, _dataset_name(model), model.basename)
 
     def _uri_term(self, raw: str | None, owner: str, prefixes: Mapping[str, str]) -> URIRef | None:
         """Expand a URI given in a manifest to an IRI, `None` if no URI is given.

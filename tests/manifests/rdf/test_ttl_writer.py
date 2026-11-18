@@ -459,7 +459,7 @@ def test_copy_to_ttl_uses_default_uri_prefix(rc, cli: SpintaCliRunner, tmp_path)
     )
 
     graph = _graph(tmp_path / "result.ttl")
-    default = "https://example.com/id/"
+    default = "https://example.com/"
     assert (None, SH.targetClass, URIRef(f"{default}id/{DATASET}/Country")) in graph
     assert (None, SH.path, URIRef(f"{default}id/{DATASET}/Country/code")) in graph
 
@@ -702,3 +702,114 @@ def test_code_of_boolean_enum_is_lowercase():
     assert _code("True", SimpleNamespace(prepare=True)) == "true"
     assert _code("False", SimpleNamespace(prepare=False)) == "false"
     assert _code("CREATED", SimpleNamespace(prepare="CREATED")) == "CREATED"
+
+
+def _base_rows() -> list[dict[str, str]]:
+    # Example B from `rdf-uri-and-base-inheritance.md`: `City` has `uri` and `Capital` inherits its class.
+    return [
+        {"dataset": "datasets/gov/places"},
+        {"model": "Place", "access": "open"},
+        {"property": "id", "type": "integer", "access": "open"},
+        {"dataset": "datasets/gov/cities"},
+        {"type": "prefix", "ref": "dct", "uri": "http://purl.org/dc/terms/"},
+        {"base": "/datasets/gov/places/Place"},
+        {"model": "City", "uri": "dct:Location", "access": "open"},
+        {"property": "id", "type": "integer", "access": "open"},
+        {"dataset": "datasets/gov/capitals"},
+        {"base": "/datasets/gov/cities/City"},
+        {"model": "Capital", "access": "open"},
+        {"property": "id", "type": "integer", "access": "open"},
+    ]
+
+
+def test_copy_to_ttl_inherits_class_iri_of_base(rc, cli: SpintaCliRunner, tmp_path):
+    _copy(rc, cli, tmp_path, _base_rows())
+    graph = _graph(tmp_path / "result.ttl")
+
+    shape_city = URIRef(f"{PREFIX}shape/datasets/gov/cities/City")
+    shape_capital = URIRef(f"{PREFIX}shape/datasets/gov/capitals/Capital")
+    # Both shapes target the inherited class, `Capital` is not a class of its own.
+    assert (shape_capital, SH.targetClass, DCTERMS.Location) in graph
+    assert (shape_capital, SH.node, shape_city) in graph
+    assert (URIRef(f"{PREFIX}id/datasets/gov/capitals/Capital"), RDF.type, RDFS.Class) not in graph
+    assert not list(graph.subjects(RDFS.subClassOf, None))
+
+
+def test_copy_to_ttl_base_with_other_class_iri_uses_subclass_of(rc, cli: SpintaCliRunner, tmp_path):
+    # `Capital` has its own `uri` under `uri_prefix`, so its class is described here. It differs from
+    # the external `dct:Location` of `City`, so `rdfs:subClassOf` is written, see section 3.2.
+    rows = _base_rows()
+    rows[10]["uri"] = "/datasets/gov/capitals/Capital"
+    _copy(rc, cli, tmp_path, rows)
+    graph = _graph(tmp_path / "result.ttl")
+
+    capital = URIRef(f"{PREFIX}datasets/gov/capitals/Capital")
+    assert (capital, RDF.type, RDFS.Class) in graph
+    assert (capital, RDFS.subClassOf, DCTERMS.Location) in graph
+
+
+def _three_level_rows(city_uri: str | None, capital_uri: str | None) -> list[dict[str, str]]:
+    # `Place` is the base of `City`, which is the base of `Capital`. A `base` is set on its own row,
+    # followed by the model row, see `_base_rows`.
+    return [
+        {"dataset": DATASET},
+        {"type": "prefix", "ref": "dct", "uri": "http://purl.org/dc/terms/"},
+        {"model": "Place", "access": "open"},
+        {"property": "id", "type": "integer", "access": "open"},
+        {"base": "Place"},
+        {"model": "City", "uri": city_uri or "", "access": "open"},
+        {"property": "id", "type": "integer", "access": "open"},
+        {"base": "City"},
+        {"model": "Capital", "uri": capital_uri or "", "access": "open"},
+        {"property": "id", "type": "integer", "access": "open"},
+    ]
+
+
+def test_copy_to_ttl_inherited_iris_give_sh_node_and_no_subclass_of(rc, cli: SpintaCliRunner, tmp_path):
+    # Table 3.2, example A: `City` and `Capital` inherit the class IRI `dct:Location` of `Place`.
+    rows = _three_level_rows(city_uri=None, capital_uri=None)
+    rows[2]["uri"] = "dct:Location"
+    _copy(rc, cli, tmp_path, rows)
+    graph = _graph(tmp_path / "result.ttl")
+
+    assert not list(graph.subjects(RDFS.subClassOf, None))
+    city = URIRef(f"{PREFIX}shape/{DATASET}/City")
+    place = URIRef(f"{PREFIX}shape/{DATASET}/Place")
+    assert (city, SH.node, place) in graph
+
+
+def test_copy_to_ttl_full_iri_equal_to_prefixed_name_gives_no_subclass_of(rc, cli: SpintaCliRunner, tmp_path):
+    # `City` writes the full IRI of `dct:Location`, which is the same IRI as the prefixed name of `Place`.
+    rows = _three_level_rows(city_uri="http://purl.org/dc/terms/Location", capital_uri=None)
+    rows[2]["uri"] = "dct:Location"
+    _copy(rc, cli, tmp_path, rows)
+    graph = _graph(tmp_path / "result.ttl")
+
+    assert not list(graph.subjects(RDFS.subClassOf, None))
+
+
+def _round_trip(rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, rows) -> tuple[Graph, Graph]:
+    """Write `rows` as TTL, read it back as a manifest, and write that manifest as TTL again."""
+    _copy(rc, cli, tmp_path, rows)  # writes `result.ttl`
+    first = _graph(tmp_path / "result.ttl")
+    # `_copy_back` writes `back.csv`, and it reads `result.ttl`.
+    _copy_back(rc, cli, tmp_path)
+    cli.invoke(
+        rc.fork({"uri_prefix": PREFIX}),
+        ["copy", "--access", "open", "-o", tmp_path / "second.ttl", tmp_path / "back.csv"],
+    )
+    return first, _graph(tmp_path / "second.ttl")
+
+
+def test_copy_to_ttl_round_trip_example_a_is_isomorphic(rc, cli: SpintaCliRunner, tmp_path):
+    rows = _three_level_rows(city_uri=None, capital_uri=None)
+    rows[2]["uri"] = "dct:Location"
+    first, second = _round_trip(rc, cli, tmp_path, rows)
+
+    assert isomorphic(first, second)
+
+
+def test_copy_to_ttl_round_trip_example_b_is_isomorphic(rc, cli: SpintaCliRunner, tmp_path):
+    first, second = _round_trip(rc, cli, tmp_path, _base_rows())
+
+    assert isomorphic(first, second)

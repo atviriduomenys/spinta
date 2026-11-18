@@ -194,7 +194,7 @@ Generated URIs
 Generated URIs are built from the ``uri_prefix`` configuration option, for
 example ``-o uri_prefix=https://data.gov.lt/id/`` or
 ``SPINTA_URI_PREFIX=https://data.gov.lt/id/``. If it is not set, the default
-``https://example.com/id/`` is used. A trailing slash in ``uri_prefix`` is
+``https://example.com`` is used. A trailing slash in ``uri_prefix`` is
 optional:
 
 .. code-block:: bash
@@ -218,6 +218,17 @@ URIs use these patterns:
 - concepts (enum items): ``{uri_prefix}def/{dataset}/{enum}/{code}``, where
   ``{code}`` is percent-encoded, so ``CITY/TOWN`` is ``CITY%2FTOWN``. Concepts
   of different enums with the same code get different URIs.
+- shapes: ``{uri_prefix}shape/{dataset}/{model}``. Each model has one SHACL
+  node shape with this IRI, so models that share a class get separate shapes.
+
+A model without a ``uri`` inherits the class IRI of its ``base``, so the
+``base`` chain shares one class. Only the model that owns the class describes
+it, with ``rdfs:Class``, its label and its comment. The base link is written as
+``sh:node`` between the shapes. ``rdfs:subClassOf`` is written only when the
+class IRI of the model differs from the class IRI of its base and the model's
+class is described in the file. For example, a model with its own ``uri`` under
+``uri_prefix`` whose base has ``uri: dct:Location`` gets ``rdfs:subClassOf``
+``dct:Location``.
 
 If there is no dataset, the ``{dataset}/`` part is left out.
 

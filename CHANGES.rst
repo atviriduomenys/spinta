@@ -12,7 +12,7 @@ New features:
   with RDFS classes, RDFS properties and SKOS concepts. Enums are described as
   SKOS concept schemes. Generated URIs are built from the new ``uri_prefix``
   configuration option, for example ``-o uri_prefix=https://data.gov.lt/id/``.
-  It defaults to ``https://example.com/id/``.
+  It defaults to ``https://example.com``.
 
 - Enum items accept a ``uri`` column, which is kept when the manifest is
   written (`#2101`_).
@@ -43,6 +43,13 @@ Bug fixes:
   ``{uri_prefix}id/{dataset}/{model}/{property}``, concept schemes are
   ``{uri_prefix}def/{dataset}/{enum}`` and concepts are
   ``{uri_prefix}def/{dataset}/{enum}/{code}`` (`#2101`_).
+
+- Each model has one SHACL node shape, ``{uri_prefix}shape/{dataset}/{model}``.
+  A model without a ``uri`` inherits the class IRI of its ``base``. The base is
+  written as ``sh:node`` between shapes, and as ``rdfs:subClassOf`` only when the
+  class IRIs differ and the model's class is described in the file (`#2101`_).
+  When an RDF file is read back, a base in another dataset keeps its dataset
+  name, so cross-dataset bases round-trip.
 
 
 2.1.0 (2026-11-11)
