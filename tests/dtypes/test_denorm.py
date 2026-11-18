@@ -1398,3 +1398,45 @@ def test_denorm_under_object_of_referenced_model(rc: RawConfig):
     street = city.properties["country"].dtype.properties["address"].dtype.properties["street"]
     country = commands.get_model(context, manifest, "datasets/denorm/object/Country")
     assert street.dtype.rel_prop is country.properties["address"].dtype.properties["street"]
+
+
+def test_denorm_under_object_is_read_from_referenced_model(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    """`country.address.street` is read by joining `Country`, not from the `City` table."""
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property               | type    | ref     | access
+    datasets/denorm/object/read            |         |         |
+      |   |   | Country                    |         |         |
+      |   |   |   | code                   | string  |         | open
+      |   |   |   | address                | object  |         | open
+      |   |   |   | address.street         | string  |         | open
+      |   |   | City                       |         |         |
+      |   |   |   | name                   | string  |         | open
+      |   |   |   | country                | ref     | Country | open
+      |   |   |   | country.address.street |         |         | open
+    """,
+        backend=postgresql,
+        request=request,
+    )
+
+    app = create_test_client(context)
+    app.authorize(["spinta_set_meta_fields"])
+    app.authmodel("datasets/denorm/object/read/Country", ["insert", "getall", "search"])
+    lithuania_id = str(uuid.uuid4())
+    app.post(
+        "/datasets/denorm/object/read/Country",
+        json={"_id": lithuania_id, "code": "lt", "address": {"street": "Gedimino"}},
+    )
+
+    app.authmodel("datasets/denorm/object/read/City", ["insert", "getall", "search"])
+    app.post("/datasets/denorm/object/read/City", json={"name": "Vilnius", "country": {"_id": lithuania_id}})
+
+    resp = app.get("/datasets/denorm/object/read/City")
+    assert listdata(resp, full=True) == [
+        {"country._id": lithuania_id, "country.address.street": "Gedimino", "name": "Vilnius"},
+    ]
