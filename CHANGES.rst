@@ -125,6 +125,12 @@ Bug fixes:
   row. Previously the array was left out, and response validation rejected it
   as an additional property (`#2085`_).
 
+- Generated OpenAPI specifications describe properties declared under a
+  reference, such as ``miestai[].pavadinimas`` of a ``backref`` or
+  ``salis.rajonas.pavadinimas`` of a ``ref``. Such a reference points at a
+  schema of its own, named after the property, instead of the shared one
+  carrying only ``_id`` (`#2085`_).
+
 .. _#1924: https://github.com/atviriduomenys/spinta/issues/1924
 .. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 .. _#2085: https://github.com/atviriduomenys/spinta/issues/2085

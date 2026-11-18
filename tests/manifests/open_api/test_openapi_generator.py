@@ -47,6 +47,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_MISDECLARED_PREFIX,
     MANIFEST_WITH_NESTED_OBJECT_REF,
     MANIFEST_WITH_NESTED_REF_LEVELS,
+    MANIFEST_WITH_NESTED_REFERENCE_PROPERTIES,
     MANIFEST_WITH_PRIMITIVE_ARRAYS,
     MANIFEST_WITH_PRIVATE_VISIBILITY,
     MANIFEST_WITH_REF_SHAPES,
@@ -1304,6 +1305,48 @@ def test_array_takes_visibility_of_its_item_row(open_manifest_path_factory):
     assert "slaptos" not in properties
     # One-to-one `backref` is a reference to the referencing object.
     assert properties["sostine"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Miestas_Ref"}
+
+
+def test_properties_declared_under_a_backref_are_described(open_manifest_path_factory):
+    """`miestai[].pavadinimas` is described by a schema of that backref, referenced rather than unfolded."""
+    openapi_spec_validator = pytest.importorskip("openapi_spec_validator")
+    open_api_spec = _service_spec(
+        open_manifest_path_factory, manifest_data=MANIFEST_WITH_NESTED_REFERENCE_PROPERTIES, publish=False
+    )
+    schemas = open_api_spec["components"]["schemas"]
+
+    miestai = schemas["ds_Salis"]["properties"]["miestai"]
+    assert miestai["items"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Salis_miestai"}
+    assert set(schemas["ds_Salis_miestai"]["properties"]) == {"_id", "pavadinimas", "rajonas"}
+    assert schemas["ds_Salis_miestai"]["properties"]["rajonas"]["anyOf"][0] == {
+        "$ref": "#/components/schemas/ds_Salis_miestai_rajonas"
+    }
+    assert set(schemas["ds_Salis_miestai_rajonas"]["properties"]) == {"_id", "pavadinimas"}
+    assert schemas["ds_Salis"]["example"]["miestai"][0]["rajonas"]["pavadinimas"]
+    openapi_spec_validator.validate(open_api_spec)
+
+
+def test_properties_declared_under_a_ref_are_described(open_manifest_path_factory):
+    """`rajonas.gyventojai` is what `gyventojai` of the referenced model is, and a chain is followed to its end."""
+    openapi_spec_validator = pytest.importorskip("openapi_spec_validator")
+    open_api_spec = _service_spec(
+        open_manifest_path_factory, manifest_data=MANIFEST_WITH_NESTED_REFERENCE_PROPERTIES, publish=False
+    )
+    schemas = open_api_spec["components"]["schemas"]
+
+    assert schemas["ds_Miestas"]["properties"]["rajonas"]["anyOf"][0] == {
+        "$ref": "#/components/schemas/ds_Miestas_rajonas"
+    }
+    assert schemas["ds_Miestas_rajonas"]["properties"]["gyventojai"]["type"] == "integer"
+    # A reference with nothing declared under it keeps the shared schema.
+    assert schemas["ds_Miestas"]["properties"]["salis"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Salis_Ref"}
+
+    # `rajonas` and `apskritis` of the chain are created by Spinta and carry only what is under them.
+    assert set(schemas["ds_Gatve_miestas"]["properties"]) == {"_id", "rajonas"}
+    assert set(schemas["ds_Gatve_miestas_rajonas"]["properties"]) == {"apskritis"}
+    assert set(schemas["ds_Gatve_miestas_rajonas_apskritis"]["properties"]) == {"pavadinimas"}
+    assert schemas["ds_Gatve"]["example"]["miestas"]["rajonas"]["apskritis"]["pavadinimas"]
+    openapi_spec_validator.validate(open_api_spec)
 
 
 def test_whole_number_identifier_is_bounded(open_manifest_path_factory):
