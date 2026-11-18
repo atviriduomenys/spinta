@@ -136,6 +136,9 @@ Bug fixes:
   ``salis.adresas.gatve``, is looked up in the referenced model. Previously
   the manifest failed to load with ``ReferencedPropertyNotFound`` (`#2085`_).
 
+- A manifest given by a Windows path, such as ``C:\manifest.json``, is no
+  longer taken for an SQL database URL, which failed with ``ValueError``.
+
 .. _#1924: https://github.com/atviriduomenys/spinta/issues/1924
 .. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 .. _#2085: https://github.com/atviriduomenys/spinta/issues/2085
