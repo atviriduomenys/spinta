@@ -35,6 +35,15 @@ Bug fixes:
   no longer fail with ``AttributeError`` when the manifest is loaded. An
   unknown enum name raises ``UndefinedEnum`` (`#2101`_).
 
+- A concept scheme (enum) and its concepts no longer share an IRI with a
+  property of the same name, for example ``status`` with ``enum: status``, which
+  was both an ``rdf:Property`` and a ``skos:ConceptScheme`` with mixed labels.
+  Generated URIs now follow ``{uri_prefix}{type}/{dataset}/{concept}/{reference}``:
+  classes are ``{uri_prefix}id/{dataset}/{model}``, properties are
+  ``{uri_prefix}id/{dataset}/{model}/{property}``, concept schemes are
+  ``{uri_prefix}def/{dataset}/{enum}`` and concepts are
+  ``{uri_prefix}def/{dataset}/{enum}/{code}`` (`#2101`_).
+
 
 2.1.0 (2026-11-11)
 =====================

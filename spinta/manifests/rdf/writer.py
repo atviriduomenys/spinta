@@ -12,11 +12,17 @@ is under `uri_prefix`, or if its `uri` is a relative path, which is relative to
 Generated URIs are built from `uri_prefix` configuration option, for example
 `https://data.gov.lt/id/`. It defaults to `https://example.com/id/`:
 
-- classes: `{uri_prefix}{dataset}/{model}`
-- properties: `{uri_prefix}{dataset}/{property}`
-- concept schemes (enums): `{uri_prefix}{dataset}/{enum}`. Inline enums are
+URIs follow the persistent URI rules of the Interoperable Europe SEMIC support
+centre, `{uri_prefix}{type}/{dataset}/{concept}/{reference}`. The type is `id`
+for models and properties, and `def` for concept schemes and concepts:
+
+- classes: `{uri_prefix}id/{dataset}/{model}`
+- properties: `{uri_prefix}id/{dataset}/{model}/{property}`, so a property has
+  its own IRI in each model. A property with a `uri` keeps it, and is shared
+  by the models that give it.
+- concept schemes (enums): `{uri_prefix}def/{dataset}/{enum}`. Inline enums are
   named `{model}_{property}`.
-- concepts: `{uri_prefix}{dataset}/{enum}/{code}`, so concepts of different
+- concepts: `{uri_prefix}def/{dataset}/{enum}/{code}`, so concepts of different
   enums with the same code are different concepts. The prepared value of a
   concept is its `skos:notation`, written only when it differs from the local
   name of the concept, which is the source of an enum item.
@@ -60,6 +66,10 @@ _STANDARD_PREFIXES = {
     "sh": "http://www.w3.org/ns/shacl#",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
 }
+
+# Type segments of generated URIs, see the module docstring.
+_ID = "id"
+_DEF = "def"
 
 # Spinta types and their XSD datatypes. Other types have no datatype constraint.
 _XSD_TYPES: dict[str, URIRef] = {
@@ -255,7 +265,7 @@ class _RdfExporter:
             if item.uri:
                 iri = self._uri_term(item.uri, enum.name, enum.prefixes)
             else:
-                iri = self._generated(enum.dataset, enum.name, _code(code, item))
+                iri = self._generated(_DEF, enum.dataset, enum.name, _code(code, item))
             # The key of an item is its source, which is the local name of the concept, so the prepared
             # value is written only when it differs from it. Source-only items have no notation.
             if item.prepare is not NA and item.prepare is not None and str(item.prepare) != _local_name(str(iri)):
@@ -308,7 +318,7 @@ class _RdfExporter:
         """Return IRI of a property, and whether it is an inverse path, `<` in a URI, like `< dcat:distribution`."""
         uri = _uri_of(prop)
         if not uri:
-            return self._generated(_dataset_name(model), prop.name), False
+            return self._generated(_ID, _dataset_name(model), model.basename, prop.name), False
 
         raw = str(uri).strip()
         inverse = raw.startswith("<")
@@ -316,7 +326,7 @@ class _RdfExporter:
             raw = raw[1:].strip()
         term = self._uri_term(raw, prop.name, self._prefixes(_owner(model)))
         if term is None:
-            term = self._generated(_dataset_name(model), prop.name)
+            term = self._generated(_ID, _dataset_name(model), model.basename, prop.name)
         return term, inverse
 
     def _path(self, section: Section, term: URIRef, inverse: bool) -> URIRef | BNode:
@@ -360,7 +370,7 @@ class _RdfExporter:
             enum = _Enum(
                 name=name,
                 dataset=dataset,
-                scheme=self._generated(dataset, name),
+                scheme=self._generated(_DEF, dataset, name),
                 values=values,
                 prefixes=self._prefixes(owner),
             )
@@ -377,7 +387,7 @@ class _RdfExporter:
     def _class_iri(self, model: Model) -> URIRef:
         if model.uri:
             return self._uri_term(model.uri, model.name, self._prefixes(_owner(model)))
-        return self._generated(_dataset_name(model), model.basename)
+        return self._generated(_ID, _dataset_name(model), model.basename)
 
     def _uri_term(self, raw: str | None, owner: str, prefixes: Mapping[str, str]) -> URIRef | None:
         """Expand a URI given in a manifest to an IRI, `None` if no URI is given.
@@ -420,12 +430,12 @@ class _RdfExporter:
         """
         return bool(self.uri_prefix) and str(iri).startswith(self._base())
 
-    def _generated(self, dataset: str, *names: str) -> URIRef:
-        """Return URI generated as `{uri_prefix}{dataset}/{name}/...`, each name is percent-encoded completely.
+    def _generated(self, kind: str, dataset: str, *names: str) -> URIRef:
+        """Return URI generated as `{uri_prefix}{kind}/{dataset}/{name}/...`, each name is percent-encoded completely.
 
         Empty segments, for example the dataset of a manifest without a dataset, are left out.
         """
-        segments = [quote(dataset, safe="/"), *(quote(name, safe="") for name in names)]
+        segments = [kind, quote(dataset, safe="/"), *(quote(name, safe="") for name in names)]
         return URIRef(self._base() + "/".join(s for s in segments if s))
 
 

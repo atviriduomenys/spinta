@@ -201,16 +201,23 @@ optional:
 
    spinta -o uri_prefix=https://data.gov.lt/id/ copy manifest.csv -o manifest.ttl
 
-Generated URIs use these patterns:
+Generated URIs follow the persistent URI rules of the `Interoperable Europe
+SEMIC support centre
+<https://interoperable-europe.ec.europa.eu/collection/semic-support-centre/document/10-rules-persistent-uris>`_,
+``{uri_prefix}{type}/{dataset}/{concept}/{reference}``. The type is ``id`` for
+models and properties, and ``def`` for concept schemes and concepts. Generated
+URIs use these patterns:
 
-- classes: ``{uri_prefix}{dataset}/{model}``
-- properties: ``{uri_prefix}{dataset}/{property}``. A property has one URI for
-  all models that use it.
-- concepts (enum items): ``{uri_prefix}{dataset}/{enum}/{code}``, where
+- classes: ``{uri_prefix}id/{dataset}/{model}``
+- properties: ``{uri_prefix}id/{dataset}/{model}/{property}``. A property has
+  its own URI in each model. A property with a ``uri`` keeps it, and is shared
+  by the models that give it.
+- concept schemes (enums): ``{uri_prefix}def/{dataset}/{enum}``. Inline enums
+  are named after their model and property, for example
+  ``DatasetEvent_type``.
+- concepts (enum items): ``{uri_prefix}def/{dataset}/{enum}/{code}``, where
   ``{code}`` is percent-encoded, so ``CITY/TOWN`` is ``CITY%2FTOWN``. Concepts
   of different enums with the same code get different URIs.
-- concept schemes (enums): ``{uri_prefix}{dataset}/{enum}``. Inline enums are
-  named after their model and property, for example ``DatasetEvent_type``.
 
 If there is no dataset, the ``{dataset}/`` part is left out.
 

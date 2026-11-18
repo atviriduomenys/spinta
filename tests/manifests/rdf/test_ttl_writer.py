@@ -107,7 +107,7 @@ def test_copy_to_ttl_defines_class_without_uri(rc, cli: SpintaCliRunner, tmp_pat
     _copy(rc, cli, tmp_path, _manifest_rows())
 
     graph = _graph(tmp_path / "result.ttl")
-    country = _uri(f"{DATASET}/Country")
+    country = _uri(f"id/{DATASET}/Country")
     assert (country, RDF.type, RDFS.Class) in graph
     assert (country, RDFS.label, Literal("Šalis")) in graph
 
@@ -127,9 +127,9 @@ def test_copy_to_ttl_defines_property_without_uri(rc, cli: SpintaCliRunner, tmp_
     _copy(rc, cli, tmp_path, _manifest_rows())
 
     graph = _graph(tmp_path / "result.ttl")
-    kind = _uri(f"{DATASET}/kind")
+    kind = _uri(f"id/{DATASET}/Country/kind")
     assert (kind, RDF.type, RDF.Property) in graph
-    assert (kind, RDFS.domain, _uri(f"{DATASET}/Country")) in graph
+    assert (kind, RDFS.domain, _uri(f"id/{DATASET}/Country")) in graph
     # Values of `kind` are concepts of its inline enum.
     assert (kind, RDFS.range, SKOS.Concept) in graph
 
@@ -142,15 +142,15 @@ def test_copy_to_ttl_references_property_with_uri(rc, cli: SpintaCliRunner, tmp_
     assert (DCTERMS.title, RDF.type, RDF.Property) not in graph
     assert (DCTERMS.title, RDF.type, None) not in graph
     assert (None, SH.path, DCTERMS.title) in graph
-    assert (_uri(f"{DATASET}/name"), RDF.type, None) not in graph
+    assert (_uri(f"id/{DATASET}/Country/name"), RDF.type, None) not in graph
 
 
 def test_copy_to_ttl_creates_scheme_for_global_enum(rc, cli: SpintaCliRunner, tmp_path):
     _copy(rc, cli, tmp_path, _manifest_rows())
 
     graph = _graph(tmp_path / "result.ttl")
-    scheme = _uri(f"{DATASET}/Status")
-    active = _uri(f"{DATASET}/Status/ACTIVE")
+    scheme = _uri(f"def/{DATASET}/Status")
+    active = _uri(f"def/{DATASET}/Status/ACTIVE")
     assert (scheme, RDF.type, SKOS.ConceptScheme) in graph
     assert (active, RDF.type, SKOS.Concept) in graph
     assert (active, SKOS.inScheme, scheme) in graph
@@ -161,11 +161,11 @@ def test_copy_to_ttl_names_inline_enum_after_model_and_property(rc, cli: SpintaC
     _copy(rc, cli, tmp_path, _manifest_rows())
 
     graph = _graph(tmp_path / "result.ttl")
-    scheme = _uri(f"{DATASET}/Country_kind")
+    scheme = _uri(f"def/{DATASET}/Country_kind")
     assert (scheme, RDF.type, SKOS.ConceptScheme) in graph
     # Concepts are `{uri_prefix}{dataset}/{enum}/{code}`.
-    assert (_uri(f"{DATASET}/Country_kind/CITY"), RDF.type, SKOS.Concept) in graph
-    assert (_uri(f"{DATASET}/Country_kind/TOWN"), SKOS.inScheme, scheme) in graph
+    assert (_uri(f"def/{DATASET}/Country_kind/CITY"), RDF.type, SKOS.Concept) in graph
+    assert (_uri(f"def/{DATASET}/Country_kind/TOWN"), SKOS.inScheme, scheme) in graph
 
 
 def test_copy_to_ttl_concepts_of_enums_with_same_code_are_different(rc, cli: SpintaCliRunner, tmp_path):
@@ -180,13 +180,36 @@ def test_copy_to_ttl_concepts_of_enums_with_same_code_are_different(rc, cli: Spi
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    status = _uri(f"{DATASET}/Status/ACTIVE")
-    kind = _uri(f"{DATASET}/Kind/ACTIVE")
+    status = _uri(f"def/{DATASET}/Status/ACTIVE")
+    kind = _uri(f"def/{DATASET}/Kind/ACTIVE")
     assert status != kind
-    assert (status, SKOS.inScheme, _uri(f"{DATASET}/Status")) in graph
-    assert (kind, SKOS.inScheme, _uri(f"{DATASET}/Kind")) in graph
+    assert (status, SKOS.inScheme, _uri(f"def/{DATASET}/Status")) in graph
+    assert (kind, SKOS.inScheme, _uri(f"def/{DATASET}/Kind")) in graph
     assert (status, SKOS.prefLabel, Literal("Aktyvus")) in graph
     assert (kind, SKOS.prefLabel, Literal("Aktyvi")) in graph
+
+
+def test_copy_to_ttl_property_and_enum_with_same_name_are_different(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": DATASET},
+        {"type": "enum", "ref": "status", "prepare": "'ACTIVE'", "access": "open", "title": "Aktyvus"},
+        {"model": "Country", "access": "open"},
+        {"property": "status", "type": "string", "ref": "status", "access": "open", "title": "Būsena"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    prop = _uri(f"id/{DATASET}/Country/status")
+    scheme = _uri(f"def/{DATASET}/status")
+    assert (prop, RDF.type, RDF.Property) in graph
+    assert (prop, RDF.type, SKOS.ConceptScheme) not in graph
+    assert (prop, RDFS.label, Literal("Būsena")) in graph
+    assert (prop, SKOS.prefLabel, None) not in graph
+    assert (scheme, RDF.type, SKOS.ConceptScheme) in graph
+    assert (scheme, RDF.type, RDF.Property) not in graph
+    assert (scheme, SKOS.prefLabel, Literal("status")) in graph
+    assert (scheme, RDFS.label, None) not in graph
+    assert (_uri(f"def/{DATASET}/status/ACTIVE"), SKOS.inScheme, scheme) in graph
 
 
 def test_copy_to_ttl_defines_class_with_uri_under_uri_prefix(rc, cli: SpintaCliRunner, tmp_path):
@@ -242,7 +265,31 @@ def test_copy_to_ttl_defines_property_with_uri_under_uri_prefix(rc, cli: SpintaC
 
 
 def test_copy_to_ttl_writes_union_domain_of_property_shared_by_models(rc, cli: SpintaCliRunner, tmp_path):
-    # Generated property IRIs are shared, several `rdfs:domain` triples would mean an intersection.
+    # Properties with the same `uri` are one property, several `rdfs:domain` triples would mean an intersection.
+    rows = [
+        {"dataset": DATASET},
+        {"model": "Country", "access": "open"},
+        {"property": "code", "type": "string", "access": "open", "uri": "relative/code"},
+        {"model": "Organization", "access": "open"},
+        {"property": "code", "type": "string", "access": "open", "uri": "relative/code"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    code = _uri("relative/code")
+    assert (code, RDFS.domain, None) in graph
+    assert (code, RDFS.domain, _uri(f"id/{DATASET}/Country")) not in graph
+    assert (code, RDFS.domain, _uri(f"id/{DATASET}/Organization")) not in graph
+    unions = list(graph.objects(code, RDFS.domain))
+    assert len(unions) == 1
+    union = unions[0]
+    assert (union, RDF.type, OWL.Class) in graph
+    members = set(Collection(graph, graph.value(union, OWL.unionOf)))
+    assert members == {_uri(f"id/{DATASET}/Country"), _uri(f"id/{DATASET}/Organization")}
+
+
+def test_copy_to_ttl_property_is_defined_for_each_model(rc, cli: SpintaCliRunner, tmp_path):
+    # Generated properties are named after their model, so the same name in two models is two properties.
     rows = [
         {"dataset": DATASET},
         {"model": "Country", "access": "open"},
@@ -253,16 +300,13 @@ def test_copy_to_ttl_writes_union_domain_of_property_shared_by_models(rc, cli: S
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    code = _uri(f"{DATASET}/code")
-    assert (code, RDFS.domain, None) in graph
-    assert (code, RDFS.domain, _uri(f"{DATASET}/Country")) not in graph
-    assert (code, RDFS.domain, _uri(f"{DATASET}/Organization")) not in graph
-    unions = list(graph.objects(code, RDFS.domain))
-    assert len(unions) == 1
-    union = unions[0]
-    assert (union, RDF.type, OWL.Class) in graph
-    members = set(Collection(graph, graph.value(union, OWL.unionOf)))
-    assert members == {_uri(f"{DATASET}/Country"), _uri(f"{DATASET}/Organization")}
+    country_code = _uri(f"id/{DATASET}/Country/code")
+    organization_code = _uri(f"id/{DATASET}/Organization/code")
+    assert (country_code, RDF.type, RDF.Property) in graph
+    assert (country_code, RDFS.domain, _uri(f"id/{DATASET}/Country")) in graph
+    assert (organization_code, RDF.type, RDF.Property) in graph
+    assert (organization_code, RDFS.domain, _uri(f"id/{DATASET}/Organization")) in graph
+    assert (_uri(f"id/{DATASET}/code"), RDF.type, None) not in graph
 
 
 def test_copy_to_ttl_defines_concept_with_uri_under_uri_prefix(rc, cli: SpintaCliRunner, tmp_path):
@@ -286,12 +330,12 @@ def test_copy_to_ttl_defines_concept_with_uri_under_uri_prefix(rc, cli: SpintaCl
     active = _uri("status/active")
     assert (active, RDF.type, SKOS.Concept) in graph
     assert (active, SKOS.prefLabel, Literal("Aktyvus")) in graph
-    assert (active, SKOS.inScheme, _uri(f"{DATASET}/Status")) in graph
+    assert (active, SKOS.inScheme, _uri(f"def/{DATASET}/Status")) in graph
     # Concept with an external URI is only referenced.
     done = URIRef("https://other.example.com/done")
     assert (done, RDF.type, SKOS.Concept) not in graph
     assert (done, SKOS.prefLabel, None) not in graph
-    assert (done, SKOS.inScheme, _uri(f"{DATASET}/Status")) in graph
+    assert (done, SKOS.inScheme, _uri(f"def/{DATASET}/Status")) in graph
 
 
 def test_copy_to_ttl_concept_uri_is_percent_encoded(rc, cli: SpintaCliRunner, tmp_path):
@@ -305,8 +349,8 @@ def test_copy_to_ttl_concept_uri_is_percent_encoded(rc, cli: SpintaCliRunner, tm
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    assert (_uri(f"{DATASET}/Country_kind/CITY%2FTOWN"), SKOS.prefLabel, Literal("Miestas")) in graph
-    assert (_uri(f"{DATASET}/Country_kind/%C3%84%C5%BD"), SKOS.prefLabel, Literal("Raidė")) in graph
+    assert (_uri(f"def/{DATASET}/Country_kind/CITY%2FTOWN"), SKOS.prefLabel, Literal("Miestas")) in graph
+    assert (_uri(f"def/{DATASET}/Country_kind/%C3%84%C5%BD"), SKOS.prefLabel, Literal("Raidė")) in graph
 
 
 def _copy_back(rc, cli: SpintaCliRunner, tmp_path: pathlib.Path) -> list[dict[str, str]]:
@@ -349,13 +393,13 @@ def test_copy_to_ttl_writes_notation_only_when_prepared_value_differs_from_sourc
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    assert (_uri(f"{DATASET}/Side/l"), SKOS.notation, Literal("left")) in graph
+    assert (_uri(f"def/{DATASET}/Side/l"), SKOS.notation, Literal("left")) in graph
     # Prepared value of the same text as the source is not repeated.
-    assert (_uri(f"{DATASET}/Side/ACTIVE"), SKOS.notation, None) not in graph
+    assert (_uri(f"def/{DATASET}/Side/ACTIVE"), SKOS.notation, None) not in graph
     # Source-only item has no notation.
-    assert (_uri(f"{DATASET}/Side/c"), SKOS.notation, None) not in graph
+    assert (_uri(f"def/{DATASET}/Side/c"), SKOS.notation, None) not in graph
     # Boolean code is `true`, its prepared value is the boolean itself.
-    assert (_uri(f"{DATASET}/Flag/true"), SKOS.notation, Literal(True)) in graph
+    assert (_uri(f"def/{DATASET}/Flag/true"), SKOS.notation, Literal(True)) in graph
 
 
 def test_copy_to_ttl_uri_prefix_trailing_slash_is_optional(rc, cli: SpintaCliRunner, tmp_path):
@@ -379,13 +423,13 @@ def test_copy_to_ttl_shapes_constrain_values(rc, cli: SpintaCliRunner, tmp_path)
     shapes = list(graph.subjects(RDF.type, SH.NodeShape))
     assert shapes
 
-    code = _uri(f"{DATASET}/code")
+    code = _uri(f"id/{DATASET}/Country/code")
     code_shapes = [shape for shape in graph.objects(None, SH.property) if (shape, SH.path, code) in graph]
     assert len(code_shapes) == 1
     assert (code_shapes[0], SH.datatype, XSD.string) in graph
     assert (code_shapes[0], SH.maxCount, Literal(1)) in graph
 
-    tags = _uri(f"{DATASET}/tags")
+    tags = _uri(f"id/{DATASET}/Country/tags")
     tag_shapes = [shape for shape in graph.objects(None, SH.property) if (shape, SH.path, tags) in graph]
     assert len(tag_shapes) == 1
     # Array properties have no maximum count.
@@ -397,7 +441,11 @@ def test_copy_to_ttl_ref_to_model_with_uri_uses_its_uri(rc, cli: SpintaCliRunner
 
     graph = _graph(tmp_path / "result.ttl")
     org = URIRef("http://xmlns.com/foaf/0.1/Organization")
-    shapes = [shape for shape in graph.objects(None, SH.property) if (shape, SH.path, _uri(f"{DATASET}/org")) in graph]
+    shapes = [
+        shape
+        for shape in graph.objects(None, SH.property)
+        if (shape, SH.path, _uri(f"id/{DATASET}/Organization/org")) in graph
+    ]
     assert len(shapes) == 1
     assert (shapes[0], SH["class"], org) in graph
 
@@ -412,8 +460,8 @@ def test_copy_to_ttl_uses_default_uri_prefix(rc, cli: SpintaCliRunner, tmp_path)
 
     graph = _graph(tmp_path / "result.ttl")
     default = "https://example.com/id/"
-    assert (None, SH.targetClass, URIRef(f"{default}{DATASET}/Country")) in graph
-    assert (None, SH.path, URIRef(f"{default}{DATASET}/code")) in graph
+    assert (None, SH.targetClass, URIRef(f"{default}id/{DATASET}/Country")) in graph
+    assert (None, SH.path, URIRef(f"{default}id/{DATASET}/Country/code")) in graph
 
 
 def test_copy_to_ttl_without_generated_uris_does_not_need_uri_prefix(rc, cli: SpintaCliRunner, tmp_path):
@@ -451,8 +499,8 @@ def test_copy_to_ttl_array_properties_keep_their_uri(rc, cli: SpintaCliRunner, t
     # Items keep the URI given for them, no generated URI is used for the array.
     assert (None, SH.path, dcat.dataset) in graph
     assert (None, SH.path, dcat.keyword) in graph
-    assert (None, SH.path, _uri(f"{DATASET}/dataset")) not in graph
-    assert (None, SH.path, _uri(f"{DATASET}/tags")) not in graph
+    assert (None, SH.path, _uri(f"id/{DATASET}/Catalog/dataset")) not in graph
+    assert (None, SH.path, _uri(f"id/{DATASET}/Catalog/tags")) not in graph
     dataset_shapes = [shape for shape in graph.objects(None, SH.property) if (shape, SH.path, dcat.dataset) in graph]
     assert (dataset_shapes[0], SH["class"], dcat.Dataset) in graph
 
@@ -571,8 +619,8 @@ def test_copy_to_ttl_shapes_are_valid_shacl(rc, cli: SpintaCliRunner, tmp_path):
 def test_copy_to_ttl_shapes_validate_data(rc, cli: SpintaCliRunner, tmp_path):
     _copy(rc, cli, tmp_path, _manifest_rows())
     shapes = _graph(tmp_path / "result.ttl")
-    country = _uri(f"{DATASET}/Country")
-    code = _uri(f"{DATASET}/code")
+    country = _uri(f"id/{DATASET}/Country")
+    code = _uri(f"id/{DATASET}/Country/code")
 
     valid = Graph()
     valid.add((EX.country1, RDF.type, country))
@@ -607,8 +655,8 @@ def test_copy_to_ttl_skips_enum_items_below_access(rc, cli: SpintaCliRunner, tmp
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    assert (_uri(f"{DATASET}/Status/ACTIVE"), SKOS.prefLabel, Literal("Aktyvus")) in graph
-    assert (_uri(f"{DATASET}/Status/SECRET"), None, None) not in graph
+    assert (_uri(f"def/{DATASET}/Status/ACTIVE"), SKOS.prefLabel, Literal("Aktyvus")) in graph
+    assert (_uri(f"def/{DATASET}/Status/SECRET"), None, None) not in graph
     assert (None, None, Literal("Slaptas")) not in graph
     assert (None, None, Literal("Neskelbtinas")) not in graph
 
@@ -627,11 +675,11 @@ def test_copy_to_ttl_does_not_export_enums_of_namespace_without_exported_models(
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    assert (_uri("datasets/gov/hidden/Secret"), None, None) not in graph
-    assert (_uri("datasets/gov/hidden/X"), None, None) not in graph
+    assert (_uri("id/datasets/gov/hidden/Secret"), None, None) not in graph
+    assert (_uri("id/datasets/gov/hidden/X"), None, None) not in graph
     assert (None, None, Literal("Paslaptis")) not in graph
     # The exported namespace keeps its enums.
-    assert (_uri(f"{DATASET}/Status"), RDF.type, SKOS.ConceptScheme) in graph
+    assert (_uri(f"def/{DATASET}/Status"), RDF.type, SKOS.ConceptScheme) in graph
 
 
 def test_copy_to_ttl_exports_enums_of_namespace_with_exported_child_namespace(rc, cli: SpintaCliRunner, tmp_path):
@@ -646,8 +694,8 @@ def test_copy_to_ttl_exports_enums_of_namespace_with_exported_child_namespace(rc
     _copy(rc, cli, tmp_path, rows)
 
     graph = _graph(tmp_path / "result.ttl")
-    assert (_uri("datasets/gov/Parent"), RDF.type, SKOS.ConceptScheme) in graph
-    assert (_uri("datasets/gov/Parent/P"), SKOS.prefLabel, Literal("Tevinis")) in graph
+    assert (_uri("def/datasets/gov/Parent"), RDF.type, SKOS.ConceptScheme) in graph
+    assert (_uri("def/datasets/gov/Parent/P"), SKOS.prefLabel, Literal("Tevinis")) in graph
 
 
 def test_code_of_boolean_enum_is_lowercase():
