@@ -12,6 +12,7 @@ from lxml.etree import QName, _Element
 
 from spinta.components import Context
 from spinta.core.ufuncs import Expr
+from spinta.manifests.tabular.constants import DataTypeEnum
 from spinta.utils.naming import Deduplicator, to_dataset_name, to_model_name, to_property_name
 
 logger = logging.getLogger(__name__)
@@ -227,12 +228,19 @@ class XSDProperty:
 
         data["description"] = self.description.strip()
 
-        property_name = self.name
-
         if self.is_array:
-            property_name = f"{property_name}[]"
+            # same structure as the tabular reader builds from a `name[]` row
+            data["given_name"] = f"{self.name}[]"
+            data = {
+                "type": DataTypeEnum._ARRAY_BACKREF.value
+                if self.type.name == DataTypeEnum.BACKREF.value
+                else DataTypeEnum._PARTIAL_ARRAY.value,
+                "given_name": f"{self.name}[]",
+                "explicitly_given": False,
+                "items": data,
+            }
 
-        return {property_name: data}
+        return {self.name: data}
 
 
 class XSDModel:
