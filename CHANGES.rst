@@ -11,7 +11,14 @@ Bug fixes:
   The model created for the top-level element now gets a deduplicated name
   (`#1469`_).
 
+- ``spinta copy`` from XSD no longer fails with ``InvalidName`` (or with
+  ``NotImplementedError`` when ``--format-names`` is used) when the schema has
+  elements with ``maxOccurs="unbounded"``. Array properties are now passed to
+  the manifest loader the same way as ``name[]`` rows from tabular manifests
+  (`#2099`_).
+
 .. _#1469: https://github.com/atviriduomenys/spinta/issues/1469
+.. _#2099: https://github.com/atviriduomenys/spinta/issues/2099
 
 2.2.0 (2026-11-22)
 =====================
