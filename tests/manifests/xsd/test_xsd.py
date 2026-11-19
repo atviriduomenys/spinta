@@ -1108,3 +1108,483 @@ def test_xsd_global_attribute_ref_with_inline_simple_content(rc: RawConfig, tmp_
         f.write(xsd)
     manifest = load_manifest(rc, path)
     assert manifest == table
+
+
+def test_xsd_key_simple(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="Country">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="City" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="ID" type="xs:string" use="required"/>
+            <xs:attribute name="name" type="xs:string"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="code" type="xs:string"/>
+    </xs:complexType>
+
+    <xs:key name="CityIDUnique">
+      <xs:selector xpath="City"/>
+      <xs:field xpath="@ID"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type             | ref     | source   | prepare
+    | manifest                 |                  |         |          |
+    |   | resource1            | dask/xml         |         |          |
+    |                          |                  |         |          |
+    |   |   |   | City/:part   |                  | id      |          |
+    |   |   |   |   | country  | ref              | Country |          |
+    |   |   |   |   | id       | string required  |         | @ID      |
+    |   |   |   |   | name     | string           |         | @name    |
+    |                          |                  |         |          |
+    |   |   |   | Country      |                  |         | /Country |
+    |   |   |   |   | city[]   | backref required | City    | City     | expand()
+    |   |   |   |   | code     | string           |         | @code    |
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_xsd_key_composite(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="World">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="City" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="ID" type="xs:string" use="required"/>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+            <xs:attribute name="countryCode" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+
+    <xs:key name="uniqueCityPerCountry">
+      <xs:selector xpath="City"/>
+      <xs:field xpath="@name"/>
+      <xs:field xpath="@countryCode"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property     | type             | ref                | source       | prepare
+    | manifest                     |                  |                    |              |
+    |   | resource1                | dask/xml         |                    |              |
+    |                              |                  |                    |              |
+    |   |   |   | City/:part       |                  | name, country_code |              |
+    |   |   |   |   | country_code | string required  |                    | @countryCode |
+    |   |   |   |   | id           | string required  |                    | @ID          |
+    |   |   |   |   | name         | string required  |                    | @name        |
+    |   |   |   |   | world        | ref              | World              |              |
+    |                              |                  |                    |              |
+    |   |   |   | World            |                  |                    | /World       |
+    |   |   |   |   | city[]       | backref required | City               | City         | expand()
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_xsd_key_multiple_models(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="Country">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="City" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="ID" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="River" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="code" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+
+    <xs:key name="CityKey">
+      <xs:selector xpath="City"/>
+      <xs:field xpath="@ID"/>
+    </xs:key>
+    <xs:key name="RiverKey">
+      <xs:selector xpath="River"/>
+      <xs:field xpath="@code"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type             | ref     | source   | prepare
+    | manifest                 |                  |         |          |
+    |   | resource1            | dask/xml         |         |          |
+    |                          |                  |         |          |
+    |   |   |   | City/:part   |                  | id      |          |
+    |   |   |   |   | country  | ref              | Country |          |
+    |   |   |   |   | id       | string required  |         | @ID      |
+    |                          |                  |         |          |
+    |   |   |   | Country      |                  |         | /Country |
+    |   |   |   |   | city[]   | backref required | City    | City     | expand()
+    |   |   |   |   | river[]  | backref required | River   | River    | expand()
+    |                          |                  |         |          |
+    |   |   |   | River/:part  |                  | code    |          |
+    |   |   |   |   | code     | string required  |         | @code    |
+    |   |   |   |   | country  | ref              | Country |          |
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_xsd_key_nested_xpath(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://example.test/ns"
+           targetNamespace="http://example.test/ns"
+           elementFormDefault="qualified">
+  <xs:element name="Country">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Cities">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="City" maxOccurs="unbounded">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="Code" type="xs:string"/>
+                    <xs:element name="Name" type="xs:string"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+
+    <xs:key name="CityKey">
+      <xs:selector xpath="tns:Cities/tns:City"/>
+      <xs:field xpath="tns:Code"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type             | ref    | source      | prepare
+    | manifest                 |                  |        |             |
+    |   | resource1            | dask/xml         |        |             |
+    |                          |                  |        |             |
+    |   |   |   | Cities/:part |                  |        |             |
+    |   |   |   |   | city[]   | backref required | City   | City        | expand()
+    |                          |                  |        |             |
+    |   |   |   | City/:part   |                  | code   |             |
+    |   |   |   |   | cities   | ref              | Cities |             |
+    |   |   |   |   | code     | string required  |        | Code/text() |
+    |   |   |   |   | name     | string required  |        | Name/text() |
+    |                          |                  |        |             |
+    |   |   |   | Country      |                  |        | /Country    |
+    |   |   |   |   | cities   | ref required     | Cities | Cities      | expand()
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_xsd_key_applies_only_in_declaring_element_scope(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="CountryA">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="City" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="ID" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+    <xs:key name="CityKey">
+      <xs:selector xpath="City"/>
+      <xs:field xpath="@ID"/>
+    </xs:key>
+  </xs:element>
+  <xs:element name="CountryB">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="City" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:attribute name="ID" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type             | ref      | source    | prepare
+    | manifest                 |                  |          |           |
+    |   | resource1            | dask/xml         |          |           |
+    |                          |                  |          |           |
+    |   |   |   | City/:part   |                  | id       |           |
+    |   |   |   |   | countrya | ref              | CountryA |           |
+    |   |   |   |   | id       | string required  |          | @ID       |
+    |                          |                  |          |           |
+    |   |   |   | City1/:part  |                  |          |           |
+    |   |   |   |   | countryb | ref              | CountryB |           |
+    |   |   |   |   | id       | string required  |          | @ID       |
+    |                          |                  |          |           |
+    |   |   |   | CountryA     |                  |          | /CountryA |
+    |   |   |   |   | city[]   | backref required | City     | City      | expand()
+    |                          |                  |          |           |
+    |   |   |   | CountryB     |                  |          | /CountryB |
+    |   |   |   |   | city[]   | backref required | City1    | City      | expand()
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_xsd_key_self_selector_and_prefixed_attribute(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:tns="http://example.test/ns"
+           targetNamespace="http://example.test/ns"
+           elementFormDefault="qualified"
+           attributeFormDefault="qualified">
+  <xs:element name="Country">
+    <xs:complexType>
+      <xs:attribute name="ID" type="xs:string" use="required"/>
+      <xs:attribute name="name" type="xs:string"/>
+    </xs:complexType>
+    <xs:key name="CountryKey">
+      <xs:selector xpath="."/>
+      <xs:field xpath="@tns:ID"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type            | ref | source
+    | manifest                 |                 |     |
+    |   | resource1            | dask/xml        |     |
+    |                          |                 |     |
+    |   |   |   | Country      |                 | id  | /Country
+    |   |   |   |   | id       | string required |     | @ID
+    |   |   |   |   | name     | string          |     | @name
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_xsd_key_named_complex_type(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:complexType name="CountryType">
+    <xs:sequence>
+      <xs:element name="City" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:attribute name="ID" type="xs:string" use="required"/>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="Country" type="CountryType">
+    <xs:key name="CityKey">
+      <xs:selector xpath="City"/>
+      <xs:field xpath="@ID"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property     | type             | ref     | source   | prepare
+    | manifest                     |                  |         |          |
+    |   | resource1                | dask/xml         |         |          |
+    |                              |                  |         |          |
+    |   |   |   | City/:part       |                  | id      |          |
+    |   |   |   |   | country_type | ref              | Country |          |
+    |   |   |   |   | id           | string required  |         | @ID      |
+    |                              |                  |         |          |
+    |   |   |   | Country          |                  |         | /Country |
+    |   |   |   |   | city[]       | backref required | City    | City     | expand()
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_xsd_key_not_applied_when_field_not_resolved(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:element name="World">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="City" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="Info">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="Code" type="xs:string"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+            <xs:attribute name="name" type="xs:string" use="required"/>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+    <xs:key name="CityKey">
+      <xs:selector xpath="City"/>
+      <xs:field xpath="@name"/>
+      <xs:field xpath="Info/Code"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type             | ref   | source      | prepare
+    | manifest                 |                  |       |             |
+    |   | resource1            | dask/xml         |       |             |
+    |                          |                  |       |             |
+    |   |   |   | City/:part   |                  |       |             |
+    |   |   |   |   | info     | ref required     | Info  | Info        | expand()
+    |   |   |   |   | name     | string required  |       | @name       |
+    |   |   |   |   | world    | ref              | World |             |
+    |                          |                  |       |             |
+    |   |   |   | Info/:part   |                  |       |             |
+    |   |   |   |   | code     | string required  |       | Code/text() |
+    |                          |                  |       |             |
+    |   |   |   | World        |                  |       | /World      |
+    |   |   |   |   | city[]   | backref required | City  | City        | expand()
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_xsd_key_on_one_of_root_elements_sharing_complex_type(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:complexType name="Area">
+    <xs:attribute name="ID" type="xs:string" use="required"/>
+    <xs:attribute name="name" type="xs:string"/>
+  </xs:complexType>
+  <xs:element name="CountryA" type="Area">
+    <xs:key name="CountryAKey">
+      <xs:selector xpath="."/>
+      <xs:field xpath="@ID"/>
+    </xs:key>
+  </xs:element>
+  <xs:element name="CountryB" type="Area"/>
+</xs:schema>
+"""
+
+    table = """
+ id | d | r | b | m | property | type            | ref | source
+    | manifest                 |                 |     |
+    |   | resource1            | dask/xml        |     |
+    |                          |                 |     |
+    |   |   |   | CountryA     |                 | id  | /CountryA
+    |   |   |   |   | id       | string required |     | @ID
+    |   |   |   |   | name     | string          |     | @name
+    |                          |                 |     |
+    |   |   |   | CountryB     |                 |     | /CountryB
+    |   |   |   |   | id       | string required |     | @ID
+    |   |   |   |   | name     | string          |     | @name
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table
+
+
+def test_xsd_key_not_applied_for_inherited_field(rc: RawConfig, tmp_path: Path):
+    xsd = """
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified">
+  <xs:complexType name="BaseType">
+    <xs:attribute name="ID" type="xs:string" use="required"/>
+  </xs:complexType>
+  <xs:complexType name="CountryType">
+    <xs:complexContent>
+      <xs:extension base="BaseType">
+        <xs:attribute name="name" type="xs:string"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  <xs:element name="Country" type="CountryType">
+    <xs:key name="CountryKey">
+      <xs:selector xpath="."/>
+      <xs:field xpath="@ID"/>
+      <xs:field xpath="@name"/>
+    </xs:key>
+  </xs:element>
+</xs:schema>
+"""
+
+    # model `ref` must list properties of the model itself, inherited ones are kept in the base model
+    table = """
+ id | d | r | b | m | property   | type            | ref | source   | prepare
+    | manifest                   |                 |     |          |
+    |   | resource1              | dask/xml        |     |          |
+    |                            |                 |     |          |
+    |   |   |   | BaseType/:part |                 |     |          |
+    |   |   |   |   | id         | string required |     | @ID      |
+    |                            |                 |     |          |
+    |   |   |   | Country        |                 |     | /Country | extends('BaseType')
+    |   |   |   |   | name       | string          |     | @name    |
+"""
+
+    path = tmp_path / "manifest.xsd"
+    with open(path, "w") as f:
+        f.write(xsd)
+    manifest = load_manifest(rc, path)
+    assert manifest == table

@@ -23,6 +23,31 @@
         openssl
         geos
       ];
+      # Ruff version pinned in poetry.lock. Packaged from the same PyPI wheel
+      # (patched for NixOS) so the dev shell lints exactly like CI.
+      ruff = pkgs.stdenv.mkDerivation {
+        pname = "ruff";
+        version = "0.12.12";
+        src = pkgs.python3Packages.fetchPypi {
+          pname = "ruff";
+          version = "0.12.12";
+          format = "wheel";
+          dist = "py3";
+          python = "py3";
+          abi = "none";
+          platform = "manylinux_2_17_x86_64.manylinux2014_x86_64";
+          hash = "sha256:2afc2fa864197634e549d87fb1e7b6feb01df0a80fd510d6489e1ce8c0b1cc45";
+        };
+        nativeBuildInputs = [ pkgs.autoPatchelfHook ];
+        buildInputs = [ pkgs.stdenv.cc.cc.lib ];
+        dontBuild = true;
+        unpackPhase = "true";
+        installPhase = ''
+          mkdir -p $out/bin wheel
+          ${pkgs.unzip}/bin/unzip -q $src -d wheel
+          install -m755 wheel/ruff-0.12.12.data/scripts/ruff $out/bin/ruff
+        '';
+      };
       markout = pkgs.writeShellScriptBin "markout" ''
         exec python notes/scripts/markout.py "$@"
       '';
@@ -42,6 +67,7 @@
           pkgs.sqlite
           pkgs.postgresql  # psql
           pkgs.gettext     # envsubst
+          ruff             # pinned to poetry.lock version
           markout
         ];
 
@@ -55,6 +81,10 @@
 
           poetry env use ${pkgs.python311}/bin/python
           export PATH="$(poetry env info -p)/bin:$PATH"
+
+          # Poetry installs ruff as a generic PyPI binary, which NixOS cannot
+          # execute (no nix-ld). Put the patched Nix ruff ahead of it.
+          export PATH="${ruff}/bin:$PATH"
 
           # Register nushell formats plugin (provides `from ini` for credentials.cfg)
           nu -c "plugin add ${pkgs.nushellPlugins.formats}/bin/nu_plugin_formats" || true

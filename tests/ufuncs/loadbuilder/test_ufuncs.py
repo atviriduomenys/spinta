@@ -2,7 +2,7 @@ import pytest
 
 from spinta.components import Context
 from spinta.core.ufuncs import asttoexpr
-from spinta.datasets.components import Param
+from spinta.datasets.components import Param, Resource
 from spinta.exceptions import InvalidArgumentInExpression
 from spinta.spyna import parse
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
@@ -51,16 +51,17 @@ def test_input_command_value_can_be_unresolved_expr(context: Context) -> None:
         ('creds("foo").header()', {"header_name": asttoexpr(parse('creds("foo")'))}),
     ],
 )
-def test_header_command_populates_param_http_header(context: Context, param_prepare: str, result: dict) -> None:
+def test_header_command_populates_resource_http_headers(context: Context, param_prepare: str, result: dict) -> None:
     param = Param()
+    resource = Resource()
 
     env = LoadBuilder(context)
-    env.update(this="header_name", param=param)
+    env.update(this="header_name", param=param, resource=resource)
 
     expr = asttoexpr(parse(param_prepare))
     env.call("header", expr)
 
-    assert param.http_header == result
+    assert resource.http.headers == result
 
 
 @pytest.mark.parametrize("param_prepare", ["header()", 'header("foo", "bar")'])

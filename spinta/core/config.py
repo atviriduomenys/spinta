@@ -822,6 +822,7 @@ def configure_rc(
     *,
     mode: Mode = Mode.internal,
     check_names: bool | None = None,
+    check_query_conflicts: bool | None = None,
     backend_type: str | None = None,
     backend: str | None = None,
     resources: list[ResourceTuple] = None,
@@ -912,6 +913,10 @@ def configure_rc(
 
         if check_names is not None:
             config["check.names"] = check_names
+
+    # Outside the manifest block above, so it also works with an already configured manifest.
+    if check_query_conflicts is not None:
+        config["check.query_conflicts"] = check_query_conflicts
 
     config["ensure_backends"] = ensure_backends
 

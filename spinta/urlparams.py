@@ -18,8 +18,9 @@ from spinta.components import (
     Version,
     decode_page_values,
 )
-from spinta.core.enums import Action
+from spinta.core.enums import Action, Mode
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
+from spinta.dimensions.param.components import ParamProperty, ParamPropertyBuilder
 from spinta.dimensions.scope.helpers import get_active_custom_scope
 from spinta.exceptions import InvalidPageKey, InvalidPageParameterCount, ModelNotFound
 from spinta.manifests.components import Manifest
@@ -60,9 +61,11 @@ def get_action(params: UrlParams, request: Request) -> Action:
         elif params.pk:
             return Action.GETONE
         else:
+            # `param_props` are query conditions too, they are extracted from `query` before this is called.
             search = any(
                 (
                     params.query,
+                    params.param_props,
                     params.select,
                     params.limit is not None,
                     params.offset is not None,
@@ -100,8 +103,42 @@ def prepare_urlparams(context: Context, params: UrlParams, request: Request):
         params_builder = RequestParamsBuilder(context).init(params)
         select_expr = _get_select_expr_from_params(params)
         params_builder.resolve(select_expr)
+    if params.query:
+        _resolve_param_props(context, params)
     if params.expand:
         params.expand = _get_expand_expr_from_params(params)
+
+
+def _resolve_param_props(context: Context, params: UrlParams) -> None:
+    """Resolve query conditions on source-less properties linked to resource params.
+
+    Each filter condition is resolved by `ParamPropertyBuilder`. A linked `eq()` returns `ParamProperty`, which is
+    moved to `params.param_props`; other conditions are kept in `params.query` as they are.
+
+    Only external models read through data sources that send `param_props` as query parameters need this. Internal
+    models are stored in their backend, so their conditions stay as ordinary filters.
+    """
+    model = params.model
+    if not isinstance(model, Model) or model.mode != Mode.external or not model.has_param_props:
+        return
+
+    builder = ParamPropertyBuilder(context).init(model=model)
+    query = []
+    for condition in params.query:
+        if _is_select_condition(condition):
+            query.append(condition)
+            continue
+        resolved = builder.resolve(asttoexpr(condition))
+        if isinstance(resolved, ParamProperty):
+            params.param_props = (params.param_props or []) + [resolved]
+        else:
+            query.append(condition)
+    params.query = query or None
+
+
+def _is_select_condition(condition: Any) -> bool:
+    # `select(...)` is a field selection, not a filter; it is handled by the select path.
+    return isinstance(condition, dict) and condition.get("name") == "select"
 
 
 def _get_expand_expr_from_params(params: UrlParams) -> Expr:

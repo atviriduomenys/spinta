@@ -191,7 +191,9 @@ def soap_request_body(env: SoapQueryBuilder, prop: Property) -> None:
     if not isinstance(prop.external.prepare, Expr):
         return None
 
-    resource_param = env(this=prop).resolve(prop.external.prepare)
+    # Properties linked with `param()` are already linked to their resource param on load, reuse it instead of
+    # evaluating the formula again at request time (`param()` forms are not resolvable here).
+    resource_param = prop.param if prop.param is not None else env(this=prop).resolve(prop.external.prepare)
 
     env.call("soap_request_body", prop, resource_param)
 
