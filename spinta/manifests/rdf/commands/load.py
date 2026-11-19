@@ -52,10 +52,14 @@ def load(
 
 
 def _rdf_sources(manifest: RdfManifest, into: Manifest | None) -> list[RdfManifest]:
-    """Return RDF manifests that are loaded into the same target as `manifest`."""
+    """Return RDF manifests that are loaded into the same target as `manifest`.
+
+    `load` follows `sync` recursively, so every manifest reachable from the
+    target through `sync` (at any depth) is loaded into it.
+    """
     target = into or manifest
     candidates = [target] if isinstance(target, RdfManifest) else []
-    candidates.extend(s for s in target.sync if isinstance(s, RdfManifest))
+    candidates.extend(m for m in _synced_manifests(target) if isinstance(m, RdfManifest))
     candidates.append(manifest)
 
     sources: list[RdfManifest] = []
@@ -64,3 +68,21 @@ def _rdf_sources(manifest: RdfManifest, into: Manifest | None) -> list[RdfManife
         if candidate.path and not any(candidate is source for source in sources):
             sources.append(candidate)
     return sources
+
+
+def _synced_manifests(manifest: Manifest) -> list[Manifest]:
+    """Return all manifests reachable through `sync` from `manifest`, depth first.
+
+    `manifest` itself is not included.
+    """
+    result: list[Manifest] = []
+    seen: set[int] = {id(manifest)}
+    stack = list(reversed(manifest.sync))
+    while stack:
+        source = stack.pop()
+        if id(source) in seen:
+            continue
+        seen.add(id(source))
+        result.append(source)
+        stack.extend(reversed(source.sync))
+    return result
