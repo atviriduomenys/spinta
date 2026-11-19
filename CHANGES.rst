@@ -1,8 +1,56 @@
 Changes
 #######
 
-1.4.0 (unreleased)
+2.2.0 (unreleased)
 =====================
+
+Backwards incompatible:
+
+- Enforced `#1990`_ changes to existing configurations and scripts (`#2077`_).
+  Configurations like:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute: copy
+            properties:
+                code:
+                    type: sqlalchemy.types.BigInteger
+
+  Need to be replaced with:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+            properties:
+                code:
+                    type:
+                        name: sqlalchemy.types.BigInteger
+
+  Scripts that generate configuration files no longer return yml files which overwrite whole configuration:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+        datasets/gov/AnotherModel:
+            distribute:
+                type: copy
+
+  Now is returned as:
+
+  .. code-block:: yaml
+
+    models.datasets/gov/Model.distribute:
+        type: copy
+    models.datasets/gov/AnotherModel.distribute:
+        type: copy
 
 New features:
 
@@ -11,6 +59,96 @@ New features:
 - Added ability to configure `datasets` (`enable_retention_policy` (enabled by default) and `accrual_periodicity` (how often data is updated)) (`#1717`_).
 
 .. _#1717: https://github.com/atviriduomenys/spinta/issues/1717
+.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
+
+2.1.0 (2026-11-11)
+=====================
+
+New features:
+
+- ``spinta inspect`` reads ``xs:key`` from XSD schemas and writes the key
+  fields to the model's ``ref`` column. Composite keys are supported
+  (`#1472`_).
+
+Improvements:
+
+- Query parameters given in a resource ``source`` URL are merged with
+  ``query()`` resource parameters into one query string. If the same parameter
+  is defined in both places, ``spinta check --check-query-conflicts`` reports
+  it (`#2066`_).
+
+Bug fixes:
+
+- Backwards incompatible: resource parameters defined with ``query()`` in
+  ``prepare`` are now sent to the data source with ``dask/csv``,
+  ``dask/json``, ``dask/xml`` and ``dask/soap`` resources. Previously they
+  were silently dropped from the request (`#2066`_):
+
+  - ``query('default')`` is always sent with the default value, unless a value
+    is given in the request URL for a property linked to it with ``param()``,
+    in which case the URL value is sent instead.
+  - ``query()`` without a default requires a value from the request URL through
+    a property linked with ``param()``. If it is missing, the request fails with
+    ``400`` before reaching the data source.
+  - A property linked with ``param()`` is not used as a row filter; its value is
+    sent to the data source instead. For example, ``/example/Street?client=ABC``
+    sends ``?CLIENT_NAME=ABC``.
+  - A request URL value for a resource parameter that is not linked to any
+    property with ``param()`` now fails with ``400`` instead of being ignored.
+
+- Backwards incompatible: a ``query()`` resource parameter without a default
+  that is not linked to any property with ``param()`` makes the manifest
+  invalid (`#2066`_).
+
+- Fixed ``spinta inspect`` failing with ``Invalid value for '-r' /
+  '--resource'`` when ``typer`` 0.29 or newer is installed.
+
+.. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
+.. _#1472: https://github.com/atviriduomenys/spinta/issues/1472
+
+2.0.0 (2026-10-29)
+=====================
+
+Backwards incompatible:
+
+- Keys that hold a list of names, such as ``backends``, no longer accept a
+  single scalar value in configuration files. ``backends: one`` now fails with
+  an error, use ``backends: [one]`` instead. Comma separated names in
+  environment variables, ``.env`` files and command line arguments, such as
+  ``SPINTA_BACKENDS=one,two``, still work (`#1990`_).
+- Setting a configuration key to an empty value removes all of its subkeys,
+  and setting it to a list of names keeps only the listed subkeys. For example
+  ``SPINTA_BACKENDS=`` or ``SPINTA_BACKENDS=one`` now also hides subkeys set in
+  lower priority sources: a ``keymaps.default`` set in a configuration file is
+  ignored when ``SPINTA_KEYMAPS=other`` is set. If you relied on such values,
+  remove the override or list the subkeys you want to keep (`#1990`_).
+
+Improvements:
+
+- ``spinta config`` output has a new ``Env`` column, showing which environment
+  (``environments.<env>``) provided each value (`#1990`_).
+- Custom property types in manifests can be configured with parameters given
+  as a mapping, for example ``type: {name: sqlalchemy.types.BigInteger}``, in
+  addition to a list of parameter names (`#1990`_).
+- Configuration documentation was rewritten. It describes the configuration
+  sources and their precedence, the ``config_path`` directory with the
+  recommended ``{config_path}/config.yaml`` file, and the configuration syntax,
+  including simple and complex values and merge and reset semantics. A new
+  page describes keymap configuration (`#1990`_).
+- Dataset names may contain a path segment that is a non-negative integer
+  without leading zeros, for example ``datasets/gov/vk/vis/udts/1/vis``, where
+  the integer is the UDTS data service version. Such names are no longer
+  rejected by name checks (`#2080`_).
+
+Bug fixes:
+
+- Fixed ``RawConfig`` modifying the global ``spinta.config:CONFIG`` dictionary
+  it reads from. The ``environments`` section was removed after the first read,
+  so later configuration reads in the same process lost environment specific
+  settings, such as test backend DSNs (`#1990`_).
+
+.. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
+.. _#2080: https://github.com/atviriduomenys/spinta/issues/2080
 
 1.3.1 (2026-10-22)
 =====================

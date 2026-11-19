@@ -158,6 +158,13 @@ models:
           type: string
         values:
           type: object
+          items:
+            type:
+              type: object
+              keys:
+                type: string
+              values:
+                type: any
           keys:
             type: string
           values:

@@ -22,7 +22,7 @@ def link(context: Context, resource: Resource):
     if resource.params and resource.manifest:
         link_params(context, resource.manifest, resource.params, resource.dataset)
 
-    resource_builder = LinkBuilder(context, resource, resource.dataset)
+    resource_builder = LinkBuilder(context, resource, resource.dataset, this=resource)
     resource_builder.resolve(resource.prepare)
 
 

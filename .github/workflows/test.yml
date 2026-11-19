@@ -6,6 +6,13 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+env:
+  PGHOST: localhost
+  PGPORT: 5432
+  PGUSER: ci
+  PGPASSWORD: secret
+  PGDATABASE: spinta
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,10 +33,10 @@ jobs:
         run: |
           docker run -d \
             --name postgres \
-            -p 5432:5432 \
-            -e POSTGRES_DB=spinta \
-            -e POSTGRES_USER=ci \
-            -e POSTGRES_PASSWORD=secret \
+            -p $PGPORT:5432 \
+            -e POSTGRES_DB=$PGDATABASE \
+            -e POSTGRES_USER=$PGUSER \
+            -e POSTGRES_PASSWORD=$PGPASSWORD \
             -v "$PWD/.docker/citus-postgis/init:/docker-entrypoint-initdb.d" \
             citus-postgis:ci
 
@@ -45,7 +52,19 @@ jobs:
           poetry --version
           poetry install --all-extras -vv
 
+      - name: Wait for PostgreSQL
+        run: |
+          for i in $(seq 1 60); do
+            pg_isready -q && exit 0
+            sleep 1
+          done
+          exit 1
+
       - name: Test with pytest
         env:
-          SPINTA_BACKENDS__DEFAULT__DSN: postgresql://ci:secret@localhost:5432/spinta
+          SPINTA_BACKENDS__DEFAULT__DSN: postgresql://${{ env.PGUSER }}:${{ env.PGPASSWORD }}@${{ env.PGHOST }}:${{ env.PGPORT }}/${{ env.PGDATABASE }}
         run: make test-github
+
+      - name: PostgreSQL logs
+        if: failure()
+        run: docker logs postgres --tail 100

@@ -85,6 +85,7 @@ def update_query_with_url_params(query_params: QueryParams, url_params: UrlParam
     query_params.lang_priority = url_params.accept_langs
     query_params.lang = url_params.lang
     query_params.expand = url_params.expand
+    query_params.param_props = url_params.param_props or []
 
 
 def _create_or_condition(condition_info: list):
