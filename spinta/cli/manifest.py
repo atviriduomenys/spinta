@@ -34,7 +34,12 @@ def copy(
     access: str = Option("private", help=("Copy properties with at least specified access")),
     format_names: bool = Option(False, help=("Reformat model and property names.")),
     output: str | None = Option(None, "-o", "--output", help=("Output tabular manifest in a specified file")),
-    dataset: str | None = Option(None, "-d", "--dataset", help=("Main dataset name")),
+    dataset: str | None = Option(
+        None,
+        "-d",
+        "--dataset",
+        help=("Dataset name. Mermaid: main dataset. RDF Turtle: write only this dataset"),
+    ),
     columns: str | None = Option(None, "-c", "--columns", help=("Comma separated list of columns")),
     order_by: str | None = Option(
         None, help=("Order by a specified column (currently only access column is supported)")
@@ -117,7 +122,7 @@ def copy_manifest(
         if output_type == "mermaid":
             write_mermaid_manifest(context, rows, dataset, output)
         elif output_type == "rdf":
-            write_rdf_manifest(context, rows, output, access=access)
+            write_rdf_manifest(context, rows, output, access=access, dataset=dataset)
         elif internal:
             write_internal_sql_manifest(context, output, rows)
         else:

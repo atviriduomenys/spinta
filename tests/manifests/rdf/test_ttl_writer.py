@@ -846,3 +846,83 @@ def test_copy_to_ttl_round_trip_example_b_is_isomorphic(rc, cli: SpintaCliRunner
     first, second = _round_trip(rc, cli, tmp_path, _base_rows())
 
     assert isomorphic(first, second)
+
+
+def _copy_dataset(rc, cli: SpintaCliRunner, tmp_path: pathlib.Path, rows, dataset: str, fail: bool = True):
+    _write_manifest(tmp_path / "manifest.csv", rows)
+    rc = rc.fork({"uri_prefix": PREFIX})
+    return cli.invoke(
+        rc,
+        ["copy", "--access", "open", "--dataset", dataset, "-o", tmp_path / "result.ttl", tmp_path / "manifest.csv"],
+        fail=fail,
+    )
+
+
+DATASET_A = "datasets/a"
+DATASET_B = "datasets/b"
+
+
+def _two_dataset_rows() -> list[dict[str, str]]:
+    return [
+        {"dataset": DATASET_A},
+        {"type": "enum", "ref": "Colors", "prepare": "'RED'", "access": "open"},
+        {"model": "Country", "access": "open"},
+        {"property": "code", "type": "string", "access": "open"},
+        {"property": "color", "type": "string", "ref": "Colors", "access": "open"},
+        {"property": "city", "type": "ref", "ref": "datasets/b/City", "access": "open"},
+        {"dataset": DATASET_B},
+        {"type": "enum", "ref": "Sizes", "prepare": "'BIG'", "access": "open"},
+        {"model": "City", "access": "open"},
+        {"property": "name", "type": "string", "access": "open"},
+        {"property": "size", "type": "string", "ref": "Sizes", "access": "open"},
+    ]
+
+
+def test_copy_to_ttl_with_dataset_writes_only_that_dataset(rc, cli: SpintaCliRunner, tmp_path):
+    _copy_dataset(rc, cli, tmp_path, _two_dataset_rows(), DATASET_A)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert set(graph.subjects(RDF.type, RDFS.Class)) == {_uri(f"id/{DATASET_A}/Country")}
+    assert set(graph.subjects(RDF.type, SH.NodeShape)) == {_uri(f"shape/{DATASET_A}/Country")}
+    assert set(graph.subjects(RDF.type, SKOS.ConceptScheme)) == {_uri(f"def/{DATASET_A}/Colors")}
+    assert (_uri(f"def/{DATASET_A}/Colors/RED"), SKOS.inScheme, _uri(f"def/{DATASET_A}/Colors")) in graph
+    assert (_uri(f"id/{DATASET_B}/City/name"), None, None) not in graph
+    assert (_uri(f"def/{DATASET_B}/Sizes"), None, None) not in graph
+    assert (_uri(f"def/{DATASET_B}/Sizes/BIG"), None, None) not in graph
+
+
+def test_copy_to_ttl_with_dataset_references_model_of_other_dataset(rc, cli: SpintaCliRunner, tmp_path):
+    _copy_dataset(rc, cli, tmp_path, _two_dataset_rows(), DATASET_A)
+
+    graph = _graph(tmp_path / "result.ttl")
+    # The reference is kept, but the referenced class is only referenced, not defined.
+    assert (None, SH["class"], _uri(f"id/{DATASET_B}/City")) in graph
+    assert (_uri(f"id/{DATASET_B}/City"), RDF.type, RDFS.Class) not in graph
+
+
+def test_copy_to_ttl_with_dataset_keeps_iri_of_enum_of_parent_namespace(rc, cli: SpintaCliRunner, tmp_path):
+    # `Parent` is declared by `datasets/gov`, the parent namespace of the exported model. It is
+    # not written with `datasets/gov/example`, but its IRI must stay the IRI of its own dataset.
+    rows = [
+        {"dataset": "datasets/gov"},
+        {"type": "enum", "ref": "Parent", "prepare": "'P'", "access": "open", "title": "Tevinis"},
+        {"dataset": DATASET},
+        {"model": "Country", "access": "open"},
+        {"property": "code", "type": "string", "access": "open"},
+        {"property": "parent", "type": "string", "ref": "Parent", "access": "open"},
+    ]
+    _copy_dataset(rc, cli, tmp_path, rows, DATASET)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert (None, SH.hasValue, _uri("def/datasets/gov/Parent")) in graph
+    assert (_uri("def/datasets/gov/Parent"), RDF.type, SKOS.ConceptScheme) not in graph
+    assert (_uri("def/datasets/gov/Parent/P"), None, None) not in graph
+    assert (_uri(f"def/{DATASET}/Parent"), None, None) not in graph
+
+
+def test_copy_to_ttl_with_unknown_dataset_is_an_error(rc, cli: SpintaCliRunner, tmp_path):
+    result = _copy_dataset(rc, cli, tmp_path, _two_dataset_rows(), "datasets/missing", fail=False)
+
+    assert result.exit_code != 0
+    assert "datasets/missing" in str(result.exception)
+    assert not (tmp_path / "result.ttl").exists()

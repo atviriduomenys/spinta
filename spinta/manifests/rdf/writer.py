@@ -101,10 +101,18 @@ def write_rdf_manifest(
     output: str | Path,
     *,
     access: Access = Access.private,
+    dataset: str | None = None,
 ) -> None:
-    """Write manifest as RDF Turtle file, with SHACL shapes, RDFS and SKOS definitions."""
+    """Write manifest as RDF Turtle file, with SHACL shapes, RDFS and SKOS definitions.
+
+    If `dataset` is given, only its models are written, with their classes, shapes,
+    properties and enums. Items of other datasets are only referenced by their IRIs.
+    """
+    if dataset is not None and not commands.has_dataset(context, manifest, dataset):
+        available = ", ".join(sorted(commands.get_datasets(context, manifest))) or "none"
+        raise click.UsageError(f"Dataset {dataset!r} not found in manifest. Available datasets: {available}.")
     config = context.get("config")
-    exporter = _RdfExporter(context, manifest, uri_prefix=config.uri_prefix, access=access)
+    exporter = _RdfExporter(context, manifest, uri_prefix=config.uri_prefix, access=access, dataset=dataset)
     exporter.export().write(output)
 
 
@@ -131,6 +139,10 @@ class _Enum:
     values: EnumValue
     # Prefixes of the dataset that declares the enum, or of the manifest.
     prefixes: dict[str, str]
+    # Dataset that declares the enum, `None` if it belongs to no dataset.
+    owner: str | None = None
+    # Whether the enum is written. Enums of other datasets are only referenced by their IRIs.
+    exported: bool = True
 
 
 @dataclass
@@ -144,11 +156,21 @@ class _PropertyDefinition:
 
 
 class _RdfExporter:
-    def __init__(self, context: Context, manifest: Manifest, *, uri_prefix: str | None, access: Access):
+    def __init__(
+        self,
+        context: Context,
+        manifest: Manifest,
+        *,
+        uri_prefix: str | None,
+        access: Access,
+        dataset: str | None = None,
+    ):
         self.context = context
         self.manifest = manifest
         self.uri_prefix = uri_prefix
         self.access = access
+        # Name of the only dataset to write, `None` writes all datasets.
+        self.dataset = dataset
         self.doc = TurtleDocument()
         # Enums are keyed by identity, values of the same enum are shared by all
         # properties that use it.
@@ -164,19 +186,14 @@ class _RdfExporter:
         exported = _namespaces_with_exported_models(models)
         namespaces = [ns for ns in commands.get_namespaces(self.context, self.manifest).values() if ns.name in exported]
         self._load_prefixes(models)
-        self._bind_prefixes(models, namespaces)
+        self._register_enums(namespaces)
+        self._bind_prefixes(models)
 
         # Sections are written in the order they are created.
         classes = self.doc.section("Classes")
         properties = self.doc.section("Properties")
         concepts = self.doc.section("Concepts")
         shapes = self.doc.section("SHACL shapes")
-
-        for namespace in namespaces:
-            for name, values in (namespace.enums or {}).items():
-                self._register_enum(values, namespace.name, name, self._namespace_owner.get(namespace.name))
-        for name, values in (self.manifest.enums or {}).items():
-            self._register_enum(values, "", name, None)
 
         for model in models:
             if self._class_owner(model) is model and self._is_described(self._class_iri(model)):
@@ -187,12 +204,15 @@ class _RdfExporter:
             self._property_definition(properties, iri, definition)
 
         for enum in self.enums.values():
-            self._concepts(concepts, enum)
+            if enum.exported:
+                self._concepts(concepts, enum)
 
         return self.doc
 
     def _is_exported(self, model: Model) -> bool:
         if model.basename.startswith("_"):
+            return False
+        if self.dataset is not None and _owner(model) != self.dataset:
             return False
         return model.access is None or model.access >= self.access
 
@@ -219,7 +239,7 @@ class _RdfExporter:
         own = self._dataset_prefixes.get(owner, {}) if owner else {}
         return {**self._manifest_prefixes, **own}
 
-    def _bind_prefixes(self, models: list[Model], namespaces: list[Namespace]) -> None:
+    def _bind_prefixes(self, models: list[Model]) -> None:
         """Declare each namespace once, under one name.
 
         Datasets declare prefixes independently, so one name can stand for
@@ -228,9 +248,7 @@ class _RdfExporter:
         abbreviated with these names, so every abbreviation is unambiguous.
         """
         owners = {_owner(m) for m in models}
-        owners.update(
-            self._namespace_owner[ns.name] for ns in namespaces if ns.enums and ns.name in self._namespace_owner
-        )
+        owners.update(enum.owner for enum in self.enums.values() if enum.exported)
         sources = [self._dataset_prefixes.get(owner, {}) for owner in sorted(o for o in owners if o)]
         sources.append(self._manifest_prefixes)
 
@@ -379,6 +397,17 @@ class _RdfExporter:
         name = owner.given.enum or f"{model.basename}_{prop.name}"
         return self._register_enum(owner.enum, _dataset_name(model), name, _owner(model))
 
+    def _register_enums(self, namespaces: list[Namespace]) -> None:
+        """Register enums of the namespaces and of the manifest.
+
+        Enums of other datasets are registered too, so that a reference to them keeps their IRI.
+        """
+        for namespace in namespaces:
+            for name, values in (namespace.enums or {}).items():
+                self._register_enum(values, namespace.name, name, self._namespace_owner.get(namespace.name))
+        for name, values in (self.manifest.enums or {}).items():
+            self._register_enum(values, "", name, None)
+
     def _register_enum(self, values: EnumValue, dataset: str, name: str, owner: str | None) -> _Enum:
         if (enum := self.enums.get(id(values))) is None:
             enum = _Enum(
@@ -387,9 +416,18 @@ class _RdfExporter:
                 scheme=self._generated(_DEF, dataset, name),
                 values=values,
                 prefixes=self._prefixes(owner),
+                owner=owner,
+                exported=self._in_scope(owner),
             )
             self.enums[id(values)] = enum
         return enum
+
+    def _in_scope(self, owner: str | None) -> bool:
+        """Whether items declared by the dataset `owner` are written.
+
+        Items of other datasets are not written. Items that belong to no dataset are shared, so they are written.
+        """
+        return self.dataset is None or owner is None or owner == self.dataset
 
     def _add_definition(self, model: Model, prop: Property, iri: URIRef, value: _Value) -> None:
         definition = self.definitions.setdefault(iri, _PropertyDefinition())

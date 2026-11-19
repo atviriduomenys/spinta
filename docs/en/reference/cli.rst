@@ -95,7 +95,7 @@ Arguments
   OPTIONAL. Output file name. If specified, manifest will be written to this file. If file extension is `.mmd`, UML diagram will be generated in Mermaid syntax. If file extension is `.ttl`, manifest will be written as RDF Turtle, see `RDF Turtle output`_.
 
 - ``<dataset-name>``
-  The name of the dataset. This is used only for Mermaid diagram. Specified dataset will not be wrapped in Mermaid class diagram `namespace <https://mermaid.js.org/syntax/classDiagram.html#define-namespace>`_
+  The name of the dataset. For Mermaid diagram, the specified dataset will not be wrapped in Mermaid class diagram `namespace <https://mermaid.js.org/syntax/classDiagram.html#define-namespace>`_. For RDF Turtle, only models of the specified dataset are written, see `Dataset selection`_. The dataset must exist in the manifest, otherwise the command fails.
 
 Mermaid.js output
 -----------------
@@ -231,6 +231,24 @@ class is described in the file. For example, a model with its own ``uri`` under
 ``dct:Location``.
 
 If there is no dataset, the ``{dataset}/`` part is left out.
+
+Dataset selection
+~~~~~~~~~~~~~~~~~
+
+By default all datasets of the manifest are written. With ``-d <dataset-name>``
+only the models of that dataset are written, together with their classes,
+shapes, properties and enums. Items of other datasets are not written, but
+references to them keep their IRIs, for example ``sh:class`` of a property that
+refers to a model of another dataset. An enum declared by a parent namespace
+keeps the IRI of its own dataset, and is written only by that dataset.
+
+.. code-block:: bash
+
+   spinta -o uri_prefix=https://data.gov.lt/id/ copy manifest.csv -d example/dataset -o manifest.ttl
+
+A base model of another dataset is not referenced by ``sh:node``, so the shape
+does not inherit its constraints. This is the same as for a base that is not
+exported because of ``access``.
 
 If a ``uri`` uses a prefix that is not declared in the manifest, the command
 fails with an error, instead of writing a wrong URI.
