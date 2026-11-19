@@ -35,7 +35,7 @@ def test_load_level(level, rc):
 
 
 def test_configure_unknown_model(tmp_path, rc):
-    rc = rc.fork({"models": {"data/City": {"properties": {"code": {"type": "string"}}}}})
+    rc = rc.fork({"models": {"data/City": {"properties": {"code": {"type": {"name": "string"}}}}}})
     context, manifest = load_manifest_and_context(
         rc,
         manifest=_GENERIC_COUNTRY_MANIFEST,
@@ -52,7 +52,9 @@ def test_configure_unknown_property(tmp_path, rc):
                 "datasets/gov/example/Country": {
                     "properties": {
                         "test": {
-                            "type": "string",
+                            "type": {
+                                "name": "string",
+                            },
                         },
                     },
                 },
