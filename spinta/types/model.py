@@ -370,17 +370,17 @@ def configure(context: Context, prop: Property):
                 raise Exception
         except Exception:
             raise InvalidCustomPropertyTypeConfiguration(prop, custom_property_type=prop_type, args=values)
-        if custom_type:
-            # Since this is called before load, it expects dict data that will be converted to Attribute
-            if not hasattr(prop, "external"):
-                prop.external = {
-                    "custom_type": custom_type,
-                }
-            else:
-                if not isinstance(prop.external, dict):
-                    prop.external = {"name": prop.external}
 
-                prop.external["custom_type"] = custom_type
+        # Since this is called before load, it expects dict data that will be converted to Attribute
+        if not hasattr(prop, "external"):
+            prop.external = {
+                "custom_type": custom_type,
+            }
+        else:
+            if not isinstance(prop.external, dict):
+                prop.external = {"name": prop.external}
+
+            prop.external["custom_type"] = custom_type
 
 
 @load.register(Context, Property, dict, Manifest)
