@@ -4,6 +4,55 @@ Changes
 2.2.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Enforced `#1990`_ changes to existing configurations and scripts (`#2077`_).
+  Configurations like:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute: copy
+            properties:
+                code:
+                    type: sqlalchemy.types.BigInteger
+
+  Need to be replaced with:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+            properties:
+                code:
+                    type:
+                        name: sqlalchemy.types.BigInteger
+
+  Scripts that generate configuration files no longer return yml files which overwrite whole configuration:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+        datasets/gov/AnotherModel:
+            distribute:
+                type: copy
+
+  Now is returned as:
+
+  .. code-block:: yaml
+
+    models.datasets/gov/Model.distribute:
+        type: copy
+    models.datasets/gov/AnotherModel.distribute:
+        type: copy
+
+.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 
 2.1.0 (2026-11-11)
 =====================
@@ -83,7 +132,6 @@ Improvements:
   without leading zeros, for example ``datasets/gov/vk/vis/udts/1/vis``, where
   the integer is the UDTS data service version. Such names are no longer
   rejected by name checks (`#2080`_).
-- Enforced `#1990`_ changes to existing scripts and implementations (`#2077`_).
 
 Bug fixes:
 
@@ -94,7 +142,6 @@ Bug fixes:
 
 .. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
 .. _#2080: https://github.com/atviriduomenys/spinta/issues/2080
-.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 
 1.3.1 (2026-10-22)
 =====================

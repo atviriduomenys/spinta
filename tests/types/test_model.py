@@ -69,20 +69,37 @@ def test_configure_unknown_property(tmp_path, rc):
 
 
 def test_configure_requires_name(tmp_path, rc):
+    with pytest.raises(
+        Exception,
+        match="Invalid configuration value 'string' for key 'models.datasets/gov/example/Country.properties.code.type' in fork config",
+    ):
+        rc = rc.fork(
+            {
+                "models": {
+                    "datasets/gov/example/Country": {
+                        "properties": {
+                            "code": {
+                                "type": "string",
+                            },
+                        },
+                    },
+                },
+            },
+        )
+
     rc = rc.fork(
         {
             "models": {
                 "datasets/gov/example/Country": {
                     "properties": {
                         "code": {
-                            "type": "string",
+                            "type": ["string"],
                         },
                     },
                 },
             },
         },
     )
-
     with pytest.raises(
         MissingConfigurationParameter, match="Property 'code' configuration is missing parameter: 'type.name'"
     ):
@@ -137,6 +154,41 @@ def test_configure_missing_type_parameter(tmp_path, rc):
     )
     with pytest.raises(
         MissingConfigurationParameter, match="Property 'code' configuration is missing parameter: 'type.name'."
+    ):
+        load_manifest(
+            rc,
+            manifest=_GENERIC_COUNTRY_MANIFEST,
+            tmp_path=tmp_path,
+        )
+
+
+def test_configure_does_not_support_shortened_distribution_type_parameter(tmp_path, rc):
+    with pytest.raises(
+        Exception,
+        match="Invalid configuration value 'test' for key 'models.datasets/gov/example/Country.distribute' in fork config",
+    ):
+        rc = rc.fork(
+            {
+                "models": {
+                    "datasets/gov/example/Country": {
+                        "distribute": "test",
+                    },
+                },
+            },
+        )
+
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "distribute": ["test"],
+                },
+            },
+        },
+    )
+    with pytest.raises(
+        MissingConfigurationParameter,
+        match="Model 'datasets/gov/example/Country' configuration is missing parameter: 'distribute.type'.",
     ):
         load_manifest(
             rc,
