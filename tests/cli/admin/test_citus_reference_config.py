@@ -79,7 +79,7 @@ def test_citus_reference_config_output_stdout(
         result, script_check_status_message(Script.CITUS_REFERENCE_CONFIG.value, ScriptStatus.REQUIRED)
     )
     yml_output = yaml.load(result.stdout)
-    assert yml_output == {"models": {"distribute/example/Test": {"distribute": ["copy"]}}}
+    assert yml_output == {"models.distribute/example/Test.distribute": {"type": "copy"}}
 
 
 def test_citus_reference_config_output_yml_file(
@@ -120,7 +120,7 @@ def test_citus_reference_config_output_yml_file(
     assert output_path.exists()
     with output_path.open("r") as f:
         yml_output = yaml.load(f)
-    assert yml_output == {"models": {"distribute/example/Test": {"distribute": ["copy"]}}}
+    assert yml_output == {"models.distribute/example/Test.distribute": {"type": "copy"}}
 
 
 def test_citus_reference_config_output_invalid_file_type(
@@ -218,7 +218,7 @@ def test_citus_reference_config_output_existing_file(
     assert not result.stdout
     with output_path.open("r") as f:
         yml_output = yaml.load(f)
-    assert yml_output == {"models": {"distribute/example/Test": {"distribute": ["copy"]}}}
+    assert yml_output == {"models.distribute/example/Test.distribute": {"type": "copy"}}
 
 
 def test_citus_reference_config_multiple(
@@ -262,10 +262,8 @@ def test_citus_reference_config_multiple(
     with output_path.open("r") as f:
         yml_output = yaml.load(f)
     assert yml_output == {
-        "models": {
-            "distribute/data/Data": {"distribute": ["copy"]},
-            "distribute/example/Test": {"distribute": ["copy"]},
-        }
+        "models.distribute/data/Data.distribute": {"type": "copy"},
+        "models.distribute/example/Test.distribute": {"type": "copy"},
     }
 
 
@@ -280,7 +278,7 @@ def test_citus_reference_config_skip_existing_configs(
         path=tmp_path,
         manifest=MULTI_CROSS_SCHEMA_REFERENCE_MANIFEST,
         default_distribution_strategy="schema",
-        model_distribution={"distribute/example/Test": {"distribute": ["copy"]}},
+        model_distribution={"distribute/example/Test": {"distribute": {"type": "copy"}}},
     )
     manifest = context.get("store").manifest
     backend = manifest.backend
@@ -314,14 +312,19 @@ def test_citus_reference_config_skip_existing_configs(
     )
     with output_path.open("r") as f:
         yml_output = yaml.load(f)
-    assert yml_output == {"models": {"distribute/data/Data": {"distribute": ["copy"]}}}
+    assert yml_output == {"models.distribute/data/Data.distribute": {"type": "copy"}}
 
 
 @pytest.mark.parametrize(
     "undistributed_model,script_result",
     (
         ("distribute/example/Test", {}),
-        ("distribute/data/Data", {"distribute/example/Test": {"distribute": ["copy"]}}),
+        (
+            "distribute/data/Data",
+            {
+                "models.distribute/example/Test.distribute": {"type": "copy"},
+            },
+        ),
     ),
 )
 def test_citus_reference_config_blocked(
@@ -337,7 +340,7 @@ def test_citus_reference_config_blocked(
         path=tmp_path,
         manifest=MULTI_CROSS_SCHEMA_REFERENCE_MANIFEST,
         default_distribution_strategy="schema",
-        model_distribution={undistributed_model: {"distribute": ["undistributed"]}},
+        model_distribution={undistributed_model: {"distribute": {"type": "undistributed"}}},
     )
     manifest = context.get("store").manifest
     backend = manifest.backend
@@ -367,4 +370,4 @@ def test_citus_reference_config_blocked(
     )
     with output_path.open("r") as f:
         yml_output = yaml.load(f)
-    assert yml_output == {"models": script_result}
+    assert yml_output == script_result

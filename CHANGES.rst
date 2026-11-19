@@ -4,6 +4,55 @@ Changes
 2.2.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Enforced `#1990`_ changes to existing configurations and scripts (`#2077`_).
+  Configurations like:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute: copy
+            properties:
+                code:
+                    type: sqlalchemy.types.BigInteger
+
+  Need to be replaced with:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+            properties:
+                code:
+                    type:
+                        name: sqlalchemy.types.BigInteger
+
+  Scripts that generate configuration files no longer return yml files which overwrite whole configuration:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+        datasets/gov/AnotherModel:
+            distribute:
+                type: copy
+
+  Now is returned as:
+
+  .. code-block:: yaml
+
+    models.datasets/gov/Model.distribute:
+        type: copy
+    models.datasets/gov/AnotherModel.distribute:
+        type: copy
+
+.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
 
 2.1.0 (2026-11-11)
 =====================

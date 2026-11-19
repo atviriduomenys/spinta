@@ -35,7 +35,7 @@ def test_load_level(level, rc):
 
 
 def test_configure_unknown_model(tmp_path, rc):
-    rc = rc.fork({"models": {"data/City": {"properties": {"code": {"type": "string"}}}}})
+    rc = rc.fork({"models": {"data/City": {"properties": {"code": {"type": {"name": "string"}}}}}})
     context, manifest = load_manifest_and_context(
         rc,
         manifest=_GENERIC_COUNTRY_MANIFEST,
@@ -52,7 +52,9 @@ def test_configure_unknown_property(tmp_path, rc):
                 "datasets/gov/example/Country": {
                     "properties": {
                         "test": {
-                            "type": "string",
+                            "type": {
+                                "name": "string",
+                            },
                         },
                     },
                 },
@@ -68,6 +70,48 @@ def test_configure_unknown_property(tmp_path, rc):
         commands.check(context, manifest)
 
 
+def test_configure_requires_name(tmp_path, rc):
+    with pytest.raises(
+        Exception,
+        match="Invalid configuration value 'string' for key 'models.datasets/gov/example/Country.properties.code.type' in fork config",
+    ):
+        rc = rc.fork(
+            {
+                "models": {
+                    "datasets/gov/example/Country": {
+                        "properties": {
+                            "code": {
+                                "type": "string",
+                            },
+                        },
+                    },
+                },
+            },
+        )
+
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "properties": {
+                        "code": {
+                            "type": ["string"],
+                        },
+                    },
+                },
+            },
+        },
+    )
+    with pytest.raises(
+        MissingConfigurationParameter, match="Property 'code' configuration is missing parameter: 'type.name'"
+    ):
+        load_manifest_and_context(
+            rc,
+            manifest=_GENERIC_COUNTRY_MANIFEST,
+            tmp_path=tmp_path,
+        )
+
+
 def test_configure_invalid_type_import(tmp_path, rc):
     rc = rc.fork(
         {
@@ -75,7 +119,9 @@ def test_configure_invalid_type_import(tmp_path, rc):
                 "datasets/gov/example/Country": {
                     "properties": {
                         "code": {
-                            "type": "unknown_import",
+                            "type": {
+                                "name": "unknown_import",
+                            },
                         },
                     },
                 },
@@ -110,6 +156,41 @@ def test_configure_missing_type_parameter(tmp_path, rc):
     )
     with pytest.raises(
         MissingConfigurationParameter, match="Property 'code' configuration is missing parameter: 'type.name'."
+    ):
+        load_manifest(
+            rc,
+            manifest=_GENERIC_COUNTRY_MANIFEST,
+            tmp_path=tmp_path,
+        )
+
+
+def test_configure_does_not_support_shortened_distribution_type_parameter(tmp_path, rc):
+    with pytest.raises(
+        Exception,
+        match="Invalid configuration value 'test' for key 'models.datasets/gov/example/Country.distribute' in fork config",
+    ):
+        rc = rc.fork(
+            {
+                "models": {
+                    "datasets/gov/example/Country": {
+                        "distribute": "test",
+                    },
+                },
+            },
+        )
+
+    rc = rc.fork(
+        {
+            "models": {
+                "datasets/gov/example/Country": {
+                    "distribute": ["test"],
+                },
+            },
+        },
+    )
+    with pytest.raises(
+        MissingConfigurationParameter,
+        match="Model 'datasets/gov/example/Country' configuration is missing parameter: 'distribute.type'.",
     ):
         load_manifest(
             rc,
