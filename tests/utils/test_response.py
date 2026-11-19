@@ -17,6 +17,51 @@ from spinta.utils.response import (
 )
 
 
+@pytest.mark.parametrize(
+    "stop_on_errors,expected_requests", [(None, 3), ([], 3), (["OtherError"], 3), (["ExceededMaximumLimit"], 1)]
+)
+@pytest.mark.parametrize("status", [400, 500])
+def test_get_retry_stops_on_configured_error(
+    responses: RequestsMock, status: int, stop_on_errors, expected_requests: int
+):
+    server = "https://example.com/City"
+    responses.add(GET, server, json={"errors": [{"code": "ExceededMaximumLimit"}]}, status=status)
+    error_counter = ErrorCounter(max_count=10)
+    result = get_request_with_retries(
+        requests.Session(),
+        server,
+        timeout=(5, 300),
+        retries=2,
+        delay_range=(0,),
+        error_counter=error_counter,
+        stop_on_errors=stop_on_errors,
+    )
+    assert not result.ok
+    assert result.status_code == status
+    assert len(responses.calls) == expected_requests
+    assert error_counter.count == 1
+
+
+@pytest.mark.parametrize("status", [408, 429, 500, 503])
+def test_get_retry_recovers_from_temporary_http_errors(responses: RequestsMock, status: int):
+    server = "https://example.com/City"
+    responses.add(GET, server, json={"errors": []}, status=status)
+    responses.add(GET, server, json={"_data": [{"id": 1}]})
+    error_counter = ErrorCounter(max_count=10)
+    result = get_request_with_retries(
+        requests.Session(),
+        server,
+        timeout=(5, 300),
+        retries=2,
+        delay_range=(0,),
+        error_counter=error_counter,
+    )
+    assert result.ok
+    assert result.data == {"_data": [{"id": 1}]}
+    assert len(responses.calls) == 2
+    assert error_counter.count == 0
+
+
 def test_request_error_counter(responses: RequestsMock):
     server = "https://www.example.com"
     error_counter = ErrorCounter(max_count=10)

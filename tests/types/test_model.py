@@ -45,6 +45,14 @@ def test_configure_unknown_model(tmp_path, rc):
         commands.check(context, manifest)
 
 
+@pytest.mark.parametrize("limit,expected", [(None, None), (5, 5)])
+def test_configure_model_limit(tmp_path, rc, limit, expected):
+    rc = rc.fork({"models": {"datasets/gov/example/Country": {"limit": limit}}})
+    context, manifest = load_manifest_and_context(rc, manifest=_GENERIC_COUNTRY_MANIFEST, tmp_path=tmp_path)
+    model = commands.get_model(context, manifest, "datasets/gov/example/Country")
+    assert model.limit == expected
+
+
 def test_configure_unknown_property(tmp_path, rc):
     rc = rc.fork(
         {

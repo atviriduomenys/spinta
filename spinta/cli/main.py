@@ -21,6 +21,7 @@ from spinta.core.context import create_context
 from spinta.warnings import SpintaDeprecationWarning
 
 app = Typer()
+# pathlib.PosixPath = WindowsPath
 
 add(app, "config", config.config, short_help="Show current configuration values")
 add(app, "check", config.check, short_help="Check configuration and manifests")

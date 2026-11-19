@@ -5,3 +5,6 @@ class Format:
     # TODO: Should be false, by default.
     streamable: bool = True
     prioritize_uri: bool = False
+
+    # Max data limit that format type supports
+    limit: int = None

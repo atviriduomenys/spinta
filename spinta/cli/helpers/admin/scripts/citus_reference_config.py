@@ -9,8 +9,8 @@ from sqlalchemy import text
 
 from spinta import commands
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.cli.helpers.message import cli_error, cli_message
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
+from spinta.cli.helpers.message import cli_message
+from spinta.cli.helpers.script.helpers import ensure_store_is_loaded, validate_config_file_output_path
 from spinta.components import Context
 from spinta.exceptions import ModelNotFound
 
@@ -214,11 +214,7 @@ def generate_citus_reference_shard_config(
 ) -> None:
     store = ensure_store_is_loaded(context)
 
-    if output_path and output_path.suffix not in {".yml", ".yaml"}:
-        cli_error(f"Output file '{output_path}' has unsupported format. Use '.yml' or '.yaml'.")
-
-    if output_path and output_path.exists() and not destructive:
-        cli_error(f"Output file '{output_path}' already exists. Use --destructive to overwrite.")
+    validate_config_file_output_path(destructive, output_path)
 
     config = context.get("config")
     max_size = config.citus_reference_script_size
