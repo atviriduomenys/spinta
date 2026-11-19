@@ -661,6 +661,39 @@ def test_copy_to_ttl_skips_enum_items_below_access(rc, cli: SpintaCliRunner, tmp
     assert (None, None, Literal("Neskelbtinas")) not in graph
 
 
+def test_copy_to_ttl_skips_inline_enums_of_array_items_below_access(rc, cli: SpintaCliRunner, tmp_path):
+    # Items have no access of their own, so they inherit access of `tags`. Enum `SECRET` has no access and
+    # must not leak to the open export through the private items.
+    rows = [
+        {"dataset": DATASET},
+        {"model": "Country", "access": "open"},
+        {"property": "code", "type": "string", "access": "open"},
+        {"property": "tags", "type": "array", "access": "open"},
+        {"property": "tags[]", "type": "string", "access": "private"},
+        {"type": "enum", "prepare": "'SECRET'", "title": "Slaptas"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert (_uri(f"def/{DATASET}/Country_tags/SECRET"), None, None) not in graph
+    assert (None, None, Literal("Slaptas")) not in graph
+
+
+def test_copy_to_ttl_exports_inline_enums_of_array_items_inheriting_open_access(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": DATASET},
+        {"model": "Country", "access": "open"},
+        {"property": "code", "type": "string", "access": "open"},
+        {"property": "tags", "type": "array", "access": "open"},
+        {"property": "tags[]", "type": "string"},
+        {"type": "enum", "prepare": "'OPEN'", "title": "Atvira"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert (_uri(f"def/{DATASET}/Country_tags/OPEN"), SKOS.prefLabel, Literal("Atvira")) in graph
+
+
 def test_copy_to_ttl_does_not_export_enums_of_namespace_without_exported_models(rc, cli: SpintaCliRunner, tmp_path):
     rows = [
         {"dataset": DATASET},

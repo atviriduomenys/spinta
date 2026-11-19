@@ -4,7 +4,7 @@ from typing import TypeVar, cast
 
 from spinta.components import Context, Model, Namespace, Property
 from spinta.core.access import link_access_param, load_access_param
-from spinta.core.enums import load_level, load_status, load_visibility
+from spinta.core.enums import Access, load_level, load_status, load_visibility
 from spinta.core.ufuncs import asttoexpr
 from spinta.dimensions.enum.components import EnumFormula, EnumItem, Enums, EnumValue
 from spinta.exceptions import EnumPrepareMissing, UndefinedEnum, ValueNotInEnum
@@ -64,12 +64,14 @@ def load_enums(
 def link_enums(
     parents: list[Property | Model | Namespace],
     enums: Enums | None,
+    *,
+    default_access: Access = Access.private,
 ) -> None:
     if enums is None:
         return
     for enum in enums.values():
         for item in enum.values():
-            link_access_param(item, parents)
+            link_access_param(item, parents, default_access=default_access)
 
 
 def link_prop_enum(

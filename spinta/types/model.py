@@ -38,7 +38,7 @@ from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node, load_model_properties, load_node
-from spinta.types.datatype import UUID, Integer, Ref, String
+from spinta.types.datatype import UUID, Array, Integer, Ref, String
 from spinta.types.helpers import (
     check_model_name,
     check_property_name,
@@ -518,7 +518,18 @@ def link(context: Context, prop: Property):
     link_access_param(
         prop, parents, use_given=not property_is_private(prop), default_access=config.default_access_level
     )
-    link_enums([prop] + parents, prop.enums)
+    link_enums([prop] + parents, prop.enums, default_access=config.default_access_level)
+    if isinstance(prop.dtype, Array) and prop.dtype.items is not None:
+        # Array items are not linked as properties, so their access and inline enums are linked here.
+        # Items inherit access from the array property, and enums inherit it from the items.
+        items = prop.dtype.items
+        link_access_param(
+            items,
+            [prop] + parents,
+            use_given=not property_is_private(prop),
+            default_access=config.default_access_level,
+        )
+        link_enums([items, prop] + parents, items.enums, default_access=config.default_access_level)
     prop.enum = link_prop_enum(prop)
 
 
