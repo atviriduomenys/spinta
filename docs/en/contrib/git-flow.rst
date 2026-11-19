@@ -50,6 +50,11 @@ Short lived branches:
   `652-add-geometry-type`. Use only ascii letters, separate words with hyphens.
 
 
+All branches are checked out as git worktrees: one directory for each branch
+in the ``spinta/`` directory, with ``master`` living in ``spinta/master``,
+see :ref:`development-environment` above.
+
+
 Feature branches
 ****************
 
@@ -74,7 +79,13 @@ Creating a feature branch
 You can create feature branch using `GitHub Web UI <gh-new-branch_>`_, or
 command line::
 
-    git checkout -b {number}-{slug} master
+    git worktree add -b {number}-{slug} ../{number}-{slug} master
+
+If the feature branch was created via `GitHub Web UI <gh-new-branch_>`_,
+fetch it from the remote and check it out from there::
+
+    git fetch origin
+    git worktree add -b {number}-{slug} ../{number}-{slug} origin/{number}-{slug}
 
 Merging a feature branch
 ========================
@@ -82,13 +93,14 @@ Merging a feature branch
 You can merge feature branch using `GitHub Web UI <gh-merge-pr_>`_, or command
 line::
 
-    git checkout master
+    cd ../master
     git merge --no-ff {number}-{slug}
+    git worktree remove ../{number}-{slug}
     git branch -d {number}-{slug}
     git push origin master
 
-This will merge feature branch to master, deletes feature branch and pushes
-changes to GitHub.
+This will merge feature branch to master, deletes feature branch and its
+worktree and pushes changes to GitHub.
 
 
 Release branches
@@ -121,7 +133,7 @@ pre-release versions.
 You can create release branch using `GitHub Web UI <gh-new-branch_>`_, or
 command line::
 
-    git checkout -b {major}-{minor} master
+    git worktree add -b {major}.{minor} ../{major}.{minor} master
 
 After that you need to prepare Spinta for a release candidate::
 
@@ -143,7 +155,7 @@ After that you need to prepare Spinta for a release candidate::
     head CHANGES.rst
     git diff
     git commit -a -m "Prepare for the next {major}.{minor} release"
-    git push origin {major}-{minor}
+    git push origin {major}.{minor}
     git log -n3
 
 You can release multiple release candidates until enough testing is done, and
@@ -165,7 +177,7 @@ commits as branches do.
 
 You can tag new versions using command line::
 
-    git checkout {major}.{minor}
+    cd ../{major}.{minor}
     git tag -a {major}.{minor}.{patch} -m "Releasing version {major}.{minor}.{patch}"
     git push origin {major}.{minor}
 
@@ -188,33 +200,34 @@ from a release branch.
 Multiple bug fixes can be added to a release branch and released under a single
 release candidate or patch version.
 
-Creating a feature branch
+Creating a bug fix branch
 =========================
 
-You can create feature branch using `GitHub Web UI <gh-new-branch_>`_, or
+You can create bug fix branch using `GitHub Web UI <gh-new-branch_>`_, or
 command line::
 
-    git checkout -b {number}-{slug} {major}.{minor}
+    git worktree add -b {number}-{slug} ../{number}-{slug} {major}.{minor}
 
-Merging a feature branch
+Merging a bug fix branch
 ========================
 
 You can merge a bug fix branch using `GitHub Web UI <gh-merge-pr_>`_, or
 command line::
 
-    git checkout {major}.{minor}
+    cd ../{major}.{minor}
     git merge --no-ff {number}-{slug}
+    git worktree remove ../{number}-{slug}
     git branch -d {number}-{slug}
     git push origin {major}.{minor}
 
 Also you need to add changes back to master::
 
-    git checkout master
+    cd ../master
     git merge --no-ff {major}.{minor}
     git push origin master
 
 This will merge bug fix branch to release and master branches, deletes bug fix
-branch and pushes changes to GitHub.
+branch and its worktree, and pushes changes to GitHub.
 
 
 

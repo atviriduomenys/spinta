@@ -1,6 +1,7 @@
 sphinx
 sphinx-autobuild
 sphinxcontrib.httpdomain
+sphinxcontrib-mermaid
 sphinx_rtd_theme
 sphinx-intl
 myst_parser
