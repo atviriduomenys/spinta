@@ -4,16 +4,38 @@ All commands should run in nix shell:
 nix develop path:. -c nu
 ```
 
-Convert TTL to DSA:
+Convert DCAT-AP SHACL to DSA:
 
 ```nu
-spinta -o rdf_fetch_remote=true copy ~/dev/contrib/semic/DCAT-AP/releases/3.0.1/html/shacl/*.ttl -o .tmp/manifest.csv
-spinta check --check-names .tmp/manifest.csv
-spinta copy .tmp/manifest.csv -o .tmp/manifest.mmd
-mmdc -i .tmp/manifest.mmd -o .tmp/manifest.svg
+spinta -o rdf_fetch_remote=true copy ~/dev/contrib/semic/DCAT-AP/releases/3.0.1/html/shacl/*.ttl -o .tmp/dcat.csv
+spinta check --check-names .tmp/dcat.csv
+spinta copy .tmp/dcat.csv -o .tmp/dcat.mmd
+mmdc -i .tmp/dcat.mmd -o .tmp/dcat.svg
 ```
 
-Convert DSA to TTL
+Convert Core Location Vocabulary to DSA:
+
+```nu
+glob ~/dev/contrib/semic/Core-Location-Vocabulary/releases/2.1.1//{shacl|voc}/*.ttl | each {
+    spinta -o rdf_fetch_remote=true copy $in -o locn.csv
+}
+spinta check --check-names .tmp/locn.csv
+spinta copy .tmp/locn.csv -o .tmp/locn.mmd
+mmdc -i .tmp/locn.mmd -o .tmp/locn.svg
+```
+
+Convert SKOS to DSA:
+
+```nu
+curl https://publications.europa.eu/resource/authority/atu -o .tmp/atu.xml
+rdfpipe -i xml -o turtle .tmp/atu.xml | save -f .tmp/atu.ttl
+spinta -o rdf_fetch_remote=true copy .tmp/atu.ttl -o .tmp/atu.csv
+spinta check --check-names .tmp/atu.csv
+spinta copy .tmp/atu.csv -o .tmp/atu.mmd
+mmdc -i .tmp/atu.mmd -o .tmp/atu.svg
+```
+
+Convert DSA to SHACL:
 
 ```nu
 spinta copy .tmp/manifest.csv -o .tmp/manifest.ttl

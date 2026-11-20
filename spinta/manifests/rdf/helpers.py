@@ -85,6 +85,7 @@ def read_rdf_manifest(
         _ontology_rows(graph, sources, shacl),
     )
     models = _prepare_data(graph, rows, main, lang)
+    standalone = _standalone_schemes(graph, sources, models.values())
 
     datasets = {main["name"]: main}
     for model in models.values():
@@ -93,9 +94,10 @@ def read_rdf_manifest(
             datasets[name] = _dataset_row(graph, name)
 
     # The main dataset is left out when all models have a prefix, so that no
-    # empty dataset is written. The main dataset comes first.
+    # empty dataset is written. It is kept when it has standalone enums. The
+    # main dataset comes first.
     model_datasets = {_model_dataset(model["name"]) for model in models.values()}
-    if model_datasets and main["name"] not in model_datasets:
+    if model_datasets and main["name"] not in model_datasets and not standalone:
         del datasets[main["name"]]
     ordered = sorted(datasets.values(), key=lambda d: (d["name"] != main["name"], d["name"]))
 
@@ -112,6 +114,7 @@ def read_rdf_manifest(
             lang,
             datasets=datasets,
             fetch_remote=fetch_remote,
+            standalone=standalone,
         )
     )
     for dataset in ordered:
@@ -343,16 +346,21 @@ def _get_schemas(
     datasets: dict[str, dict] | None = None,
     *,
     fetch_remote: bool = False,
+    standalone: list[URIRef] | None = None,
 ):
     """Finalize models and their properties.
 
     Enums of a property are added to the dataset of its model, `datasets` maps
     dataset names to dataset rows. Without `datasets` all models belong to
-    `dataset`. Definitions are looked up remotely only when `fetch_remote` is true.
+    `dataset`. `standalone` concept schemes, which no property uses, are added
+    as enums of `dataset`. Definitions are looked up remotely only when
+    `fetch_remote` is true.
     """
     definitions = _Definitions(graph, lang, fetch_remote=fetch_remote)
     definitions.prefetch(_definition_iris(graph, schemas))
     enums: _EnumCache = {}
+    for scheme in standalone or []:
+        _load_enum(graph, dataset, str(scheme), [scheme], definitions, enums)
 
     for row in schemas:
         if "schema" in row:
@@ -1221,6 +1229,21 @@ def _load_enum(
     return enum_name
 
 
+def _standalone_schemes(graph: Graph, sources: Graph, models: Iterable[dict]) -> list[URIRef]:
+    """Return concept schemes of the given files, which no property uses and which have concepts.
+
+    Such a scheme is a vocabulary of its own, for example a SKOS file that has
+    only a concept scheme and its concepts, so it is written as an enum.
+    Schemes used by properties are written as enums of those properties.
+    """
+    used = {scheme for model in models for prop in model["properties"].values() for scheme in prop.get("schemes") or []}
+    schemes = {scheme for scheme in sources.subjects(RDF.type, SKOS.ConceptScheme) if isinstance(scheme, URIRef)}
+    return sorted(
+        (scheme for scheme in schemes if scheme not in used and _concepts_in_scheme(graph, scheme)),
+        key=str,
+    )
+
+
 def _concept_source(iri: str) -> str:
     """Return the source of an enum item, the decoded local name of its concept IRI.
 
@@ -1391,6 +1414,7 @@ class _Definitions:
         self.fetch_remote = fetch_remote
         self._sources: list[Graph] = []
         self._remote: dict[str, tuple[str, str]] = {}
+        self._remote_notations: dict[str, Node] = {}
         self._lock = threading.Lock()
         self._unavailable: Counter[str] = Counter()
 
@@ -1408,7 +1432,7 @@ class _Definitions:
         for graph in (self.graph, *self._sources):
             if (notation := graph.value(URIRef(iri), SKOS.notation)) is not None:
                 return notation
-        return None
+        return self._remote_notations.get(iri)
 
     def _local(self, iri: str) -> tuple[str, str]:
         title = description = ""
@@ -1447,6 +1471,10 @@ class _Definitions:
             return "", ""
         if graph is None:
             return "", ""
+        # The concept may also have a notation, it is the prepared value of an enum item.
+        if (notation := graph.value(URIRef(iri), SKOS.notation)) is not None:
+            with self._lock:
+                self._remote_notations[iri] = notation
         return _definitions(graph, URIRef(iri), self.lang)
 
 

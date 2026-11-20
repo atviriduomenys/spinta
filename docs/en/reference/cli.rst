@@ -262,6 +262,17 @@ concept schemes and labels missing in the files, are dereferenced only when the
 default, so web IRIs are not fetched and the result does not depend on the
 network.
 
+A concept scheme that no property uses, for example a SKOS file with only a
+concept scheme and its concepts, is read as an enum of the main dataset. With
+``rdf_fetch_remote`` the concepts are dereferenced, which gives them titles,
+descriptions and notations, for example:
+
+.. code-block:: bash
+
+   curl https://publications.europa.eu/resource/authority/atu -o atu.xml
+   rdfpipe -i xml -o turtle atu.xml > atu.ttl
+   spinta -o rdf_fetch_remote=true copy atu.ttl -o atu.csv
+
 ``rdf_fetch_remote`` affects only remote files. Files stored on the disk are
 always considered local, so ``file:`` IRIs of ``owl:imports`` are read even when
 ``rdf_fetch_remote`` is ``false``. An RDF file can therefore make Spinta read
