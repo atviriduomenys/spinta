@@ -259,7 +259,14 @@ classes, properties, concepts and SHACL shapes.
 RDF files can also be read as manifests. Web IRIs, such as ``owl:imports``,
 concept schemes and labels missing in the files, are dereferenced only when the
 ``rdf_fetch_remote`` configuration option is ``true``. It is ``false`` by
-default, so the result depends only on the given files:
+default, so web IRIs are not fetched and the result does not depend on the
+network.
+
+``rdf_fetch_remote`` affects only remote files. Files stored on the disk are
+always considered local, so ``file:`` IRIs of ``owl:imports`` are read even when
+``rdf_fetch_remote`` is ``false``. An RDF file can therefore make Spinta read
+any local RDF file it names in ``owl:imports``, so read only RDF files you
+trust:
 
 .. code-block:: bash
 

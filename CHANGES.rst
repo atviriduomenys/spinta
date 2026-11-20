@@ -19,8 +19,9 @@ New features:
 
 - New ``rdf_fetch_remote`` configuration option. RDF manifests dereference web
   IRIs (``owl:imports``, concept schemes and missing titles or descriptions)
-  only when it is ``true``. It is ``false`` by default, so the result depends
-  only on the given files (`#2101`_).
+  only when it is ``true``. It is ``false`` by default, so web IRIs are not
+  fetched. Local files, including ``file:`` imports, are always read, because
+  ``rdf_fetch_remote`` affects only remote files (`#2101`_).
 
 Backwards incompatible:
 

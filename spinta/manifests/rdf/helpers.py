@@ -70,7 +70,8 @@ def read_rdf_manifest(
 
     Web IRIs are dereferenced only when `fetch_remote` is true: `owl:imports`,
     concept schemes and titles or descriptions missing in the files. Without it
-    the result depends only on the given files.
+    web IRIs are not fetched. Local files, including `file:` imports, are read
+    either way.
     """
     if isinstance(manifests, RdfManifest):
         manifests = [manifests]
