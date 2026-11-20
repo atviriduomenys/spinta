@@ -171,6 +171,25 @@ def test_enum(manifest_type, tmp_path, rc):
     )
 
 
+@pytest.mark.manifests("csv")
+def test_enum_uri(manifest_type, tmp_path, rc):
+    check(
+        tmp_path,
+        rc,
+        """
+    d | r | b | m | property     | type   | source | prepare | access  | uri                                | title | description
+    datasets/gov/example         |        |        |         |         |                                    |       |
+      | data                     |        |        |         |         |                                    |       |
+                                 |        |        |         |         |                                    |       |
+      |   |   | Country          |        |        |         |         |                                    |       |
+      |   |   |   | driving_side | string |        |         |         |                                    |       |
+                                 | enum   | l      | 'left'  | open    | http://example.com/vocab#left      | Left  | Left side.
+                                 |        | r      | 'right' | private | http://example.com/vocab#right     | Right | Right side.
+    """,
+        manifest_type,
+    )
+
+
 @pytest.mark.manifests("internal_sql", "csv")
 def test_enum_nested(manifest_type, tmp_path, rc):
     check(

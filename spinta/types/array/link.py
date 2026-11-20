@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from spinta import commands
 from spinta.components import Context, Model, Property
+from spinta.dimensions.enum.helpers import link_prop_enum
 from spinta.exceptions import (
     InvalidIntermediateTableMappingRefCount,
     ModelReferenceKeyNotFound,
@@ -19,6 +20,8 @@ def link(context: Context, dtype: Array) -> None:
     # In case of a dynamic array, dtype of items is not known.
     if dtype.items:
         commands.link(context, dtype.items.dtype)
+        # Items are not linked as properties, so their enum is linked here.
+        dtype.items.enum = link_prop_enum(dtype.items)
 
     intermediate_model: str = dtype.model
     if intermediate_model is None:

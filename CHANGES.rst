@@ -52,7 +52,54 @@ Backwards incompatible:
     models.datasets/gov/AnotherModel.distribute:
         type: copy
 
+New features:
+
+- ``spinta copy manifest.csv -o manifest.ttl`` writes a manifest as RDF Turtle
+  with SHACL shapes (`#2101`_). Classes, properties and concepts without an
+  explicit ``uri``, or with a ``uri`` under ``uri_prefix``, are also described
+  with RDFS classes, RDFS properties and SKOS concepts. Enums are described as
+  SKOS concept schemes. Generated URIs are built from the new ``uri_prefix``
+  configuration option, for example ``-o uri_prefix=https://data.gov.lt/id/``.
+  It defaults to ``https://example.com``.
+
+- Enum items accept a ``uri`` column, which is kept when the manifest is
+  written (`#2101`_).
+
+- New ``rdf_fetch_remote`` configuration option. RDF manifests dereference web
+  IRIs (``owl:imports``, concept schemes and missing titles or descriptions)
+  only when it is ``true``. It is ``false`` by default, so web IRIs are not
+  fetched. Local files, including ``file:`` imports, are always read, because
+  ``rdf_fetch_remote`` affects only remote files (`#2101`_).
+
+- RDF manifests are split into datasets by the prefix of their model URIs. For
+  example, ``dcat:Dataset`` is read into the ``dcat`` dataset, instead of the
+  main dataset. Prefixes that are not used by the models are no longer written
+  (`#2101`_).
+
+Bug fixes:
+
+- Array items with an enum, for example ``tags[]`` with ``ref`` to an enum,
+  no longer fail with ``AttributeError`` when the manifest is loaded. An
+  unknown enum name raises ``UndefinedEnum`` (`#2101`_).
+
+- A concept scheme (enum) and its concepts no longer share an IRI with a
+  property of the same name, for example ``status`` with ``enum: status``, which
+  was both an ``rdf:Property`` and a ``skos:ConceptScheme`` with mixed labels.
+  Generated URIs now follow ``{uri_prefix}{type}/{dataset}/{concept}/{reference}``:
+  classes are ``{uri_prefix}id/{dataset}/{model}``, properties are
+  ``{uri_prefix}id/{dataset}/{model}/{property}``, concept schemes are
+  ``{uri_prefix}def/{dataset}/{enum}`` and concepts are
+  ``{uri_prefix}def/{dataset}/{enum}/{code}`` (`#2101`_).
+
+- Each model has one SHACL node shape, ``{uri_prefix}shape/{dataset}/{model}``.
+  A model without a ``uri`` inherits the class IRI of its ``base``. The base is
+  written as ``sh:node`` between shapes, and as ``rdfs:subClassOf`` only when the
+  class IRIs differ and the model's class is described in the file (`#2101`_).
+  When an RDF file is read back, a base in another dataset keeps its dataset
+  name, so cross-dataset bases round-trip.
+
 .. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
+.. _#2101: https://github.com/atviriduomenys/spinta/issues/2101
 
 2.1.0 (2026-11-11)
 =====================

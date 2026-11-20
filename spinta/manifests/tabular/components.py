@@ -236,6 +236,7 @@ class EnumRow(TypedDict, total=False):
     visibility: str
     eli: str
     count: int
+    uri: str
 
 
 class PropertyRow(TypedDict, total=False):
