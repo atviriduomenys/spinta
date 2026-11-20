@@ -17,11 +17,8 @@ def get_column_name(prop: Property, replace: bool = False) -> str:
         while replace and isinstance(parent, Property) and isinstance(parent.dtype, Object):
             parent = parent.parent
         if replace and parent and isinstance(parent, Property):
-            if prop.place.startswith(parent.place):
-                name = prop.place.replace(parent.place, "")
-                if name.startswith("."):
-                    name = name[1:]
-                return name
+            if prop.place.startswith(parent.place + "."):
+                return prop.place[len(parent.place) + 1 :]
         return prop.place
 
 

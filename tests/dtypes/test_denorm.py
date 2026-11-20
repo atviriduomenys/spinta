@@ -4,6 +4,7 @@ import pytest
 from _pytest.fixtures import FixtureRequest
 
 from spinta import commands
+from spinta.backends.postgresql.helpers import get_column_name
 from spinta.core.config import RawConfig
 from spinta.exceptions import InvalidDenormProperty, RefPropTypeMissmatch
 from spinta.testing.client import create_test_client
@@ -1488,3 +1489,27 @@ def test_denorm_under_reference_in_object_is_read_from_referenced_model(
     assert listdata(resp, full=True) == [
         {"country._id": lithuania_id, "country.address.district.name": "Vilniaus", "name": "Vilnius"},
     ]
+
+
+def test_column_of_reference_in_object_keeps_names_containing_the_reference(rc: RawConfig):
+    """`country.country_info.district` is `country_info.district` of Country, only the leading `country` is stripped."""
+    context, manifest = load_manifest_and_context(
+        rc,
+        """
+    d | r | b | m | property                           | type    | ref      | access
+    datasets/denorm/object/prefix                      |         |          |
+      |   |   | District                               |         |          |
+      |   |   |   | name                               | string  |          | open
+      |   |   | Country                                |         |          |
+      |   |   |   | country_info                       | object  |          | open
+      |   |   |   | country_info.district              | ref     | District | open
+      |   |   | City                                   |         |          |
+      |   |   |   | country                            | ref     | Country  | open
+      |   |   |   | country.country_info.district.name |         |          | open
+    """,
+    )
+    city = commands.get_model(context, manifest, "datasets/denorm/object/prefix/City")
+
+    country_info = city.properties["country"].dtype.properties["country_info"]
+    district = country_info.dtype.properties["district"]
+    assert get_column_name(district, replace=True) == "country_info.district"
