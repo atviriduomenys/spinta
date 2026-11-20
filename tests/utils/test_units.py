@@ -19,6 +19,7 @@ def test_tobytes(s, b):
 @pytest.mark.parametrize(
     "t,s",
     [
+        (2_592_000, 2_592_000),
         ("1", 1),
         ("5s", 5),
         ("10m", 600),

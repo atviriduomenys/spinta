@@ -33,10 +33,12 @@ TIME_UNITS = {
 
 
 def toseconds(s, default: str = "s"):
-    unit = s[-1].lower()
-    if unit in TIME_UNITS:
-        s = s[:-1]
-    else:
-        unit = default
+    unit = default
+    if isinstance(s, str):
+        unit = s[-1].lower()
+        if unit in TIME_UNITS:
+            s = s[:-1]
+        else:
+            unit = default
     value = int(s)
     return value * TIME_UNITS[unit]
