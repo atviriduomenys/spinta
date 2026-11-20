@@ -6,7 +6,7 @@ from spinta.backends.constants import BackendFeatures
 from spinta.components import Page, Property, UrlParams
 from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import ExternalBackend
-from spinta.types.datatype import BackRef, Denorm, Ref
+from spinta.types.datatype import BackRef, Denorm, Object, Ref
 from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.components import ForeignProperty
@@ -177,23 +177,29 @@ def process_literal_value(value: Any) -> Any:
     return value
 
 
+def reference_above(prop: Property) -> Property | None:
+    """Nearest reference above `prop`, through objects of the referenced model, `salis` of `salis.adresas.gatve`."""
+    parent = prop.parent
+    while isinstance(parent, Property) and isinstance(parent.dtype, Object):
+        parent = parent.parent
+    if isinstance(parent, Property) and isinstance(parent.dtype, Ref | BackRef):
+        return parent
+    return None
+
+
 def denorm_to_foreign_property(dtype: Denorm) -> ForeignProperty | Property:
-    ref = dtype.prop.parent
+    ref = reference_above(dtype.prop)
     root_parent = ref
-    if isinstance(ref, Property) and isinstance(ref.dtype, Ref | BackRef):
+    if ref is not None:
         fpr = None
         if ref.dtype.inherited:
             parent_list = []
             root_ref_parent = ref
-            while (
-                root_ref_parent
-                and isinstance(root_ref_parent, Property)
-                and isinstance(root_ref_parent.dtype, Ref | BackRef)
-            ):
+            while root_ref_parent is not None:
                 parent_list.append(root_ref_parent)
                 if not root_ref_parent.dtype.inherited:
                     break
-                root_ref_parent = root_ref_parent.parent
+                root_ref_parent = reference_above(root_ref_parent)
 
             if parent_list:
                 parent_list = list(reversed(parent_list))

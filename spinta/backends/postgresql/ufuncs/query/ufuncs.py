@@ -52,7 +52,7 @@ from spinta.types.text.components import Text
 from spinta.types.text.helpers import determine_language_property_for_text
 from spinta.ufuncs.components import ForeignProperty
 from spinta.ufuncs.querybuilder.components import Flip, NestedProperty, ReservedProperty, ResultProperty
-from spinta.ufuncs.querybuilder.helpers import expanded, get_column_with_extra, get_language_column
+from spinta.ufuncs.querybuilder.helpers import expanded, get_column_with_extra, get_language_column, reference_above
 from spinta.ufuncs.querybuilder.ufuncs import Star
 from spinta.utils.data import take
 
@@ -126,7 +126,8 @@ def select(
     dtype: DataType,
 ) -> Selected:
     table = env.get_joined_table_from_ref(fpr)
-    column = env.backend.get_column(table, dtype.prop, select=True).label(fpr.left.prop.place + "." + dtype.prop.name)
+    # `place` keeps `salis.gatve` and `salis.adresas.gatve` apart.
+    column = env.backend.get_column(table, dtype.prop, select=True).label(fpr.left.prop.place + "." + dtype.prop.place)
     return Selected(
         item=env.add_column(column),
         prop=dtype.prop,
@@ -420,22 +421,18 @@ def select(env, dtype):
 
 @ufunc.resolver(PgQueryBuilder, Denorm)
 def _denorm_to_foreign_property(env: PgQueryBuilder, dtype: Denorm):
-    ref = dtype.prop.parent
-    if isinstance(ref, Property) and isinstance(ref.dtype, Ref | BackRef):
+    ref = reference_above(dtype.prop)
+    if ref is not None:
         fpr = None
         if ref.dtype.inherited:
-            root_ref_parent = ref.parent
+            root_ref_parent = reference_above(ref)
 
-            while (
-                root_ref_parent
-                and isinstance(root_ref_parent, Property)
-                and isinstance(root_ref_parent.dtype, Ref | BackRef)
-            ):
+            while root_ref_parent is not None:
                 fpr = ForeignProperty(fpr, root_ref_parent.dtype, root_ref_parent.dtype.model.id_prop.dtype)
 
                 if not root_ref_parent.dtype.inherited:
                     break
-                root_ref_parent = root_ref_parent.parent
+                root_ref_parent = reference_above(root_ref_parent)
         return ForeignProperty(fpr, ref.dtype, dtype.rel_prop.dtype)
     return dtype.rel_prop
 

@@ -120,8 +120,30 @@ Bug fixes:
   primary key property's name differs from its source column name
   (`#1924`_).
 
+- Generated OpenAPI specifications describe an array declared only by its
+  ``x[]`` row, such as a one-to-many ``backref``, with the visibility of that
+  row. Previously the array was left out, and response validation rejected it
+  as an additional property (`#2085`_).
+
+- Generated OpenAPI specifications describe properties declared under a
+  reference, such as ``miestai[].pavadinimas`` of a ``backref`` or
+  ``salis.rajonas.pavadinimas`` of a ``ref``. Such a reference points at a
+  schema of its own, named after the property, instead of the shared one
+  carrying only ``_id`` (`#2085`_).
+
+- A property without a type declared under a ``backref``, such as
+  ``miestai[].pavadinimas``, or under an object of a referenced model, such as
+  ``salis.adresas.gatve``, is looked up in the referenced model and read from
+  it, also through a reference in such an object, such as
+  ``salis.adresas.rajonas.pavadinimas``. Previously the manifest failed to load
+  with ``ReferencedPropertyNotFound`` (`#2085`_).
+
+- A manifest given by a Windows path, such as ``C:\manifest.json``, is no
+  longer taken for an SQL database URL, which failed with ``ValueError``.
+
 .. _#1924: https://github.com/atviriduomenys/spinta/issues/1924
 .. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
+.. _#2085: https://github.com/atviriduomenys/spinta/issues/2085
 .. _#2101: https://github.com/atviriduomenys/spinta/issues/2101
 
 2.1.0 (2026-11-11)

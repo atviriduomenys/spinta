@@ -24,7 +24,8 @@ class InternalSQLManifest(Manifest):
             engine = sa.create_engine(url)
             inspector = sa.inspect(engine)
             return inspector.has_table("_manifest")
-        except sa.exc.SQLAlchemyError:
+        # A Windows path, `C:\...`, reads as a URL with an invalid port.
+        except (sa.exc.SQLAlchemyError, ValueError):
             return False
 
     @contextlib.contextmanager
