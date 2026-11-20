@@ -10,6 +10,7 @@ from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.datasets.backends.sql.components import Sql
 from spinta.datasets.backends.sql.helpers import build_row_result, merge_query_with_filters
+from spinta.datasets.backends.sql.ufuncs.query.helpers import prepare_temporal_value
 from spinta.datasets.helpers import decode_id_value
 from spinta.datasets.keymaps.components import KeyMap
 from spinta.datasets.utils import iterparams
@@ -80,9 +81,9 @@ def getone(
         if isinstance(_id, list):
             pkeys = model.external.pkeys
             for index, pk in enumerate(pkeys):
-                pk_filter[pk.name] = _id[index]
+                pk_filter[pk.external.name] = _id[index]
         else:
-            pk_filter[model.external.pkeys[0].name] = _id
+            pk_filter[model.external.pkeys[0].external.name] = _id
 
     context.attach(f"transaction.{backend.name}", validate_and_return_begin, context, backend)
     conn = context.get(f"transaction.{backend.name}")
@@ -100,7 +101,8 @@ def getone(
     qry = env.build(where)
 
     for column_name, column_value in pk_filter.items():
-        qry = qry.where(table.c.get(column_name) == column_value)
+        column = table.c.get(column_name)
+        qry = qry.where(column == prepare_temporal_value(column, column_value))
 
     result = conn.execute(qry)
     row = result.fetchone()
