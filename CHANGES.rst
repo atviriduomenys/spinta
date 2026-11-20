@@ -133,8 +133,10 @@ Bug fixes:
 
 - A property without a type declared under a ``backref``, such as
   ``miestai[].pavadinimas``, or under an object of a referenced model, such as
-  ``salis.adresas.gatve``, is looked up in the referenced model. Previously
-  the manifest failed to load with ``ReferencedPropertyNotFound`` (`#2085`_).
+  ``salis.adresas.gatve``, is looked up in the referenced model and read from
+  it, also through a reference in such an object, such as
+  ``salis.adresas.rajonas.pavadinimas``. Previously the manifest failed to load
+  with ``ReferencedPropertyNotFound`` (`#2085`_).
 
 - A manifest given by a Windows path, such as ``C:\manifest.json``, is no
   longer taken for an SQL database URL, which failed with ``ValueError``.

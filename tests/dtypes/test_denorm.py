@@ -1440,3 +1440,51 @@ def test_denorm_under_object_is_read_from_referenced_model(
     assert listdata(resp, full=True) == [
         {"country._id": lithuania_id, "country.address.street": "Gedimino", "name": "Vilnius"},
     ]
+
+
+def test_denorm_under_reference_in_object_is_read_from_referenced_model(
+    rc: RawConfig,
+    postgresql: str,
+    request: FixtureRequest,
+):
+    """`country.address.district` is joined by the `address.district._id` column of `Country`."""
+    context = bootstrap_manifest(
+        rc,
+        """
+    d | r | b | m | property                      | type    | ref      | access
+    datasets/denorm/object/ref                    |         |          |
+      |   |   | District                          |         |          |
+      |   |   |   | name                          | string  |          | open
+      |   |   | Country                           |         |          |
+      |   |   |   | code                          | string  |          | open
+      |   |   |   | address                       | object  |          | open
+      |   |   |   | address.district              | ref     | District | open
+      |   |   | City                              |         |          |
+      |   |   |   | name                          | string  |          | open
+      |   |   |   | country                       | ref     | Country  | open
+      |   |   |   | country.address.district.name |         |          | open
+    """,
+        backend=postgresql,
+        request=request,
+    )
+
+    app = create_test_client(context)
+    app.authorize(["spinta_set_meta_fields"])
+    app.authmodel("datasets/denorm/object/ref/District", ["insert"])
+    district_id = str(uuid.uuid4())
+    app.post("/datasets/denorm/object/ref/District", json={"_id": district_id, "name": "Vilniaus"})
+
+    app.authmodel("datasets/denorm/object/ref/Country", ["insert"])
+    lithuania_id = str(uuid.uuid4())
+    app.post(
+        "/datasets/denorm/object/ref/Country",
+        json={"_id": lithuania_id, "code": "lt", "address": {"district": {"_id": district_id}}},
+    )
+
+    app.authmodel("datasets/denorm/object/ref/City", ["insert", "getall", "search"])
+    app.post("/datasets/denorm/object/ref/City", json={"name": "Vilnius", "country": {"_id": lithuania_id}})
+
+    resp = app.get("/datasets/denorm/object/ref/City")
+    assert listdata(resp, full=True) == [
+        {"country._id": lithuania_id, "country.address.district.name": "Vilniaus", "name": "Vilnius"},
+    ]
