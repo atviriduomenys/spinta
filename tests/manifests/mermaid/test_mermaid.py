@@ -959,3 +959,68 @@ def test_mermaid_id_is_css_safe_and_unique():
 
     assert len(set(ids)) == len(names)
     assert all(re.fullmatch(r"[A-Za-z0-9_]+", mermaid_id) for mermaid_id in ids)
+
+
+def test_copy_mmd_standalone_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+        d | r | b | m | property | type | ref | source | prepare | visibility
+        datasets/gov/example     |      |     |        |         |
+          |   |   |   |          | enum | atu | AUT    | 'AUT'   |
+          |   |   |   |          |      |     | AUT_BLD_BURG | 'AT-1' |
+          |   |   |   |          |      |     | AUT_BLD_KAER | 'AT-2' |
+        """),
+    )
+
+    cli.invoke(
+        rc,
+        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+    )
+
+    contents = (tmp_path / "result.mmd").read_text()
+    assert (
+        contents
+        == f"""{MERMAID_CONFIG}
+classDiagram
+namespace `datasets/gov/example` {{
+class `datasets_x2f_gov_x2f_example_x23_atu`["Atu"]:::Concept {{
+<<enumeration>>
+AUT
+AUT_BLD_BURG
+AUT_BLD_KAER
+}}
+}}
+classDef Concept {MermaidClassDef.Concept.value};
+classDef Entity {MermaidClassDef.Entity.value};
+"""
+    )
+
+
+def test_copy_mmd_standalone_enum_used_by_property_is_not_duplicated(
+    context: Context, rc, cli: SpintaCliRunner, tmp_path
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+        d | r | b | m | property  | type             | ref       | source      | prepare  | visibility
+        datasets/gov/example      |                  |           |             |          |
+          |   |   |   |           | enum             | continent |             | "Africa" |
+          |   |   |   |           |                  |           |             | "Asia"   |
+          |   |   | Country       |                  |           | salis       |          |
+          |   |   |   | id        | integer required |           | id          |          | public
+          |   |   |   | continent | string           | continent |             |          |
+        """),
+    )
+
+    cli.invoke(
+        rc,
+        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+    )
+
+    contents = (tmp_path / "result.mmd").read_text()
+    assert contents.count("<<enumeration>>") == 1
+    assert "x23_continent" not in contents
+    assert "`datasets_x2f_gov_x2f_example_x2f_CountryContinent`" in contents

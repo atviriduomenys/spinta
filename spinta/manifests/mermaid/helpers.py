@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import enum
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from spinta.components import Context, Model, Property
 from spinta.core.enums import Visibility
+from spinta.datasets.components import Dataset
 from spinta.manifests.yaml.components import InlineManifest
 from spinta.types.datatype import Array, ArrayBackRef, BackRef, Inherit, Ref
 from spinta.utils.naming import to_model_name
@@ -365,8 +367,43 @@ def write_mermaid_manifest(
         for model_property in model.get_given_properties().values():
             namespace.process_property(model, model_property, mermaid_class)
 
+    _add_standalone_enums(mermaid, manifest.get_objects()["dataset"].values(), models.values(), main_dataset)
+
     if not output:
         return str(mermaid)
 
     with open(output, "w") as file:
         file.write(str(mermaid))
+
+
+def _add_standalone_enums(
+    mermaid: MermaidClassDiagram,
+    datasets: Iterable[Dataset],
+    models: Iterable[Model],
+    main_dataset: str | None = None,
+) -> None:
+    """Draw dataset enums that no property uses as enum classes.
+
+    A standalone enum, for example a SKOS concept scheme in a file without
+    models, is not reachable from any model, so it would not be drawn. Enums
+    used by properties are already drawn in the class of their model.
+    """
+    used = {id(prop.enum) for model in models for prop in model.properties.values() if prop.enum}
+    for dataset in datasets:
+        if dataset.ns is None or not dataset.ns.enums:
+            continue
+        namespace_name = dataset.name if dataset.name != main_dataset else None
+        namespace = mermaid.get_namespace(namespace_name)
+        for enum_name, enum_value in dataset.ns.enums.items():
+            if id(enum_value) in used:
+                continue
+            # Dataset names never contain "#", so this id cannot clash with a
+            # model name or with an enum of another dataset.
+            mermaid_class = namespace.get_or_create_class(
+                name=f"{dataset.name}#{enum_name}",
+                label=to_model_name(enum_name),
+                definition=MermaidClassDef.Concept,
+                is_enum=True,
+            )
+            for source in enum_value:
+                mermaid_class.add_property(MermaidProperty(name=source.strip('"')), update=True)

@@ -27,7 +27,7 @@ mmdc -i .tmp/locn.mmd -o .tmp/locn.svg
 Convert SKOS to DSA:
 
 ```nu
-curl https://publications.europa.eu/resource/authority/atu -o .tmp/atu.xml
+curl https://publications.europa.eu/resource/authority/atu-type -o .tmp/atu.xml
 rdfpipe -i xml -o turtle .tmp/atu.xml | save -f .tmp/atu.ttl
 spinta -o rdf_fetch_remote=true copy .tmp/atu.ttl -o .tmp/atu.csv
 spinta check --check-names .tmp/atu.csv
