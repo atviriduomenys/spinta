@@ -4,6 +4,7 @@ import json
 import re
 import uuid
 import warnings
+from types import SimpleNamespace
 
 import pytest
 from jsonschema import ValidationError
@@ -21,7 +22,12 @@ from spinta.manifests.open_api.openapi_config import (
     PROPERTY_EXAMPLE,
     RESPONSE_COMPONENTS,
 )
-from spinta.manifests.open_api.openapi_generator import AGENT_TOKEN_PATH, NULL_OBJECT_SCHEMA, UTILITY_PATHS
+from spinta.manifests.open_api.openapi_generator import (
+    AGENT_TOKEN_PATH,
+    NULL_OBJECT_SCHEMA,
+    UTILITY_PATHS,
+    _published_nested,
+)
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
 from spinta.utils.encoding import encode_base32
@@ -2933,3 +2939,15 @@ def test_page_alone_is_authorized_the_way_the_document_says(model, app, open_man
     assert "`_page` alone" in description
     page = open_api_spec["components"]["parameters"]["page"]["schema"]
     assert page["maxLength"] >= len(token)
+
+
+@pytest.mark.parametrize("explicitly_given, published", [(None, False), (True, False), (False, True)])
+def test_only_a_property_created_by_spinta_is_published_by_its_descendants(explicitly_given, published):
+    """`explicitly_given` of YAML and inline manifests is `None`, which is explicit, not created by Spinta."""
+    street = SimpleNamespace(visibility=Visibility.public, dtype=None, explicitly_given=True)
+    address = SimpleNamespace(
+        visibility=Visibility.private,
+        dtype=SimpleNamespace(properties={"street": street}),
+        explicitly_given=explicitly_given,
+    )
+    assert _published_nested(address) is published

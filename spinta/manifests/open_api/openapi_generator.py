@@ -198,7 +198,12 @@ def _published_nested(prop: Property) -> bool:
         return True
     # `rajonas` of `miestas.rajonas.pavadinimas` or `adresas` of `salis.adresas.gatve` is created by Spinta,
     # without a visibility of its own.
-    return not getattr(prop, "explicitly_given", True) and bool(_nested_properties(prop.dtype))
+    return _created_by_spinta(prop) and bool(_nested_properties(prop.dtype))
+
+
+def _created_by_spinta(prop: Property) -> bool:
+    # `None`, as in YAML or inline manifests, is explicit too, see `load` of a property.
+    return getattr(prop, "explicitly_given", True) is False
 
 
 def _reference_shape(model_property, dtype) -> tuple:
@@ -1677,7 +1682,7 @@ class SchemaGenerator:
                 getattr(model_property, "level", None),
                 _nested_properties(dtype),
                 # A link of a chain Spinta created carries only what is declared under it.
-                carries_id=getattr(model_property, "explicitly_given", True),
+                carries_id=not _created_by_spinta(model_property),
             )
 
     def _add_nested_properties(
