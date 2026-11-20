@@ -76,6 +76,10 @@ New features:
   main dataset. Prefixes that are not used by the models are no longer written
   (`#2101`_).
 
+- Mermaid class diagrams draw at most 50 items of an enum, followed by an
+  ``(N more...)`` item, where ``N`` is the number of items not drawn. The limit
+  is set by the new ``uml_max_enum_items`` configuration option.
+
 Bug fixes:
 
 - Array items with an enum, for example ``tags[]`` with ``ref`` to an enum,

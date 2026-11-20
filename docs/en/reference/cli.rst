@@ -162,6 +162,21 @@ Example
   classDef Concept stroke:#8FB58F,fill:#F0FDF0,color:#000000;
   classDef Entity stroke:#9D8787,fill:#F5E8DF,color:#000000;
 
+Enums with many items
+~~~~~~~~~~~~~~~~~~~~~
+
+An enum is drawn with at most ``uml_max_enum_items`` items, which is ``50``
+by default, so that very large enums do not make the diagram unreadable. The
+remaining items are replaced by one ``(N more...)`` item, where ``N`` is the
+number of items that are not drawn:
+
+.. code-block:: bash
+
+   spinta -o uml_max_enum_items=20 copy manifest.csv -o manifest.mmd
+
+Mermaid does not render a ``(N more...)`` line directly, so it is written with
+entities, ``#40;N more...#41;``, which Mermaid displays as ``(N more...)``.
+
 RDF Turtle output
 -----------------
 

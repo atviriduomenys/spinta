@@ -253,6 +253,10 @@ CONFIG = {
     # follow `owl:imports` and concept schemes. Off by default, so that the
     # result does not depend on the network.
     "rdf_fetch_remote": False,
+    # Maximum number of enum items drawn for one enum in a UML diagram,
+    # for example `spinta copy manifest.csv -o manifest.mmd`. Remaining items
+    # are replaced by a `(N more...)` item.
+    "uml_max_enum_items": 50,
     "env": "prod",
     # Default limit of objects in a page
     # If None is given default is 100000

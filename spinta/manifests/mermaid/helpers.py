@@ -43,6 +43,16 @@ def _mermaid_safe(value: str | None) -> str | None:
     return value.translate(_MMD_ENCODE)
 
 
+def _more_enum_items(count: int) -> str:
+    """Return the `(N more...)` item that replaces enum items not drawn in the diagram.
+
+    Mermaid parses a class member with parentheses as a method, and `(N more...)`
+    has no name before `(`, so Mermaid fails to render it. The parentheses are
+    written as entities, which Mermaid renders as `(` and `)`.
+    """
+    return f"#40;{count} more...#41;"
+
+
 def _mermaid_id(name: str) -> str:
     """Return a Mermaid class id that is safe to use as a CSS class.
 
@@ -74,10 +84,13 @@ class MermaidClassDef(enum.Enum):
 class MermaidClassDiagram:
     namespaces: dict[str | None, MermaidNameSpace]
     relationships: set[MermaidRelationship]
+    # Maximum number of items drawn for one enum, `None` draws all items.
+    max_enum_items: int | None
 
-    def __init__(self) -> None:
+    def __init__(self, max_enum_items: int | None = None) -> None:
         self.namespaces = {}
         self.relationships = set()
+        self.max_enum_items = max_enum_items
 
     def __str__(self) -> str:
         text = f"{MERMAID_CONFIG}\n"
@@ -122,7 +135,7 @@ class MermaidNameSpace:
 
     def get_or_create_class(self, name: str, **kwargs) -> MermaidClass:
         if name not in self.classes:
-            self.classes[name] = MermaidClass(name=name, **kwargs)
+            self.classes[name] = MermaidClass(name=name, max_enum_items=self.mermaid.max_enum_items, **kwargs)
         return self.classes[name]
 
     def process_property(
@@ -206,15 +219,22 @@ class MermaidClass:
     definition: MermaidClassDef
     properties: dict[str, MermaidProperty]
     is_enum: bool
+    max_enum_items: int | None
 
     def __init__(
-        self, name: str, label: str, definition: MermaidClassDef = MermaidClassDef.Entity, is_enum: bool = False
+        self,
+        name: str,
+        label: str,
+        definition: MermaidClassDef = MermaidClassDef.Entity,
+        is_enum: bool = False,
+        max_enum_items: int | None = None,
     ) -> None:
         self.name = name
         self.label = label
         self.definition = definition
         self.properties = {}
         self.is_enum = is_enum
+        self.max_enum_items = max_enum_items
 
     def add_property(self, prop: MermaidProperty, update: bool = False) -> None:
         if update or prop.name not in self.properties:
@@ -239,16 +259,32 @@ class MermaidClass:
             class_text += "«optional»\n" if not self.is_enum else ""
             class_text += "".join(f"{str(prop)}\n" for prop in optional_properties)
 
+        if hidden := self.hidden_enum_items:
+            class_text += f"{_more_enum_items(hidden)}\n"
+
         class_text += "}"
         return class_text
 
     @property
+    def drawn_properties(self) -> list[MermaidProperty]:
+        """Properties drawn in the diagram, enum items are limited to `max_enum_items`."""
+        properties = list(self.properties.values())
+        if self.is_enum and self.max_enum_items is not None:
+            return properties[: self.max_enum_items]
+        return properties
+
+    @property
+    def hidden_enum_items(self) -> int:
+        """Number of enum items that are not drawn because of `max_enum_items`."""
+        return len(self.properties) - len(self.drawn_properties)
+
+    @property
     def optional_properties(self) -> list[MermaidProperty]:
-        return [prop for prop in self.properties.values() if not prop.required]
+        return [prop for prop in self.drawn_properties if not prop.required]
 
     @property
     def mandatory_properties(self) -> list[MermaidProperty]:
-        return [prop for prop in self.properties.values() if prop.required]
+        return [prop for prop in self.drawn_properties if prop.required]
 
 
 @dataclass
@@ -344,7 +380,8 @@ def write_mermaid_manifest(
     If `output` is specified, writes the diagram to that file and returns None.
     Otherwise returns the diagram as a string.
     """
-    mermaid = MermaidClassDiagram()
+    config = context.get("config")
+    mermaid = MermaidClassDiagram(max_enum_items=config.uml_max_enum_items)
 
     models: dict[str, Model] = manifest.get_objects()["model"]
     for model in models.values():

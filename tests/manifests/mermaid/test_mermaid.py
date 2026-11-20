@@ -1024,3 +1024,92 @@ def test_copy_mmd_standalone_enum_used_by_property_is_not_duplicated(
     assert contents.count("<<enumeration>>") == 1
     assert "x23_continent" not in contents
     assert "`datasets_x2f_gov_x2f_example_x2f_CountryContinent`" in contents
+
+
+def _write_enum_manifest(context: Context, path, items: int, *, standalone: bool = False) -> None:
+    """Write a manifest with an enum of `items` items, `Item00`, `Item01`, ..."""
+    if standalone:
+        # Standalone enum is declared on the dataset level, and no model uses it.
+        text = """
+        d | r | b | m | property | type | ref       | source | prepare | visibility
+        datasets/gov/example     |      |           |        |         |
+          |   |   |   |          | enum | continent | Item00 | 'Item00' |
+        """
+        text += "".join(
+            f"          |   |   |   |          |      |           | Item{i:02d} | 'Item{i:02d}' |\n"
+            for i in range(1, items)
+        )
+        create_tabular_manifest(context, path, striptable(text))
+        return
+
+    rows = ['          |   |   |   |           | enum             |           |             | "Item00" |']
+    rows += [
+        f'          |   |   |   |           |                  |           |             | "Item{i:02d}" |'
+        for i in range(1, items)
+    ]
+    text = (
+        """
+        d | r | b | m | property  | type             | ref       | source      | prepare  | visibility
+        datasets/gov/example      |                  |           |             |          |
+          | data                  | sql              |           |             |          |
+                                  |                  |           |             |          |
+          |   |   | Country       |                  |           | salis       |          |
+          |   |   |   | id        | integer required |           | id          |          | public
+          |   |   |   | continent | string           |           |             |          |
+    """
+        + "\n".join(rows)
+        + "\n"
+    )
+    create_tabular_manifest(context, path, striptable(text))
+
+
+def test_copy_mmd_enum_limited_to_50_items_by_default(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    _write_enum_manifest(context, tmp_path / "manifest.csv", items=60)
+
+    cli.invoke(
+        rc,
+        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+    )
+
+    contents = (tmp_path / "result.mmd").read_text()
+    assert "Item49\n#40;10 more...#41;\n}" in contents
+    assert "Item50" not in contents
+
+
+def test_copy_mmd_enum_with_50_items_is_not_marked(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    _write_enum_manifest(context, tmp_path / "manifest.csv", items=50)
+
+    cli.invoke(
+        rc,
+        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+    )
+
+    contents = (tmp_path / "result.mmd").read_text()
+    assert "more..." not in contents
+    assert "Item49\n}" in contents
+
+
+def test_copy_mmd_enum_limit_is_configurable(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    _write_enum_manifest(context, tmp_path / "manifest.csv", items=5)
+
+    cli.invoke(
+        rc.fork({"uml_max_enum_items": 3}),
+        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+    )
+
+    contents = (tmp_path / "result.mmd").read_text()
+    assert "Item00\nItem01\nItem02\n#40;2 more...#41;\n}" in contents
+    assert "Item03" not in contents
+
+
+def test_copy_mmd_standalone_enum_limited_to_50_items(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    _write_enum_manifest(context, tmp_path / "manifest.csv", items=52, standalone=True)
+
+    cli.invoke(
+        rc,
+        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+    )
+
+    contents = (tmp_path / "result.mmd").read_text()
+    assert "Item49\n#40;2 more...#41;\n}" in contents
+    assert "Item50" not in contents
