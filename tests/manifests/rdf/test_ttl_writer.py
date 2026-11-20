@@ -402,6 +402,42 @@ def test_copy_to_ttl_writes_notation_only_when_prepared_value_differs_from_sourc
     assert (_uri(f"def/{DATASET}/Flag/true"), SKOS.notation, Literal(True)) in graph
 
 
+def test_copy_to_ttl_encoded_source_without_notation_round_trips(rc, cli: SpintaCliRunner, tmp_path):
+    # Codes with spaces and non-ASCII characters are percent-encoded in concept IRIs, but the
+    # source is the decoded code, so no notation is written and the source is kept.
+    rows = [
+        {"dataset": DATASET},
+        {"type": "enum", "ref": "City", "source": "Vilniaus m.", "prepare": "'Vilniaus m.'", "access": "open"},
+        {"type": "enum", "ref": "City", "source": "Ąžuolas", "access": "open"},
+        {"model": "Country", "access": "open"},
+        {"property": "city", "type": "string", "ref": "City", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert (_uri(f"def/{DATASET}/City/Vilniaus%20m."), SKOS.notation, None) not in graph
+    assert (_uri(f"def/{DATASET}/City/%C4%84%C5%BEuolas"), SKOS.notation, None) not in graph
+
+    enums = {row["source"]: row["prepare"] for row in _copy_back(rc, cli, tmp_path) if row["source"]}
+    assert enums == {"Vilniaus m.": "'Vilniaus m.'", "Ąžuolas": "'Ąžuolas'"}
+
+
+def test_copy_to_ttl_encoded_source_with_notation_round_trips(rc, cli: SpintaCliRunner, tmp_path):
+    rows = [
+        {"dataset": DATASET},
+        {"type": "enum", "ref": "City", "source": "Vilniaus m.", "prepare": "'VLN'", "access": "open"},
+        {"model": "Country", "access": "open"},
+        {"property": "city", "type": "string", "ref": "City", "access": "open"},
+    ]
+    _copy(rc, cli, tmp_path, rows)
+
+    graph = _graph(tmp_path / "result.ttl")
+    assert (_uri(f"def/{DATASET}/City/Vilniaus%20m."), SKOS.notation, Literal("VLN")) in graph
+
+    enums = {row["source"]: row["prepare"] for row in _copy_back(rc, cli, tmp_path) if row["source"]}
+    assert enums == {"Vilniaus m.": "'VLN'"}
+
+
 def test_copy_to_ttl_uri_prefix_trailing_slash_is_optional(rc, cli: SpintaCliRunner, tmp_path):
     _write_manifest(tmp_path / "manifest.csv", _manifest_rows())
 

@@ -1173,7 +1173,7 @@ def _load_enum(
     share one enum. Schemes with the same local name are different vocabularies,
     they get separate enums, see `_enum_name`.
 
-    The key of an item is the local name of its concept, its prepared value is
+    The key of an item is the decoded local name of its concept, its prepared value is
     the `skos:notation` of the concept, see `_prepared_value`.
     """
     key = (dataset["name"], frozenset(str(scheme) for scheme in schemes))
@@ -1187,7 +1187,7 @@ def _load_enum(
     iris: dict[str, str] = {}
     for concept in concepts:
         iri = str(concept)
-        source = _local_name(iri)
+        source = _concept_source(iri)
         if source in items:
             if iris[source] != iri:
                 log.warning(
@@ -1218,6 +1218,15 @@ def _load_enum(
     dataset.setdefault("enums", {})[enum_name] = items
     enums[key] = enum_name
     return enum_name
+
+
+def _concept_source(iri: str) -> str:
+    """Return the source of an enum item, the decoded local name of its concept IRI.
+
+    Concept IRIs percent-encode codes, `Vilniaus m.` is `.../Vilniaus%20m.`, so the
+    local name is decoded. The writer encodes codes the same way, see `_generated`.
+    """
+    return urllib.parse.unquote(_local_name(iri))
 
 
 def _prepared_value(notation: Node | None, source: str) -> str:
