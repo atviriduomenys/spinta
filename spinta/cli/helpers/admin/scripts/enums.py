@@ -11,7 +11,6 @@ from multipledispatch import dispatch
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
 from spinta.manifests.components import Manifest
@@ -69,7 +68,7 @@ class InvalidEnumModel:
 
 
 def gather_invalid_enum_values(context: Context, output_path: pathlib.Path | None = None, **kwargs):
-    store = ensure_store_is_loaded(context)
+    store = context.get("store")
     manifest = store.manifest
     invalid_models = {}
     with context:

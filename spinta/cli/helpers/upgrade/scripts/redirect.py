@@ -10,7 +10,6 @@ from spinta.backends import Backend
 from spinta.backends.constants import TableType
 from spinta.backends.helpers import get_table_identifier
 from spinta.backends.postgresql.components import PostgreSQL
-from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model
 
 
@@ -62,14 +61,12 @@ def models_missing_redirect(context: Context, **kwargs) -> Iterator[Model]:
 
 
 def cli_requires_redirect_migration(context: Context, **kwargs) -> bool:
-    ensure_store_is_loaded(context)
     missing_models = list(models_missing_redirect(context, **kwargs))
     model_count = len(missing_models)
     return model_count > 0
 
 
 def migrate_redirect(context: Context, **kwargs):
-    ensure_store_is_loaded(context)
     missing_models = list(models_missing_redirect(context, **kwargs))
     model_count = len(missing_models)
 
