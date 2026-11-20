@@ -4,6 +4,54 @@ Changes
 2.2.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- Enforced `#1990`_ changes to existing configurations and scripts (`#2077`_).
+  Configurations like:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute: copy
+            properties:
+                code:
+                    type: sqlalchemy.types.BigInteger
+
+  Need to be replaced with:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+            properties:
+                code:
+                    type:
+                        name: sqlalchemy.types.BigInteger
+
+  Scripts that generate configuration files no longer return yml files which overwrite whole configuration:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+        datasets/gov/AnotherModel:
+            distribute:
+                type: copy
+
+  Now is returned as:
+
+  .. code-block:: yaml
+
+    models.datasets/gov/Model.distribute:
+        type: copy
+    models.datasets/gov/AnotherModel.distribute:
+        type: copy
+
 New features:
 
 - ``spinta copy manifest.csv -o manifest.ttl`` writes a manifest as RDF Turtle
@@ -22,8 +70,6 @@ New features:
   only when it is ``true``. It is ``false`` by default, so web IRIs are not
   fetched. Local files, including ``file:`` imports, are always read, because
   ``rdf_fetch_remote`` affects only remote files (`#2101`_).
-
-Backwards incompatible:
 
 - RDF manifests are split into datasets by the prefix of their model URIs. For
   example, ``dcat:Dataset`` is read into the ``dcat`` dataset, instead of the
@@ -52,6 +98,8 @@ Bug fixes:
   When an RDF file is read back, a base in another dataset keeps its dataset
   name, so cross-dataset bases round-trip.
 
+.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
+.. _#2101: https://github.com/atviriduomenys/spinta/issues/2101
 
 2.1.0 (2026-11-11)
 =====================
@@ -95,7 +143,6 @@ Bug fixes:
 - Fixed ``spinta inspect`` failing with ``Invalid value for '-r' /
   '--resource'`` when ``typer`` 0.29 or newer is installed.
 
-.. _#2101: https://github.com/atviriduomenys/spinta/issues/2101
 .. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
 .. _#1472: https://github.com/atviriduomenys/spinta/issues/1472
 

@@ -378,7 +378,7 @@ a mapping:
 .. code-block:: yaml
 
     distribute:
-      type: copey
+      type: copy
 
 None of the following forms are supported:
 
