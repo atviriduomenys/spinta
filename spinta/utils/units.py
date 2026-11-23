@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 BYTE_MULTIPLES = {
     "b": 1,
     "k": 1000,
@@ -42,3 +44,7 @@ def toseconds(s, default: str = "s"):
             unit = default
     value = int(s)
     return value * TIME_UNITS[unit]
+
+
+def totimedelta(value: str | int) -> timedelta:
+    return timedelta(seconds=toseconds(value))

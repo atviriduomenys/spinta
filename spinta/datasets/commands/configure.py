@@ -4,7 +4,7 @@ from spinta import commands
 from spinta.components import Context
 from spinta.datasets.components import Dataset
 from spinta.utils.config import asbool
-from spinta.utils.units import toseconds
+from spinta.utils.units import totimedelta
 
 
 @commands.configure.register(Context, Dataset)
@@ -21,4 +21,4 @@ def configure(context: Context, dataset: Dataset):
         dataset.accrual_periodicity = rc.get(*accrual_periodicity_key, default=None)
 
     if dataset.accrual_periodicity is not None and not isinstance(dataset.accrual_periodicity, timedelta):
-        dataset.accrual_periodicity = timedelta(seconds=toseconds(dataset.accrual_periodicity))
+        dataset.accrual_periodicity = totimedelta(dataset.accrual_periodicity)

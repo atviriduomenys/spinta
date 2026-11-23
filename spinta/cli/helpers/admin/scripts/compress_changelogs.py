@@ -24,8 +24,6 @@ UPDATE_OPS = (Action.PATCH.value, Action.UPDATE.value, Action.UPSERT.value)
 TERMINAL_OPS = (Action.DELETE.value, Action.MOVE.value)
 ANCHOR_OPS = (Action.INSERT.value, Action.UPSERT.value)
 
-COMPRESSION_BATCH_SIZE = 10000
-
 
 @dataclass
 class CompressionRow:
@@ -48,7 +46,7 @@ def check_if_need_to_compress_changelogs(context: Context, **kwargs) -> bool:
     store = context.get("store")
     manifest = store.manifest
     for model in commands.get_models(context, manifest).values():
-        if _requires_changelog_compression(model, model.backend):
+        if _requires_changelog_compression(model, model.backend, verbose=False):
             return True
     return False
 
@@ -73,6 +71,7 @@ def compress_changelogs(
     if not models:
         return
 
+    batch_size = context.get("config").changelog_compression_batch_size
     with tqdm(total=len(models), desc="Compressing changelogs", unit="model", ascii=True) as progress_bar:
         for model in models:
             progress_bar.set_postfix_str(model.model_type())
@@ -81,7 +80,7 @@ def compress_changelogs(
                 model.backend,
                 cutoff=cutoff,
                 compressed_at=compressed_at,
-                batch_size=context.get("config").changelog_compression_batch_size,
+                batch_size=batch_size,
                 progress_bar=progress_bar,
             )
             progress_bar.update(1)
@@ -92,13 +91,13 @@ def _compress_model_changelog(
     model: Model,
     backend: PostgreSQL,
     *,
+    batch_size: int,
     cutoff: datetime | None = None,
     compressed_at: datetime | None = None,
-    batch_size: int = COMPRESSION_BATCH_SIZE,
     progress_bar: tqdm | None = None,
 ):
     with backend.begin() as conn:
-        # retention_policy cannot be None at this point, since _compress_model_changelog can only be called on valid models
+        # Eligible models always have a retention period.
         if cutoff is None:
             cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - model.external.dataset.retention_periodicity
         changelog_table = backend.get_table(model, TableType.CHANGELOG)
@@ -156,14 +155,7 @@ def delete_expired_lifecycles(
     *,
     cutoff: datetime,
 ) -> int:
-    """
-    Delete complete lifecycles that:
-
-      1. are not the latest lifecycle for their _rid;
-      2. have no rows inside the retention period.
-
-    The latest lifecycle is always preserved, regardless of age.
-    """
+    """Delete expired lifecycles before the first one with recent activity, keeping at least the latest."""
     rows = lifecycle_rows(
         table,
         name="expired_lifecycle_rows",
@@ -204,8 +196,8 @@ def compress_lifecycles(
     table: sa.Table,
     *,
     cutoff: datetime,
+    batch_size: int,
     compressed_at: datetime | None = None,
-    batch_size: int = COMPRESSION_BATCH_SIZE,
     progress_bar: tqdm | None = None,
 ) -> int:
     if compressed_at is None:
@@ -528,11 +520,8 @@ def lifecycle_rows(
         previous_creator_cid,
     ).cte(f"{name}_state")
 
-    # insert -> always an anchor
-    #
-    # upsert -> anchor when:
-    #   * there has never been a creator before it, OR
-    #   * the most recent terminal is newer than the most recent creator
+    # INSERT always starts a lifecycle. UPSERT starts one before any creator
+    # or when the previous lifecycle has ended.
     is_anchor = sa.case(
         (
             state.c.action == Action.INSERT.value,
@@ -580,26 +569,32 @@ def _compress_model_changelog(
     model: Model,
     backend: Backend,
     *,
+    batch_size: int,
     cutoff: datetime | None = None,
     compressed_at: datetime | None = None,
-    batch_size: int = COMPRESSION_BATCH_SIZE,
     progress_bar: tqdm | None = None,
 ):
     raise NotImplementedError()
 
 
 @dispatch(Model, PostgreSQL)
-def _requires_changelog_compression(model: Model, backend: PostgreSQL) -> bool:
+def _requires_changelog_compression(model: Model, backend: PostgreSQL, verbose: bool = True) -> bool:
     if model.name.startswith("_"):
         return False
 
-    if not model.external or not model.external.dataset or not model.external.dataset.enable_retention_policy:
-        cli_message(f"Skipped {model.name} changelog compression, model's dataset has disabled retention policy")
+    if not model.external or not model.external.dataset:
+        if verbose:
+            cli_message(f"Skipped {model.name} changelog compression, model does not have dataset")
+        return False
+
+    if not model.external.dataset.enable_retention_policy:
+        if verbose:
+            cli_message(f"Skipped {model.name} changelog compression, model's dataset has disabled retention policy")
         return False
 
     return True
 
 
 @dispatch(Model, Backend)
-def _requires_changelog_compression(model: Model, backend: Backend) -> bool:
+def _requires_changelog_compression(model: Model, backend: Backend, verbose: bool = True) -> bool:
     return False

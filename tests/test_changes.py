@@ -104,7 +104,13 @@ def test_changes_include_compression_timestamp(
     table = node.backend.get_table(node, TableType.CHANGELOG)
     compressed_at = datetime(2035, 1, 1, 12)
     with node.backend.begin() as conn:
-        compress_lifecycles(conn, table, cutoff=compressed_at, compressed_at=compressed_at)
+        compress_lifecycles(
+            conn,
+            table,
+            cutoff=compressed_at,
+            batch_size=context.get("config").changelog_compression_batch_size,
+            compressed_at=compressed_at,
+        )
 
     assert listdata(app.get(url), "_cid", "_compressed", "status") == [
         (1, None, "1"),

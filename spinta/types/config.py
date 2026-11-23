@@ -1,6 +1,5 @@
 import json
 import pathlib
-from datetime import timedelta
 
 from ruamel.yaml import YAML
 
@@ -19,7 +18,7 @@ from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
-from spinta.utils.units import tobytes, toseconds
+from spinta.utils.units import tobytes, totimedelta
 
 yaml = YAML(typ="safe")
 
@@ -168,18 +167,12 @@ def load(context: Context, config: Config) -> Config:
         ),
     )
     config.citus_reference_script_size = rc.get("citus_reference_script_size", cast=tobytes, default="10g")
-    config.changelog_compression_batch_size = rc.get("changelog_compression_batch_size", cast=int, default=10000)
+    config.changelog_compression_batch_size = rc.get("changelog_compression_batch_size", cast=int, required=True)
     if config.changelog_compression_batch_size <= 0:
         raise ValueError("changelog_compression_batch_size must be a positive integer")
 
-    config.minimal_retention_periodicity = rc.get(
-        "minimal_retention_periodicity", default="1n", cast=lambda value: timedelta(seconds=toseconds(value))
-    )
-    config.default_retention_periodicity = rc.get(
-        "default_retention_periodicity",
-        default=None,
-        cast=lambda value: timedelta(seconds=toseconds(value)) if value is not None else None,
-    )
+    config.minimal_retention_periodicity = rc.get("minimal_retention_periodicity", default="1n", cast=totimedelta)
+    config.default_retention_periodicity = rc.get("default_retention_periodicity", default=None, cast=totimedelta)
 
     return config
 
