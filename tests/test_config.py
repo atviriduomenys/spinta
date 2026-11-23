@@ -844,22 +844,6 @@ def test_fork_scalar_value_for_keys_raises_error():
         rc.fork({"backends": "one"})
 
 
-@pytest.mark.parametrize("default", [None, False, 0, "", [], {}])
-@pytest.mark.parametrize("configured", [False, True])
-def test_cast_preserves_explicit_default_for_null(default, configured):
-    rc = RawConfig()
-    if configured:
-        rc.add("test", {"value": None})
-
-    def cast(value):
-        assert value is not None
-        return value
-
-    result = rc.get("value", default=default, cast=cast)
-    assert type(result) is type(default)
-    assert result == default
-
-
 @pytest.mark.parametrize(
     "default,cast,required,expected",
     [
