@@ -34,7 +34,7 @@ def test_rdf_with_one_schema():
             1,
             {
                 "type": "model",
-                "name": "datasets/rdf/Dataset",
+                "name": "dcat/Dataset",
                 "base": None,
                 "properties": {
                     "identifier": {
@@ -49,7 +49,7 @@ def test_rdf_with_one_schema():
                 "access": "open",
                 "description": "Dataset",
                 "title": "Dataset",
-                "external": {"dataset": "datasets/rdf"},
+                "external": {"dataset": "dcat"},
             },
         )
     ]
@@ -85,14 +85,14 @@ def test_rdf_with_duplicate_schema_for_model():
             1,
             {
                 "type": "model",
-                "name": "datasets/rdf/Dataset",
+                "name": "dcat/Dataset",
                 "base": None,
                 "properties": {},
                 "uri": "dcat:Dataset",
                 "access": "open",
                 "description": "Dataset rdfs\nDataset shacl",
                 "title": "Dataset",
-                "external": {"dataset": "datasets/rdf"},
+                "external": {"dataset": "dcat"},
             },
         )
     ]
@@ -137,7 +137,7 @@ def test_rdf_with_duplicate_schema_for_property():
             1,
             {
                 "type": "model",
-                "name": "datasets/rdf/Dataset",
+                "name": "dcat/Dataset",
                 "base": None,
                 "properties": {
                     "identifier": {
@@ -152,7 +152,7 @@ def test_rdf_with_duplicate_schema_for_property():
                 "access": "open",
                 "description": "Dataset",
                 "title": "Dataset",
-                "external": {"dataset": "datasets/rdf"},
+                "external": {"dataset": "dcat"},
             },
         )
     ]
@@ -179,7 +179,7 @@ def test_rdf_with_missing_model():
             1,
             {
                 "type": "model",
-                "name": "datasets/rdf/Resource",
+                "name": "rdfs/Resource",
                 "base": None,
                 "properties": {
                     "identifier": {
@@ -194,7 +194,7 @@ def test_rdf_with_missing_model():
                 "access": "open",
                 "description": "",
                 "title": "",
-                "external": {"dataset": "datasets/rdf"},
+                "external": {"dataset": "rdfs"},
             },
         )
     ]
@@ -230,28 +230,28 @@ def test_rdf_with_base():
             1,
             {
                 "type": "model",
-                "name": "datasets/rdf/Base",
+                "name": "dcat/Base",
                 "base": None,
                 "properties": {},
                 "uri": "dcat:Base",
                 "access": "open",
                 "description": "Base model",
                 "title": "Base",
-                "external": {"dataset": "datasets/rdf"},
+                "external": {"dataset": "dcat"},
             },
         ),
         (
             2,
             {
                 "type": "model",
-                "name": "datasets/rdf/Dataset",
-                "base": {"name": "Base", "parent": "datasets/rdf/Base"},
+                "name": "dcat/Dataset",
+                "base": {"name": "Base", "parent": "dcat/Base"},
                 "properties": {},
                 "uri": "dcat:Dataset",
                 "access": "open",
                 "description": "Dataset",
                 "title": "Dataset",
-                "external": {"dataset": "datasets/rdf"},
+                "external": {"dataset": "dcat"},
             },
         ),
     ]
@@ -296,7 +296,7 @@ def test_rdf_with_ref():
             1,
             {
                 "type": "model",
-                "name": "datasets/rdf/Dataset",
+                "name": "dcat/Dataset",
                 "base": None,
                 "properties": {
                     "catalog": {
@@ -305,28 +305,28 @@ def test_rdf_with_ref():
                         "description": "Dataset catalog",
                         "uri": "dct:catalog",
                         "access": "open",
-                        "model": "datasets/rdf/Catalog",
+                        "model": "dcat/Catalog",
                     }
                 },
                 "uri": "dcat:Dataset",
                 "access": "open",
                 "description": "Dataset",
                 "title": "Dataset",
-                "external": {"dataset": "datasets/rdf"},
+                "external": {"dataset": "dcat"},
             },
         ),
         (
             2,
             {
                 "type": "model",
-                "name": "datasets/rdf/Catalog",
+                "name": "dcat/Catalog",
                 "base": None,
                 "properties": {},
                 "uri": "dcat:Catalog",
                 "access": "open",
                 "description": "Catalog",
                 "title": "Catalog",
-                "external": {"dataset": "datasets/rdf"},
+                "external": {"dataset": "dcat"},
             },
         ),
     ]
@@ -362,7 +362,7 @@ def test_rdf_with_different_language():
             1,
             {
                 "type": "model",
-                "name": "datasets/rdf/Dataset",
+                "name": "dcat/Dataset",
                 "base": None,
                 "properties": {
                     "identifier": {
@@ -377,7 +377,7 @@ def test_rdf_with_different_language():
                 "access": "open",
                 "description": "",
                 "title": "",
-                "external": {"dataset": "datasets/rdf"},
+                "external": {"dataset": "dcat"},
             },
         )
     ]

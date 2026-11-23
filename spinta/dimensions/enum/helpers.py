@@ -4,14 +4,15 @@ from typing import TypeVar, cast
 
 from spinta.components import Context, Model, Namespace, Property
 from spinta.core.access import link_access_param, load_access_param
-from spinta.core.enums import load_level, load_status, load_visibility
+from spinta.core.enums import Access, load_level, load_status, load_visibility
 from spinta.core.ufuncs import asttoexpr
 from spinta.dimensions.enum.components import EnumFormula, EnumItem, Enums, EnumValue
-from spinta.exceptions import EnumPrepareMissing, ValueNotInEnum
+from spinta.exceptions import EnumPrepareMissing, UndefinedEnum, ValueNotInEnum
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import EnumRow
 from spinta.nodes import load_node
 from spinta.types.datatype import String
+from spinta.units.helpers import is_unit
 from spinta.utils.schema import NA
 
 
@@ -63,12 +64,33 @@ def load_enums(
 def link_enums(
     parents: list[Property | Model | Namespace],
     enums: Enums | None,
+    *,
+    default_access: Access = Access.private,
 ) -> None:
     if enums is None:
         return
     for enum in enums.values():
         for item in enum.values():
-            link_access_param(item, parents)
+            link_access_param(item, parents, default_access=default_access)
+
+
+def link_prop_enum(
+    prop: Property,
+) -> EnumValue | None:
+    if prop.given.enum:
+        enums: list[Enums] = (
+            [prop.enums]
+            + [prop.model.ns.enums]
+            + [ns.enums for ns in prop.model.ns.parents()]
+            + [prop.model.manifest.enums]
+        )
+        for enums_ in enums:
+            if enums_ and prop.given.enum in enums_:
+                return enums_[prop.given.enum]
+        if not is_unit(prop.dtype, prop.given.enum):
+            raise UndefinedEnum(prop, name=prop.given.enum)
+    elif prop.enums:
+        return prop.enums.get("")
 
 
 def get_prop_enum(prop: Property | None) -> EnumValue:

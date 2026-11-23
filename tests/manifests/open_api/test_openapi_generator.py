@@ -4,6 +4,7 @@ import json
 import re
 import uuid
 import warnings
+from types import SimpleNamespace
 
 import pytest
 from jsonschema import ValidationError
@@ -21,7 +22,12 @@ from spinta.manifests.open_api.openapi_config import (
     PROPERTY_EXAMPLE,
     RESPONSE_COMPONENTS,
 )
-from spinta.manifests.open_api.openapi_generator import AGENT_TOKEN_PATH, NULL_OBJECT_SCHEMA, UTILITY_PATHS
+from spinta.manifests.open_api.openapi_generator import (
+    AGENT_TOKEN_PATH,
+    NULL_OBJECT_SCHEMA,
+    UTILITY_PATHS,
+    _published_nested,
+)
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, UdtsConfig
 from spinta.testing.manifest import load_manifest_get_context
 from spinta.utils.encoding import encode_base32
@@ -47,6 +53,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_MISDECLARED_PREFIX,
     MANIFEST_WITH_NESTED_OBJECT_REF,
     MANIFEST_WITH_NESTED_REF_LEVELS,
+    MANIFEST_WITH_NESTED_REFERENCE_PROPERTIES,
     MANIFEST_WITH_PRIMITIVE_ARRAYS,
     MANIFEST_WITH_PRIVATE_VISIBILITY,
     MANIFEST_WITH_REF_SHAPES,
@@ -55,6 +62,7 @@ from tests.manifests.open_api.conftest import (
     MANIFEST_WITH_SERVICES,
     MANIFEST_WITH_SHAPED_EXAMPLES,
     MANIFEST_WITH_SOAP_PREPARE,
+    MANIFEST_WITH_UNDECLARED_ARRAYS,
     MANIFEST_WITH_UNNAMABLE_NAMES,
     MANIFEST_WITH_UUID_ID,
 )
@@ -1286,6 +1294,80 @@ def test_unpublished_metadata_leaves_a_valid_document(open_manifest_path_factory
         open_api_spec = _service_spec(
             open_manifest_path_factory, manifest_data=MANIFEST_WITH_PRIVATE_VISIBILITY, publish=False
         )
+    openapi_spec_validator.validate(open_api_spec)
+
+
+def test_array_takes_visibility_of_its_item_row(open_manifest_path_factory):
+    """An array declared only by its `x[]` row is published as that row is."""
+    open_api_spec = _service_spec(
+        open_manifest_path_factory, manifest_data=MANIFEST_WITH_UNDECLARED_ARRAYS, publish=False
+    )
+    properties = open_api_spec["components"]["schemas"]["ds_Salis"]["properties"]
+
+    assert properties["miestai"]["type"] == "array"
+    assert properties["miestai"]["items"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Miestas_Ref"}
+    assert properties["zymos"]["type"] == "array"
+    assert properties["zymos"]["items"]["type"] == "string"
+    assert "slaptos" not in properties
+    # One-to-one `backref` is a reference to the referencing object.
+    assert properties["sostine"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Miestas_Ref"}
+
+
+def test_properties_declared_under_a_backref_are_described(open_manifest_path_factory):
+    """`miestai[].pavadinimas` is described by a schema of that backref, referenced rather than unfolded."""
+    openapi_spec_validator = pytest.importorskip("openapi_spec_validator")
+    open_api_spec = _service_spec(
+        open_manifest_path_factory, manifest_data=MANIFEST_WITH_NESTED_REFERENCE_PROPERTIES, publish=False
+    )
+    schemas = open_api_spec["components"]["schemas"]
+
+    miestai = schemas["ds_Salis"]["properties"]["miestai"]
+    assert miestai["items"]["anyOf"][0] == {"$ref": "#/components/schemas/ds_Salis_miestai"}
+    assert set(schemas["ds_Salis_miestai"]["properties"]) == {"_id", "pavadinimas", "rajonas", "kodas"}
+    # `miestai[].kodas` without a type of its own is `kodas` of `Miestas`.
+    assert schemas["ds_Salis_miestai"]["properties"]["kodas"]["type"] == "string"
+    assert schemas["ds_Salis_miestai"]["properties"]["rajonas"]["anyOf"][0] == {
+        "$ref": "#/components/schemas/ds_Salis_miestai_rajonas"
+    }
+    assert set(schemas["ds_Salis_miestai_rajonas"]["properties"]) == {"_id", "pavadinimas"}
+    assert schemas["ds_Salis"]["example"]["miestai"][0]["rajonas"]["pavadinimas"]
+    openapi_spec_validator.validate(open_api_spec)
+
+
+def test_properties_declared_under_a_ref_are_described(open_manifest_path_factory):
+    """`rajonas.gyventojai` is what `gyventojai` of the referenced model is, and a chain is followed to its end."""
+    openapi_spec_validator = pytest.importorskip("openapi_spec_validator")
+    open_api_spec = _service_spec(
+        open_manifest_path_factory, manifest_data=MANIFEST_WITH_NESTED_REFERENCE_PROPERTIES, publish=False
+    )
+    schemas = open_api_spec["components"]["schemas"]
+
+    assert schemas["ds_Miestas"]["properties"]["rajonas"]["anyOf"][0] == {
+        "$ref": "#/components/schemas/ds_Miestas_rajonas"
+    }
+    assert schemas["ds_Miestas_rajonas"]["properties"]["gyventojai"]["type"] == "integer"
+    # `adresas` of `salis.adresas.gatve` is an object Spinta creates, described with what is under it.
+    salis = schemas[schemas["ds_Miestas"]["properties"]["salis"]["anyOf"][0]["$ref"].split("/")[-1]]
+    assert salis["properties"]["adresas"]["properties"]["gatve"]["type"] == "string"
+    # The schema of `rajonas.apskritis` is not the one of the `rajonas_apskritis` object.
+    apskritis = schemas["ds_Miestas_rajonas"]["properties"]["apskritis"]["anyOf"][0]["$ref"].split("/")[-1]
+    assert set(schemas[apskritis]["properties"]) == {"pavadinimas"}
+    object_schema = next(
+        schema
+        for schema in schemas.values()
+        if schema.get("description", "").startswith("Property `rajonas_apskritis` of")
+    )
+    assert set(object_schema["properties"]) == {"_type", "_revision", "kodas"}
+    # A reference with nothing declared under it keeps the shared schema.
+    assert schemas["ds_Rajonas"]["properties"]["apskritis"]["anyOf"][0] == {
+        "$ref": "#/components/schemas/ds_Apskritis_Ref"
+    }
+
+    # `rajonas` and `apskritis` of the chain are created by Spinta and carry only what is under them.
+    assert set(schemas["ds_Gatve_miestas"]["properties"]) == {"_id", "rajonas"}
+    assert set(schemas["ds_Gatve_miestas_rajonas"]["properties"]) == {"apskritis"}
+    assert set(schemas["ds_Gatve_miestas_rajonas_apskritis"]["properties"]) == {"pavadinimas"}
+    assert schemas["ds_Gatve"]["example"]["miestas"]["rajonas"]["apskritis"]["pavadinimas"]
     openapi_spec_validator.validate(open_api_spec)
 
 
@@ -2857,3 +2939,15 @@ def test_page_alone_is_authorized_the_way_the_document_says(model, app, open_man
     assert "`_page` alone" in description
     page = open_api_spec["components"]["parameters"]["page"]["schema"]
     assert page["maxLength"] >= len(token)
+
+
+@pytest.mark.parametrize("explicitly_given, published", [(None, False), (True, False), (False, True)])
+def test_only_a_property_created_by_spinta_is_published_by_its_descendants(explicitly_given, published):
+    """`explicitly_given` of YAML and inline manifests is `None`, which is explicit, not created by Spinta."""
+    street = SimpleNamespace(visibility=Visibility.public, dtype=None, explicitly_given=True)
+    address = SimpleNamespace(
+        visibility=Visibility.private,
+        dtype=SimpleNamespace(properties={"street": street}),
+        explicitly_given=explicitly_given,
+    )
+    assert _published_nested(address) is published

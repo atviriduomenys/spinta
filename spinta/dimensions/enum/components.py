@@ -28,6 +28,7 @@ class EnumItem(ExtraMetaData):
     visibility: Visibility | None = None
     eli: str | None = None
     count: int | None = None
+    uri: str | None = None
 
     schema = {
         "name": {"type": "string"},
@@ -51,6 +52,7 @@ class EnumItem(ExtraMetaData):
         "visibility": {"type": "string", "choices": Visibility, "default": "private"},
         "eli": {"type": "string"},
         "count": {"type": "integer"},
+        "uri": {"type": "string"},
     }
 
     def __init__(self):

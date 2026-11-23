@@ -1,4 +1,8 @@
+import pytest
+
 from spinta.manifests.helpers import TypeDetector
+from spinta.manifests.internal_sql.components import InternalSQLManifest
+from spinta.manifests.sql.components import SqlManifest
 
 
 def test_type_detector_boolean():
@@ -226,3 +230,10 @@ def test_type_detector_not_unique():
         type_detector.detect(item)
 
     assert type_detector.unique is False
+
+
+@pytest.mark.parametrize("manifest", [SqlManifest, InternalSQLManifest])
+@pytest.mark.parametrize("path", [r"C:\Users\user\manifest.json", "C:/Users/user/manifest.csv"])
+def test_windows_path_is_not_an_sql_manifest(manifest, path: str):
+    """A drive letter reads as a URL scheme, and what follows as an invalid port."""
+    assert manifest.detect_from_path(path) is False

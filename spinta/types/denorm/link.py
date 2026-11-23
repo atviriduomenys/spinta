@@ -3,6 +3,7 @@ from spinta.components import Context, Model, Property
 from spinta.exceptions import NoRefPropertyForDenormProperty, ReferencedPropertyNotFound
 from spinta.types.datatype import Array, Denorm, Object, Ref
 from spinta.types.helpers import set_dtype_backend
+from spinta.types.partial.link import get_referenced_properties
 
 
 @commands.link.register(Context, Denorm)
@@ -22,14 +23,11 @@ def _get_denorm_prop(
     manifest = model.manifest
     name_parts = name.split(".", 1)
     name = name_parts[0]
-    properties = (
-        prop.parent.dtype.model.properties if isinstance(prop.parent.dtype, Ref) else prop.parent.model.properties
-    )
-    model = (
-        commands.get_model(context, manifest, prop.parent.dtype.model.name)
-        if isinstance(prop.parent.dtype, Ref)
-        else model
-    )
+    referenced = get_referenced_properties(context, prop.parent) if isinstance(prop.parent, Property) else None
+    if referenced:
+        model, properties = referenced
+    else:
+        properties = prop.parent.model.properties
     if len(name_parts) > 1:
         ref_prop = properties[name]
         while isinstance(ref_prop.dtype, Array):

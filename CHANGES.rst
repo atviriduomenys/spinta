@@ -1,7 +1,18 @@
 Changes
 #######
 
-2.2.0 (unreleased)
+2.3.0 (unreleased)
+=====================
+
+New features:
+
+- Added `postgresql_changelog_compressed` upgrade script, that migrates postgresql backend changelog tables and adds `_compressed` column (`#1717`_).
+- Added `compress_changelogs` admin script, that compresses changelog data based on retention policy (`#1717`_).
+- Added ability to configure `datasets` (`enable_retention_policy` (enabled by default) and `accrual_periodicity` (how often data is updated)) (`#1717`_).
+
+.. _#1717: https://github.com/atviriduomenys/spinta/issues/1717
+
+2.2.0 (2026-11-22)
 =====================
 
 Backwards incompatible:
@@ -54,12 +65,97 @@ Backwards incompatible:
 
 New features:
 
-- Added `postgresql_changelog_compressed` upgrade script, that migrates postgresql backend changelog tables and adds `_compressed` column (`#1717`_).
-- Added `compress_changelogs` admin script, that compresses changelog data based on retention policy (`#1717`_).
-- Added ability to configure `datasets` (`enable_retention_policy` (enabled by default) and `accrual_periodicity` (how often data is updated)) (`#1717`_).
+- ``spinta copy manifest.csv -o manifest.ttl`` writes a manifest as RDF Turtle
+  with SHACL shapes (`#2101`_). Classes, properties and concepts without an
+  explicit ``uri``, or with a ``uri`` under ``uri_prefix``, are also described
+  with RDFS classes, RDFS properties and SKOS concepts. Enums are described as
+  SKOS concept schemes. Generated URIs are built from the new ``uri_prefix``
+  configuration option, for example ``-o uri_prefix=https://data.gov.lt/id/``.
+  It defaults to ``https://example.com``.
 
-.. _#1717: https://github.com/atviriduomenys/spinta/issues/1717
+- Enum items accept a ``uri`` column, which is kept when the manifest is
+  written (`#2101`_).
+
+- New ``rdf_fetch_remote`` configuration option. RDF manifests dereference web
+  IRIs (``owl:imports``, concept schemes and missing titles or descriptions)
+  only when it is ``true``. It is ``false`` by default, so web IRIs are not
+  fetched. Local files, including ``file:`` imports, are always read, because
+  ``rdf_fetch_remote`` affects only remote files (`#2101`_).
+
+- RDF manifests are split into datasets by the prefix of their model URIs. For
+  example, ``dcat:Dataset`` is read into the ``dcat`` dataset, instead of the
+  main dataset. Prefixes that are not used by the models are no longer written
+  (`#2101`_).
+
+Bug fixes:
+
+- Array items with an enum, for example ``tags[]`` with ``ref`` to an enum,
+  no longer fail with ``AttributeError`` when the manifest is loaded. An
+  unknown enum name raises ``UndefinedEnum`` (`#2101`_).
+
+- A concept scheme (enum) and its concepts no longer share an IRI with a
+  property of the same name, for example ``status`` with ``enum: status``, which
+  was both an ``rdf:Property`` and a ``skos:ConceptScheme`` with mixed labels.
+  Generated URIs now follow ``{uri_prefix}{type}/{dataset}/{concept}/{reference}``:
+  classes are ``{uri_prefix}id/{dataset}/{model}``, properties are
+  ``{uri_prefix}id/{dataset}/{model}/{property}``, concept schemes are
+  ``{uri_prefix}def/{dataset}/{enum}`` and concepts are
+  ``{uri_prefix}def/{dataset}/{enum}/{code}`` (`#2101`_).
+
+- Each model has one SHACL node shape, ``{uri_prefix}shape/{dataset}/{model}``.
+  A model without a ``uri`` inherits the class IRI of its ``base``. The base is
+  written as ``sh:node`` between shapes, and as ``rdfs:subClassOf`` only when the
+  class IRIs differ and the model's class is described in the file (`#2101`_).
+  When an RDF file is read back, a base in another dataset keeps its dataset
+  name, so cross-dataset bases round-trip.
+
+- Models whose primary key (``ref``) contains ``date``, ``datetime`` or
+  ``time`` properties now work in more cases (`#1924`_):
+
+  - the ``redis`` keymap no longer fails with ``TypeError: Object of type
+    date is not JSON serializable``; ``date``/``datetime``/``time`` and
+    ``Decimal`` values are stored the same way as in the ``sqlalchemy``
+    keymap, and ``UUID`` values are stored hyphenated, as the API returns
+    them;
+  - a ``base32`` ``_id`` no longer fails when the primary key contains a
+    ``datetime`` without a time zone or a ``time``;
+  - for SQL data sources, getting an object by ``_id``, resolving a ``ref``
+    and filtering by ``date``/``datetime``/``time`` now also work on
+    databases that compare dates as text (e.g. SQLite).
+
+- The ``redis`` keymap now treats a value made only of empty values as
+  empty (as the ``sqlalchemy`` keymap does) and, when a synchronized value
+  changes, the old value no longer points to the object (previously this
+  could be reported as a duplicate by keymap validation) (`#1924`_).
+- For SQL data sources, getting an object by ``_id`` no longer fails when a
+  primary key property's name differs from its source column name
+  (`#1924`_).
+
+- Generated OpenAPI specifications describe an array declared only by its
+  ``x[]`` row, such as a one-to-many ``backref``, with the visibility of that
+  row. Previously the array was left out, and response validation rejected it
+  as an additional property (`#2085`_).
+
+- Generated OpenAPI specifications describe properties declared under a
+  reference, such as ``miestai[].pavadinimas`` of a ``backref`` or
+  ``salis.rajonas.pavadinimas`` of a ``ref``. Such a reference points at a
+  schema of its own, named after the property, instead of the shared one
+  carrying only ``_id`` (`#2085`_).
+
+- A property without a type declared under a ``backref``, such as
+  ``miestai[].pavadinimas``, or under an object of a referenced model, such as
+  ``salis.adresas.gatve``, is looked up in the referenced model and read from
+  it, also through a reference in such an object, such as
+  ``salis.adresas.rajonas.pavadinimas``. Previously the manifest failed to load
+  with ``ReferencedPropertyNotFound`` (`#2085`_).
+
+- A manifest given by a Windows path, such as ``C:\manifest.json``, is no
+  longer taken for an SQL database URL, which failed with ``ValueError``.
+
+.. _#1924: https://github.com/atviriduomenys/spinta/issues/1924
 .. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
+.. _#2085: https://github.com/atviriduomenys/spinta/issues/2085
+.. _#2101: https://github.com/atviriduomenys/spinta/issues/2101
 
 2.1.0 (2026-11-11)
 =====================

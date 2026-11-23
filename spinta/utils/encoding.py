@@ -1,10 +1,18 @@
 import base64
+import datetime
 import json
 from typing import Any
 
 from cbor2 import dumps as cbor_dumps
 
 from spinta.utils.json import fix_data_for_json
+
+
+def _prepare_base32_value(value: Any) -> Any:
+    # cbor2 can't encode naive datetimes and times; aware datetimes are left as is to keep existing ids
+    if isinstance(value, datetime.time) or (isinstance(value, datetime.datetime) and value.tzinfo is None):
+        return str(value)
+    return value
 
 
 def encode_base32(value: Any) -> str:
@@ -14,7 +22,7 @@ def encode_base32(value: Any) -> str:
     the padding is dropped, because the value is given in a path.
     """
     if isinstance(value, list | tuple):
-        data = cbor_dumps(list(value))
+        data = cbor_dumps([_prepare_base32_value(v) for v in value])
     else:
         data = str(value).encode("utf-8")
     return base64.b32encode(data).rstrip(b"=").decode("utf-8")
