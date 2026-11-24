@@ -47,6 +47,8 @@ SCHEMA = {
     "items": yaml.load(resource_filename("spinta", "config.yml").read_text()),
 }
 
+DEFAULT_NOT_GIVEN = NA
+
 
 def read_config(args=None, envfile=None):
     # `config` option can be set in any source (even in cliargs), so we first
@@ -249,6 +251,10 @@ def _flatten_fork_config(data: dict[str, Any]) -> dict[Key, Any]:
     return flat
 
 
+def _is_value_none(value: Any) -> bool:
+    return value is DEFAULT_NOT_GIVEN or value is None
+
+
 class RawConfig:
     """A raw configuration reader component
 
@@ -306,18 +312,19 @@ class RawConfig:
         self._locked = True
 
     def has(self, *key: str) -> bool:
-        return self.get(*key, default=NA) is not NA
+        return self.get(*key) is not DEFAULT_NOT_GIVEN
 
     def get(
         self,
         *key: str,
-        default=NA,
+        default=DEFAULT_NOT_GIVEN,
         cast=None,
         required=False,
         exists=False,
         origin=False,
     ) -> Any:
         node = self._keys.get(key)
+
         if node is not None and self._key_exists(key):
             config = node.source
             if node.type == "object":
@@ -331,16 +338,13 @@ class RawConfig:
         else:
             value, config = default, None
 
-        if cast is not None:
+        if cast is not None and not _is_value_none(value):
             if cast is list and isinstance(value, str):
                 value = value.split(",") if value else []
-            elif value is not None:
-                value = cast(value)
             else:
-                # XXX: why []?
-                value = default or []
+                value = cast(value)
 
-        if required and value is None:
+        if required and _is_value_none(value):
             name = ".".join(key)
             raise Exception(f"{name!r} is a required configuration option.")
 

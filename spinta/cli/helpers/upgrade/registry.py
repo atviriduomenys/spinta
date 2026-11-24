@@ -3,6 +3,10 @@ from __future__ import annotations
 from spinta.cli.helpers.script.components import ScriptTag, ScriptTarget
 from spinta.cli.helpers.script.registry import script_registry
 from spinta.cli.helpers.upgrade.components import UPGRADE_SCRIPT_TYPE, Script, UpgradeScript
+from spinta.cli.helpers.upgrade.scripts.backends.postgresql.changelog_compressed import (
+    cli_requires_changelog_compressed_migration,
+    migrate_changelog_compressed,
+)
 from spinta.cli.helpers.upgrade.scripts.backends.postgresql.comments import (
     cli_requires_comments_migration,
     migrate_comments,
@@ -65,6 +69,17 @@ script_registry.register(
         check=cli_requires_schema_migration,
         targets={ScriptTarget.BACKEND.value, ScriptTarget.POSTGRESQL.value},
         tags={ScriptTag.DB_MIGRATION.value},
+    )
+)
+
+script_registry.register(
+    UpgradeScript(
+        name=Script.POSTGRESQL_CHANGELOG_COMPRESSED.value,
+        run=migrate_changelog_compressed,
+        check=cli_requires_changelog_compressed_migration,
+        targets={ScriptTarget.BACKEND.value, ScriptTarget.POSTGRESQL.value},
+        tags={ScriptTag.DB_MIGRATION.value},
+        required=[Script.POSTGRESQL_SCHEMAS.value],
     )
 )
 

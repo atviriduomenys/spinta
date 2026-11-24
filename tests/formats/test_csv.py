@@ -72,6 +72,7 @@ def test_export_csv(app):
     assert header == [
         "_cid",
         "_created",
+        "_compressed",
         "_op",
         "_id",
         "_txn",

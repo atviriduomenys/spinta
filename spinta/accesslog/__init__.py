@@ -130,7 +130,6 @@ def load(context: Context, accesslog: AccessLog, config: Config):
     accesslog.buffer_size = config.rc.get(
         "accesslog",
         "buffer_size",
-        required=True,
     )
 
 

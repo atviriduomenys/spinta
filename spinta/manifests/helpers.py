@@ -104,7 +104,7 @@ def _configure_manifest(
     mode = rc.get("manifests", name, "mode")
     if mode:
         manifest.mode = enum_by_name(manifest, "mode", Mode, mode)
-    for source in rc.get("manifests", name, "sync", default=[], cast=list):
+    for source in rc.get("manifests", name, "sync", default=[], cast=list, required=True):
         if source in seen:
             raise Exception("Manifest sync cycle: " + " -> ".join(seen + [source]))
         manifest.sync.append(create_manifest(context, store, source, seen + [source]))

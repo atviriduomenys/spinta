@@ -318,7 +318,7 @@ def get_model_reserved_props(action: Action, include_page: bool) -> list[str]:
     elif action == Action.SEARCH:
         reserved = ["_type", "_id", "_revision", "_base"]
     elif action == Action.CHANGES:
-        return ["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as"]
+        return ["_cid", "_created", "_compressed", "_op", "_id", "_txn", "_revision", "_same_as"]
     elif action == Action.MOVE:
         return ["_type", "_revision", "_id", "_same_as"]
     else:

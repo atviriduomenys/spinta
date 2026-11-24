@@ -4,6 +4,14 @@ Changes
 2.3.0 (unreleased)
 =====================
 
+New features:
+
+- Added `postgresql_changelog_compressed` upgrade script, that migrates postgresql backend changelog tables and adds `_compressed` column (`#1717`_).
+- Added `compress_changelogs` admin script, that compresses changelog data based on retention policy (`#1717`_).
+- Added ability to configure `datasets` (`enable_retention_policy` (enabled by default) and `accrual_periodicity` (how often data is updated)) (`#1717`_).
+
+.. _#1717: https://github.com/atviriduomenys/spinta/issues/1717
+
 2.2.0 (2026-11-22)
 =====================
 

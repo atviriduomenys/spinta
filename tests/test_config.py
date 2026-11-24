@@ -1,8 +1,10 @@
+from typing import Any
+
 import pytest
 from ruamel.yaml import YAML
 
 from spinta import commands
-from spinta.core.config import SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
+from spinta.core.config import DEFAULT_NOT_GIVEN, SCHEMA, CliArgs, EnvFile, EnvVars, KeyFormat, Path, PyDict, RawConfig
 from spinta.testing.context import create_test_context
 from spinta.utils.schema import NA
 
@@ -840,6 +842,90 @@ def test_fork_scalar_value_for_keys_raises_error():
     )
     with pytest.raises(Exception, match=r"expected a mapping or a list of key names"):
         rc.fork({"backends": "one"})
+
+
+@pytest.mark.parametrize(
+    "default,cast,required,expected",
+    [
+        (DEFAULT_NOT_GIVEN, None, False, None),
+        (DEFAULT_NOT_GIVEN, None, True, Exception),
+        (DEFAULT_NOT_GIVEN, str, False, None),
+        (DEFAULT_NOT_GIVEN, str, True, Exception),
+        ("test", None, False, None),
+        ("test", None, True, Exception),
+        ("test", str, False, None),
+        ("test", str, True, Exception),
+    ],
+)
+def test_value_none_scenarios(
+    default: Any,
+    cast: type[Any] | None,
+    required: bool,
+    expected: Any | Exception,
+):
+    rc = RawConfig().add("test", {"value": None})
+
+    if expected is Exception:
+        with pytest.raises(Exception, match="required configuration option"):
+            rc.get("value", default=default, cast=cast, required=required)
+    else:
+        assert rc.get("value", default=default, cast=cast, required=required) is expected
+
+
+@pytest.mark.parametrize(
+    "default,cast,required,expected",
+    [
+        (DEFAULT_NOT_GIVEN, None, False, DEFAULT_NOT_GIVEN),
+        (DEFAULT_NOT_GIVEN, None, True, Exception),
+        (DEFAULT_NOT_GIVEN, str, False, DEFAULT_NOT_GIVEN),
+        (DEFAULT_NOT_GIVEN, str, True, Exception),
+        ("test", None, False, "test"),
+        ("test", None, True, "test"),
+        ("test", str, False, "test"),
+        ("test", str, True, "test"),
+    ],
+)
+def test_value_not_given_scenarios(
+    default: Any,
+    cast: type[Any] | None,
+    required: bool,
+    expected: Any | Exception,
+):
+    rc = RawConfig().add("test", {})
+
+    if expected is Exception:
+        with pytest.raises(Exception, match="required configuration option"):
+            rc.get("value", default=default, cast=cast, required=required)
+    else:
+        assert rc.get("value", default=default, cast=cast, required=required) is expected
+
+
+@pytest.mark.parametrize(
+    "default,cast,required,expected",
+    [
+        (DEFAULT_NOT_GIVEN, None, False, "value"),
+        (DEFAULT_NOT_GIVEN, None, True, "value"),
+        (DEFAULT_NOT_GIVEN, str, False, "value"),
+        (DEFAULT_NOT_GIVEN, str, True, "value"),
+        ("test", None, False, "value"),
+        ("test", None, True, "value"),
+        ("test", str, False, "value"),
+        ("test", str, True, "value"),
+    ],
+)
+def test_value_given_scenarios(
+    default: Any,
+    cast: type[Any] | None,
+    required: bool,
+    expected: Any | Exception,
+):
+    rc = RawConfig().add("test", {"value": "value"})
+
+    if expected is Exception:
+        with pytest.raises(Exception, match="required configuration option"):
+            rc.get("value", default=default, cast=cast, required=required)
+    else:
+        assert rc.get("value", default=default, cast=cast, required=required) is expected
 
 
 def test_to_dict():
