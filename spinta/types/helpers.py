@@ -81,15 +81,27 @@ def _dataset_name(model: Model) -> str | None:
     return getattr(dataset, "name", dataset) or None
 
 
-def _report_unresolved_reference(context: Context, error: UnresolvedReference) -> None:
+# The message of a reference that is downgraded to an object, when the error is collected (see
+# `_report_unresolved_reference`).
+_DOWNGRADED_TEMPLATE = (
+    "Model {ref!r} referenced by {type!r} property {property!r} was not found in the manifest. "
+    "Downgrading to object (level 2)."
+)
+
+
+def _report_unresolved_reference(context: Context, error: UnresolvedReference) -> bool:
     """Store the error as a warning when errors are collected (downgrade mode).
 
-    In `error` mode the caller raises instead, see `get_unresolved_references_mode`.
+    Returns `True` when it is stored. Then it is the only report of the reference, so the caller does not log it
+    too. Otherwise the caller logs it. In `error` mode the caller raises instead, see
+    `get_unresolved_references_mode`.
     """
     manager = context.get("error_manager")
     if manager.collect:
         error.severity = "warning"
         manager.handle_error(error)
+        return True
+    return False
 
 
 def replace_undeclared_ref_with_object(
@@ -115,14 +127,14 @@ def replace_undeclared_ref_with_object(
     )
     if get_unresolved_references_mode(context) == "error":
         raise error
-    _report_unresolved_reference(context, error)
-
-    logger.warning(
-        "Model %r referenced by %r property %r was not found in the manifest. Downgrading to object (level 2).",
-        original_model,
-        original_type,
-        prop.place,
-    )
+    error.template = _DOWNGRADED_TEMPLATE
+    if not _report_unresolved_reference(context, error):
+        logger.warning(
+            "Model %r referenced by %r property %r was not found in the manifest. Downgrading to object (level 2).",
+            original_model,
+            original_type,
+            prop.place,
+        )
 
     new_dtype = Object()
     new_dtype.name = TYPE_OBJECT

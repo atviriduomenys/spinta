@@ -27,8 +27,8 @@ SCRIPT = textwrap.dedent(
     doc = spinta.copy(sys.stdin.read().encode("utf-8"), "csv")
     again = spinta.copy(doc, "csv")
     errors = spinta.errors(doc)
-    checked = spinta.check(doc)
-    downgraded = spinta.check(doc, strict_references=False)
+    checked = spinta._check_document(doc)
+    downgraded = spinta._check_document(doc, strict_references=False)
 
     after = (list(logging.getLogger().handlers), warnings.showwarning)
     print(json.dumps({

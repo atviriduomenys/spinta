@@ -326,6 +326,6 @@ def test_default_base_values_are_inherited_and_written(spinta):
 
 
 def test_check_reports_the_inherited_values(spinta):
-    doc = spinta.check([_simple(spinta, DSA), _simple(spinta, LOCN)])
+    doc = spinta._check_document([_simple(spinta, DSA), _simple(spinta, LOCN)])
 
     assert _implied(doc, "model", COUNTRY)["title"] == "Country"

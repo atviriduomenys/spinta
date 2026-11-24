@@ -112,7 +112,7 @@ def test_an_include_output_reads_back_with_its_included_elements(spinta):
     include = _doc(spinta, INCLUDE)
 
     result = spinta.copy(doc, "simple", include=[include])
-    checked = spinta.check(result)
+    checked = spinta._check_document(result)
 
     assert _codes(spinta, checked, "UnresolvedReference") == []
     assert spinta.copy(result, "csv") == spinta.copy(doc, "csv", include=[include])

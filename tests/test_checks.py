@@ -412,6 +412,7 @@ def test_check_enum_named_under_property(context: Context, rc, cli: SpintaCliRun
         fail=False,
     )
 
-    assert result.exit_code == 0
+    # An error of severity `error` exits with 1 (3.5).
+    assert result.exit_code == 1
     assert "Named enum 'my_status' is declared directly under property 'status'" in result.stdout
-    assert "Total errors: 1" in result.stdout
+    assert "Total: 1 error." in result.stdout

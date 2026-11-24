@@ -67,12 +67,16 @@ def manifest_error(error: BaseError, index: int | None = None) -> ManifestError:
 
 
 def element_of(error: BaseError) -> tuple[str, str] | None:
-    """The `(type, path)` of the element an error is about, from its `context` (3.3).
+    """The `(type, path)` of the element an error is about, from its `context` (3.3)."""
+    return element_in_context(error.context)
+
+
+def element_in_context(context: dict[str, Any]) -> tuple[str, str] | None:
+    """The `(type, path)` of the element a `context` names (3.3).
 
     A property names its model and property, a model its path, and a
     resource or dataset its dataset. `None` when the context names none.
     """
-    context: dict[str, Any] = error.context
     if context.get("model") and context.get("property"):
         return "property", f"{context['model']}/{context['property']}"
     if context.get("model"):

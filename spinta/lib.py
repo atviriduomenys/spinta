@@ -31,7 +31,7 @@ from spinta.manifests.mermaid.helpers import write_mermaid_manifest
 from spinta.manifests.rdf.writer import render_rdf_manifest
 from spinta.manifests.simple.bases import DefaultBases, default_models, visibility_scope
 from spinta.manifests.simple.check import LoadedDocument, _with_errors, check_document, load_document, with_implied
-from spinta.manifests.simple.errors import index_of_line, manifest_error, read_error
+from spinta.manifests.simple.errors import element_in_context, index_of_line, manifest_error, read_error
 from spinta.manifests.simple.from_tabular import tabular_to_simple
 from spinta.manifests.simple.helpers import check_format
 from spinta.manifests.simple.include import include_documents
@@ -40,6 +40,7 @@ from spinta.manifests.simple.schema import validate_document
 from spinta.manifests.simple.types import (
     ELEMENT_TYPES,
     FORMAT_VERSION,
+    MANIFEST_TYPE,
     SPINTA_KEY,
     ElementRef,
     ManifestError,
@@ -443,19 +444,57 @@ class Spinta:
         self,
         manifest: Manifests,
         *,
+        code: str | Sequence[str] | None = None,
+        check_names: bool | None = None,
+        strict_references: bool = True,
+    ) -> list[ManifestError]:
+        """Read, load, link and check a `simple` document, without a backend, and return its errors.
+
+        Every phase reports its errors: the reader (rows that cannot be read), the load, the link and the
+        check. All of them are collected, so the result has every error that can be found. Nothing is raised
+        for the content of the document. The input is not changed. Each call loads the document into a new
+        context, so calls do not see each other's nodes.
+
+        The errors are in document order (4.1), each as `errors` stores it, except that `context` has `type`
+        first and then `manifest`: the name the input has for the file the error is about (4.3), when it is
+        known. `code` keeps only the errors whose `code` is in it: a string is one code, a list or tuple is
+        several, and `None` keeps all. A list is checked as one document: it is merged first (3.1).
+        `check_names=None` keeps the configured value. `strict_references` makes an unresolved reference an
+        error; otherwise it is a warning (3.4).
+        """
+        errors, _ = self._check_errors(
+            manifest,
+            code=code,
+            check_names=check_names,
+            strict_references=strict_references,
+        )
+        return errors
+
+    def _check_errors(
+        self,
+        manifest: Manifests,
+        *,
+        code: str | Sequence[str] | None = None,
+        check_names: bool | None = None,
+        strict_references: bool = True,
+    ) -> tuple[list[ManifestError], bool]:
+        """`check`, and whether the run stopped on an error (see `check_document`). The CLI uses the flag for its
+        exit status (3.5)."""
+        doc, failed = self._check(manifest, check_names=check_names, strict_references=strict_references)
+        # The input is not changed by the check, so its sources are the ones it had (after `_check` validated it).
+        sources = _sources(_documents(manifest))
+        errors = _filter_codes(_stored_errors(doc), _codes(code))
+        return [_located(error, sources.of(error)) for error in errors], failed
+
+    def _check_document(
+        self,
+        manifest: Manifests,
+        *,
         check_names: bool | None = None,
         strict_references: bool = True,
     ) -> SimpleManifest:
-        """Link and check a `simple` document, without a backend (3.3).
-
-        Returns the document, a new dict with the errors of each element set.
-        The errors that belong to no element are on its `manifest` (4.3). The
-        input is not changed. Each call loads the document into a new context,
-        so calls do not see each other's nodes.
-        A list is checked as one document: it is merged first (3.1).
-        `check_names=None` keeps the configured value. `strict_references`
-        makes an unresolved reference an error; otherwise it is a warning (3.4).
-        """
+        """The document of `check`, with the errors of each element set (4.10). Not in the API: `check` returns
+        the errors, and `errors` reads them from a document, which tests use."""
         doc, _ = self._check(manifest, check_names=check_names, strict_references=strict_references)
         return doc
 
@@ -493,13 +532,10 @@ class Spinta:
             docs = _documents(manifest)
             for doc in docs:
                 validate_document(doc)
-            wanted = _codes(code)
             found: list[ManifestError] = []
             for doc in docs:
                 found.extend(_stored_errors(doc))
-            if wanted is not None:
-                found = [e for e in found if e["code"] in wanted]
-            return found
+            return _filter_codes(found, _codes(code))
 
     def _read_with_stop(
         self,
@@ -686,6 +722,62 @@ def _codes(code: str | Sequence[str] | None) -> set[str] | None:
     if isinstance(code, str):
         return {code}
     return set(code)
+
+
+def _filter_codes(errors: list[ManifestError], wanted: set[str] | None) -> list[ManifestError]:
+    """The errors whose `code` is in `wanted`, in their order. `None` keeps all of them."""
+    if wanted is None:
+        return errors
+    return [e for e in errors if e["code"] in wanted]
+
+
+@dataclass(frozen=True)
+class _Sources:
+    """The source of each element of the input documents, see `_sources`."""
+
+    by_element: dict[tuple[str, str], str]
+    only: str | None
+
+    def of(self, error: ManifestError) -> str | None:
+        """The source of the element `error` is about, or the one source of all the input, if it has one."""
+        element = element_in_context(error["context"])
+        if element is not None and element in self.by_element:
+            return self.by_element[element]
+        return self.only
+
+
+def _sources(docs: list[SimpleManifest]) -> _Sources:
+    """Where the elements of `docs` come from. A document was read from one source (its `manifest` element is
+    named after it, 4.3), so each of its elements is from that source. A document with another number of
+    `manifest` elements does not name the source of its elements. `only` is the source of all of `docs`, when
+    they have one."""
+    by_element: dict[tuple[str, str], str] = {}
+    names = [list(doc.get(MANIFEST_TYPE, {})) for doc in docs]
+    for doc, sources in zip(docs, names):
+        if len(sources) != 1:
+            continue
+        for type_, elements in doc.items():
+            if type_ not in (SPINTA_KEY, MANIFEST_TYPE):
+                for path in elements:
+                    by_element.setdefault((type_, path), sources[0])
+    singles = {sources[0] for sources in names if len(sources) == 1}
+    only = singles.pop() if len(singles) == 1 and all(len(sources) == 1 for sources in names) else None
+    return _Sources(by_element, only)
+
+
+def _located(error: ManifestError, source: str | None) -> ManifestError:
+    """`error` with `type` first, then `manifest` (the `source`), then the rest of its `context`. A copy: the
+    document keeps its errors as they are."""
+    context = error["context"]
+    ordered: dict[str, Any] = {}
+    if "type" in context:
+        ordered["type"] = context["type"]
+    if source is not None:
+        ordered["manifest"] = source
+    for key, value in context.items():
+        if key not in ordered and key != "manifest":
+            ordered[key] = value
+    return {**error, "context": ordered}
 
 
 _RENDER_OPTIONS = ("source", "access", "dataset", "columns", "order_by", "format_names", "rename_duplicates")

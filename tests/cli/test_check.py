@@ -1,10 +1,10 @@
+import json
 from pathlib import Path
 
 import pytest
 
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.exceptions import ResourceSourceQueryConflict
 from spinta.lib import Spinta
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
@@ -193,13 +193,13 @@ def test_check_level(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         ],
         fail=False,
     )
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "Invalid value." in result.stdout
     assert "model: datasets/gov/example2/Country" in result.stdout
     assert "param: level" in result.stdout
     assert "given: 9" in result.stdout
-    assert "Total errors: 2" in result.stdout
-    assert "manifest.csv" in result.stdout
+    assert "- InvalidValue: 2 errors." in result.stdout
+    assert "Total: 2 errors." in result.stdout
 
 
 def test_check_level_multiple_manifests(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -258,15 +258,13 @@ def test_check_level_multiple_manifests(context: Context, rc, cli: SpintaCliRunn
         ],
         fail=False,
     )
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "Invalid value." in result.stdout
     assert "model: datasets/gov/example4/Salis" in result.stdout
     assert "param: level" in result.stdout
     assert "given: 9" in result.stdout
-    assert "Total errors: 3" in result.stdout
-    assert "manifest2.csv: 1 error(s)" in result.stdout
-    # The two enum items are not an element of a model, so they name no file.
-    assert "(document): 2 error(s)" in result.stdout
+    assert "- InvalidValue: 3 errors." in result.stdout
+    assert "Total: 3 errors." in result.stdout
 
 
 def test_check_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -652,8 +650,9 @@ def test_spinta_check_message_no_filters_support_dask_backend(
             "check",
             tmp_path / "manifest.csv",
         ],
+        fail=False,
     )
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "Dask backend does not support comparison (filter) operators in prepare formula." in result.output
     assert "operators: ['gt', 'lt']" in result.output
     assert "operators: ['eq']" in result.output
@@ -665,7 +664,7 @@ def test_spinta_check_message_no_filters_support_dask_backend(
     assert "entity: miestas" in result.output
     assert "entity: gatve" in result.output
     # All models are checked and all problems are shown at once using the ErrorManager.
-    assert "Total errors: 3" in result.output
+    assert "Total: 3 errors." in result.output
 
 
 def test_spinta_check_no_message_filters_support_sql_backend(
@@ -889,9 +888,9 @@ def test_check_enum_named_under_property(context: Context, rc, cli: SpintaCliRun
         fail=False,
     )
 
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     assert "Named enum 'my_status' is declared directly under property 'status'" in result.stdout
-    assert "Total errors: 1" in result.stdout
+    assert "Total: 1 error." in result.stdout
 
 
 def test_check_undeclared_base_does_not_fail(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
@@ -952,9 +951,9 @@ def test_check_query_conflicts_error(context: Context, rc, cli: SpintaCliRunner,
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert result.exc_info[0] is ResourceSourceQueryConflict
-    assert "CLIENT_NAME" in str(result.exception)
+    assert result.exit_code == 1
+    assert "ResourceSourceQueryConflict" in result.stdout
+    assert "CLIENT_NAME" in result.stdout
 
 
 def test_check_query_conflicts_no_clash_ok(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -1007,9 +1006,9 @@ def test_check_query_conflicts_flag_applies_to_configured_manifest(
 
     result = cli.invoke(configured_rc, ["check", "--check-query-conflicts"], fail=False)
 
-    assert result.exit_code != 0
-    assert result.exc_info[0] is ResourceSourceQueryConflict
-    assert "CLIENT_NAME" in str(result.exception)
+    assert result.exit_code == 1
+    assert "ResourceSourceQueryConflict" in result.stdout
+    assert "CLIENT_NAME" in result.stdout
 
 
 UNRESOLVED_REFERENCE_MANIFEST = """
@@ -1048,8 +1047,8 @@ def test_check_strict_references_makes_an_unresolved_reference_an_error(
     result = cli.invoke(rc, ["check", "--strict-references", tmp_path / "manifest.csv"], fail=False)
 
     assert result.exit_code == 1
-    assert "Total errors: 1" in result.stdout
-    assert "Context:" in result.stdout
+    assert "Total: 1 error." in result.stdout
+    assert "  context:" in result.stdout
     assert "model: example/City" in result.stdout
 
 
@@ -1112,7 +1111,7 @@ def test_check_bad_row_is_an_error_and_the_other_rows_are_checked(context: Conte
 
     assert result.exit_code == 1
     assert "Number of row cells do not match table header" in result.stdout
-    assert "Total errors: 1" in result.stdout
+    assert "Total: 1 error." in result.stdout
 
 
 def test_check_passes_its_options_to_spinta_check(context: Context, rc, cli: SpintaCliRunner, tmp_path, monkeypatch):
@@ -1163,3 +1162,141 @@ def test_check_of_a_format_copy_does_not_read_yet_keeps_the_current_path(rc, cli
     assert calls == []
     assert result.exit_code != 0
     assert "datasets/xlsx" in str(result.exception)
+
+
+# `country` names a model that is not in the document, and `sizes` an enum that is not defined.
+UNRESOLVED_AND_UNDEFINED_ENUM = (
+    "dataset,resource,base,model,property,type,ref,access\n"
+    "datasets/gov/example,,,,,,,\n"
+    ",,,City,,,id,\n"
+    ",,,,id,integer,,\n"
+    ",,,,country,ref,datasets/gov/example/Country,private\n"
+    ",,,,sizes,string,missing_enum,\n"
+)
+
+
+def test_check_text_format_shows_each_error_and_the_summary(rc, cli: SpintaCliRunner, tmp_path):
+    (tmp_path / "manifest.csv").write_text(UNRESOLVED_AND_UNDEFINED_ENUM, encoding="utf-8")
+
+    result = cli.invoke(rc, ["check", "--strict-references", tmp_path / "manifest.csv"], fail=False)
+
+    assert result.exit_code == 1
+    assert (
+        "error: Model 'datasets/gov/example/Country' referenced by 'ref' property 'country' was not found "
+        "in the manifest.\n"
+        "  index: 4\n"
+        "  code: UnresolvedReference\n"
+        "  context:\n"
+        "    type: ref\n"
+        "    manifest: " + str(tmp_path / "manifest.csv") + "\n"
+        "    dataset: datasets/gov/example\n"
+    ) in result.stdout
+    assert result.stdout.endswith(
+        "\nSummary:\n- UnresolvedReference: 1 error.\n- UndefinedEnum: 1 error.\n\nTotal: 2 errors.\n"
+    )
+
+
+def test_check_code_option_shows_only_the_given_codes(rc, cli: SpintaCliRunner, tmp_path):
+    (tmp_path / "manifest.csv").write_text(UNRESOLVED_AND_UNDEFINED_ENUM, encoding="utf-8")
+
+    one = cli.invoke(
+        rc,
+        ["check", "--strict-references", "-c", "UnresolvedReference", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+    both = cli.invoke(
+        rc,
+        [
+            "check",
+            "--strict-references",
+            "-c",
+            "UnresolvedReference",
+            "--code",
+            "UndefinedEnum",
+            tmp_path / "manifest.csv",
+        ],
+        fail=False,
+    )
+    none = cli.invoke(rc, ["check", "-c", "NoSuchCode", tmp_path / "manifest.csv"], fail=False)
+
+    assert "UndefinedEnum" not in one.stdout
+    assert "Total: 1 error." in one.stdout
+    assert "Model 'datasets/gov/example/Country'" in one.stdout
+    assert "Enum 'missing_enum' is not defined." in both.stdout
+    assert "Total: 2 errors." in both.stdout
+    assert none.stdout.strip() == "OK"
+
+
+def test_check_json_format_prints_the_errors_of_spinta_check(rc, cli: SpintaCliRunner, tmp_path):
+    (tmp_path / "manifest.csv").write_text(UNRESOLVED_AND_UNDEFINED_ENUM, encoding="utf-8")
+
+    result = cli.invoke(
+        rc,
+        ["check", "--strict-references", "-f", "json", "-c", "UnresolvedReference", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    errors = json.loads(result.stdout)
+    assert [e["code"] for e in errors] == ["UnresolvedReference"]
+    assert errors[0]["severity"] == "error"
+    assert errors[0]["index"] == 4
+    assert errors[0]["key"] == "ref"
+    assert errors[0]["context"]["ref"] == "datasets/gov/example/Country"
+    assert set(errors[0]) == {"code", "severity", "message", "template", "context", "index", "key"}
+
+
+def test_check_downgraded_reference_is_printed_once(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(UNRESOLVED_REFERENCE_MANIFEST))
+
+    result = cli.invoke(rc, ["check", tmp_path / "manifest.csv"], fail=False)
+
+    assert result.exit_code == 0
+    assert result.stdout.count("was not found in the manifest") == 1
+    assert "Downgrading to object (level 2)." in result.stdout
+
+
+def test_check_context_has_type_then_manifest(rc, cli: SpintaCliRunner, tmp_path):
+    (tmp_path / "manifest.csv").write_text(UNRESOLVED_AND_UNDEFINED_ENUM, encoding="utf-8")
+
+    result = cli.invoke(
+        rc,
+        ["check", "--strict-references", "-f", "json", "-c", "UnresolvedReference", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    [error] = json.loads(result.stdout)
+    assert list(error["context"]) == ["type", "manifest", "dataset", "model", "property", "ref"]
+    assert error["context"]["manifest"] == str(tmp_path / "manifest.csv")
+
+
+def test_check_names_the_file_each_error_is_about(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(context, tmp_path / "city.csv", striptable(CITY_REFERRING_TO_OTHER_DATASET))
+    create_tabular_manifest(context, tmp_path / "other.csv", striptable(UNRESOLVED_REFERENCE_MANIFEST))
+
+    result = cli.invoke(
+        rc,
+        ["check", "-f", "json", tmp_path / "city.csv", tmp_path / "other.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code == 0
+    manifests = {e["context"]["dataset"]: e["context"]["manifest"] for e in json.loads(result.stdout)}
+    assert manifests == {
+        "example_a": str(tmp_path / "city.csv"),
+        "example": str(tmp_path / "other.csv"),
+    }
+
+
+def test_check_json_format_of_a_valid_manifest_is_an_empty_list(rc, cli: SpintaCliRunner, tmp_path):
+    (tmp_path / "manifest.csv").write_text(
+        "dataset,resource,base,model,property,type,ref,access\n"
+        "datasets/gov/example,,,,,,,\n"
+        ",,,Country,,,code,\n"
+        ",,,,code,string,,public\n",
+        encoding="utf-8",
+    )
+
+    result = cli.invoke(rc, ["check", "-f", "json", tmp_path / "manifest.csv"], fail=False)
+
+    assert result.exit_code == 0
+    assert json.loads(result.stdout) == []

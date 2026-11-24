@@ -1,3 +1,7 @@
+import enum
+import json
+from collections import Counter
+
 from typer import Argument, Exit, Option, echo
 from typer import Context as TyperContext
 
@@ -9,12 +13,18 @@ from spinta.core.config import KeyFormat
 from spinta.core.context import configure_context
 from spinta.core.enums import Mode
 from spinta.exceptions import BaseError
-from spinta.handlers import CLIErrorHandler
-from spinta.lib import Spinta
-from spinta.manifests.simple.types import MANIFEST_TYPE, SPINTA_KEY, ManifestError
+from spinta.handlers import ErrorHandler
+from spinta.lib import Spinta, _located
+from spinta.manifests.simple.errors import manifest_error, read_error
+from spinta.manifests.simple.types import ManifestError
 
 # Formats that `Spinta.copy` reads (3.5). Other formats keep the current path.
 _LIB_FORMATS = frozenset({"csv", "ascii", "xlsx", "simple"})
+
+
+class CheckFormat(str, enum.Enum):
+    text = "text"
+    json = "json"
 
 
 def config(
@@ -42,40 +52,43 @@ def check(
         "--strict-references/--no-strict-references",
         help="Unresolved references are errors, not warnings",
     ),
+    codes: list[str] | None = Option(
+        None,
+        "-c",
+        "--code",
+        help="Show only errors with this code, example: `-c UnresolvedReference`. Can be given multiple times.",
+    ),
+    fmt: CheckFormat = Option(CheckFormat.text, "-f", "--format", help="Output format: text or json."),
 ):
     """Check configuration and manifests"""
     paths = convert_str_to_manifest_path(manifests)
-    counts: dict[str, int] = {}
-    printed = False
-    reported: set[tuple[str, str]] = set()
+    wanted = set(codes) if codes else None
+    errors: list[ManifestError] = []
+    failed = False
 
     if paths and all(path.type in _LIB_FORMATS for path in paths):
-        # The manifest part is `Spinta.check` (D14): every error of the
-        # document is printed. The exit status is the one of the current
-        # check: errors that were collected do not fail the command, an error
-        # that stopped the check does (3.5).
+        # The manifest part is `Spinta.check` (D14), so every error of the documents is shown. The exit status is
+        # the one of the current check: errors that were collected do not fail the command, an error that stopped
+        # the check does (3.5).
         spinta = Spinta._from_context(ctx.obj)
-        # The files are read, not linked. The exit status depends on the errors of the read (3.5), and the link
-        # errors that `copy` stores would be taken for read errors, and would change the report of the files.
         docs = [spinta._read_with_stop(path.path, path.type)[0] for path in paths]
-        doc, failed = spinta._check(docs, check_names=check_names, strict_references=strict_references)
-        found = _report(doc, paths, docs)
-        printed = bool(found)
-        reported = {(error["code"], error["message"]) for _, error in found}
-        counts.update(_error_counts(found))
-        if failed:
-            _summary(counts)
-            raise Exit(1)
+        errors, failed = spinta._check_errors(
+            docs,
+            code=wanted,
+            check_names=check_names,
+            strict_references=strict_references,
+        )
 
-    # Backend checks need the loaded store, so they stay on the current path.
-    backend = _check_backends(ctx.obj, manifests, mode, check_names, check_query_conflicts, reported)
-    for name, n in backend.items():
-        counts[name] = counts.get(name, 0) + n
+    if not failed:
+        # Backend checks need the loaded store, so they stay on the current path. The manifest part found the
+        # manifest errors already, so they are not found twice.
+        reported = {_identity(error) for error in errors}
+        errors += _check_backends(ctx.obj, manifests, mode, check_names, check_query_conflicts, wanted, reported)
 
-    if sum(counts.values()):
-        _summary(counts)
-    elif not printed:
-        echo("OK")
+    _show(errors, fmt)
+    # An error of severity `error` fails the command, and so does an error that stopped the check (3.5).
+    if failed or any(error["severity"] == "error" for error in errors):
+        raise Exit(1)
 
 
 def _check_backends(
@@ -84,14 +97,17 @@ def _check_backends(
     mode: Mode,
     check_names: bool | None,
     check_query_conflicts: bool | None,
-    reported: set[tuple[str, str]],
-) -> dict[str, int]:
-    """Load the manifests and run the backend checks. Returns the error counts per file.
+    wanted: set[str] | None,
+    reported: set[tuple],
+) -> list[ManifestError]:
+    """Load the manifests and run the backend checks. Returns the errors they find, with the codes `wanted`.
 
-    The load finds the manifest errors again. `reported` are the ones `Spinta.check` printed,
-    they are not printed or counted twice.
+    The load finds the manifest errors again. `reported` are the ones the manifest part found (see `_identity`),
+    they are not returned twice.
     """
-    manifests = convert_str_to_manifest_path(manifests)
+    paths = convert_str_to_manifest_path(manifests)
+    # The source of the errors, when there is one manifest file (see `_located`).
+    source = paths[0].path if len(paths) == 1 else None
     context: Context = configure_context(
         context,
         manifests,
@@ -99,9 +115,12 @@ def _check_backends(
         check_names=check_names,
         check_query_conflicts=check_query_conflicts,
     )
-    context.get("error_manager").handler = _NewErrors(reported)
-    prepare_manifest(context, ensure_config_dir=True, full_load=True)
     manager = context.get("error_manager")
+    manager.handler = _NewErrors(reported, wanted)
+    # Collect the errors of the load, as the manifest part does, so that they are reported and not only logged.
+    manager.collect = True
+    # `verbose=False`: the output is the errors only, so that `-f json` stays valid JSON.
+    prepare_manifest(context, verbose=False, ensure_config_dir=True, full_load=True)
 
     store: Store = context.get("store")
     if store.manifest:
@@ -109,91 +128,83 @@ def _check_backends(
             if model.external and model.external.resource and model.external.resource.backend:
                 commands.check(context, model, model.external.resource.backend)
 
-    return {_file_name(name): n for name, n in manager.handler.get_counts().items()}
+    return [_located(error, source) for error in manager.handler.errors]
 
 
-class _NewErrors(CLIErrorHandler):
-    """Prints and counts the errors that are not in `reported` (see `_check_backends`)."""
+# The keys of an error's context that tell which element it is about. The same error is found by the manifest
+# part and by the backend checks, and these keys are what they have in common.
+_PLACE_KEYS = ("type", "dataset", "model", "property", "ref")
 
-    def __init__(self, reported: set[tuple[str, str]]) -> None:
-        super().__init__()
+
+def _identity(error: ManifestError) -> tuple:
+    """What tells an error apart from another one, to report it once: its code, message and place."""
+    context = error["context"]
+    return (error["code"], error["message"], tuple(context.get(key) for key in _PLACE_KEYS))
+
+
+class _NewErrors(ErrorHandler):
+    """Collects the errors that are not in `reported`, and that have a code in `wanted` (see `_check_backends`)."""
+
+    def __init__(self, reported: set[tuple], wanted: set[str] | None) -> None:
         self.reported = reported
+        self.wanted = wanted
+        self.errors: list[ManifestError] = []
 
     def handle_error(self, error: BaseError, file: str | None = None, *, raised: bool = False) -> None:
-        if (type(error).__name__, error.message) in self.reported:
+        found = _as_error(error)
+        if _identity(found) in self.reported:
             return
-        super().handle_error(error, file=file)
+        if self.wanted is None or found["code"] in self.wanted:
+            self.errors.append(found)
+
+    def post_process(self) -> None:
+        pass
 
 
-def _file_name(name: str | None) -> str:
-    return name if name else "(no file)"
+def _as_error(error: Exception) -> ManifestError:
+    """The `ManifestError` of an error that the backend checks raise. Other exceptions are read errors (4.10).
 
-
-def _report(doc, paths, docs) -> list[tuple[str, ManifestError]]:
-    """Print every error and warning of a checked document, and return them with their file.
-
-    An error belongs to the file of its element. The errors that name no
-    element are on the `manifest` of their file, and they belong to that file
-    when they were read from it. An error that this run found and that names
-    no element belongs to the document, when several files were checked: the
-    run cannot tell which file it comes from.
+    Every key of the context is kept: a backend error does not name an element of a `simple` document, and its
+    `entity` and `attribute` tell what it is about.
     """
-    names = [str(path.path) for path in paths]
-    owners: dict[tuple[str, str], str] = {}
-    read: dict[str, list[ManifestError]] = {}
-    for name, source in zip(names, docs):
-        for type_, elements in source.items():
-            if type_ != SPINTA_KEY:
-                for path in elements:
-                    owners.setdefault((type_, path), name)
-        for path, manifest in source.get(MANIFEST_TYPE, {}).items():
-            read.setdefault(path, []).extend(manifest["errors"])
-    document = names[0] if len(names) == 1 else "(document)"
+    if isinstance(error, BaseError):
+        found = manifest_error(error)
+        found["context"] = {k: str(v) for k, v in error.context.items() if v is not None}
+        return found
+    return read_error(type(error).__name__, str(error), None)
 
-    found: list[tuple[str, ManifestError]] = []
-    for type_, elements in doc.items():
-        if type_ == SPINTA_KEY:
-            continue
-        for path, element in elements.items():
-            for error in element["errors"]:
-                owner = owners.get((type_, path), document)
-                if type_ == MANIFEST_TYPE and not any(_same_error(error, e) for e in read.get(path, [])):
-                    owner = document
-                found.append((owner, error))
 
-    for _, error in found:
+def _show(errors: list[ManifestError], fmt: CheckFormat) -> None:
+    """Print the errors as `fmt` says: `text` for people, `json` as `Spinta.check` returns them."""
+    if fmt == CheckFormat.json:
+        echo(json.dumps(errors, ensure_ascii=False, indent=2))
+        return
+    if not errors:
+        echo("OK")
+        return
+    for error in errors:
         echo(_render(error))
-    return found
-
-
-def _same_error(error: ManifestError, other: ManifestError) -> bool:
-    return (error["code"], error["message"], error["index"]) == (other["code"], other["message"], other["index"])
+        echo()
+    counts = Counter(error["code"] for error in errors if error["severity"] == "error")
+    if counts:
+        echo("Summary:")
+        for code, n in counts.items():
+            echo(f"- {code}: {_count(n)}.")
+        echo()
+        echo(f"Total: {_count(sum(counts.values()))}.")
 
 
 def _render(error: ManifestError) -> str:
-    """A stored error as the CLI shows it: its message, its index and its context."""
-    head = error["message"]
-    if error["severity"] != "error":
-        head = f"{error['severity']}: {head}"
-    lines = [head]
+    """A stored error as the CLI shows it: its severity, message, index, code and context."""
+    lines = [f"{error['severity']}: {error['message']}"]
     if error["index"] is not None:
         lines.append(f"  index: {error['index']}")
+    lines.append(f"  code: {error['code']}")
     if error["context"]:
-        lines.append("  Context:")
+        lines.append("  context:")
         lines.extend(f"    {key}: {value}" for key, value in error["context"].items())
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines)
 
 
-def _error_counts(found: list[tuple[str, ManifestError]]) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for name, error in found:
-        if error["severity"] == "error":
-            counts[name] = counts.get(name, 0) + 1
-    return counts
-
-
-def _summary(counts: dict[str, int]) -> None:
-    echo(f"Total errors: {sum(counts.values())}")
-    for name, n in counts.items():
-        if n:
-            echo(f"- {name}: {n} error(s)")
+def _count(n: int) -> str:
+    return f"{n} error" if n == 1 else f"{n} errors"

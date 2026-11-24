@@ -68,12 +68,12 @@ def spinta():
 
 
 def test_valid_table_has_no_errors(spinta):
-    checked = spinta.check(_doc(spinta, CSV_TABLE))
+    checked = spinta._check_document(_doc(spinta, CSV_TABLE))
     assert spinta.errors(checked) == []
 
 
 def test_unresolved_reference_is_stored_on_its_property(spinta):
-    checked = spinta.check(_doc(spinta, CITIES))
+    checked = spinta._check_document(_doc(spinta, CITIES))
     prop = _element(checked, "property", "datasets/gov/cities/City/location")
     assert [e["code"] for e in prop["errors"]] == ["UnresolvedReference"]
     error = prop["errors"][0]
@@ -93,30 +93,30 @@ def test_unresolved_reference_is_stored_on_its_property(spinta):
 
 
 def test_error_context_has_no_element_key(spinta):
-    checked = spinta.check(_doc(spinta, CITIES))
+    checked = spinta._check_document(_doc(spinta, CITIES))
     error = _element(checked, "property", "datasets/gov/cities/City/location")["errors"][0]
     assert "element" not in error
 
 
 def test_strict_references_is_the_default(spinta):
-    checked = spinta.check(_doc(spinta, CITIES))
+    checked = spinta._check_document(_doc(spinta, CITIES))
     assert [e["severity"] for e in spinta.errors(checked, code="UnresolvedReference")] == ["error"]
 
 
 def test_downgraded_reference_is_a_warning(spinta):
-    checked = spinta.check(_doc(spinta, CITIES), strict_references=False)
+    checked = spinta._check_document(_doc(spinta, CITIES), strict_references=False)
     assert [e["severity"] for e in spinta.errors(checked, code="UnresolvedReference")] == ["warning"]
 
 
 def test_relative_reference_gets_the_dataset_of_its_model(spinta):
-    checked = spinta.check(_doc(spinta, EXAMPLE))
+    checked = spinta._check_document(_doc(spinta, EXAMPLE))
     error = _element(checked, "property", "datasets/gov/example/City/country")["errors"][0]
     assert error["code"] == "UnresolvedReference"
     assert error["context"]["ref"] == "datasets/gov/example/Country"
 
 
 def test_many_errors_in_one_manifest_are_each_on_their_element(spinta):
-    checked = spinta.check(_doc(spinta, EXAMPLE))
+    checked = spinta._check_document(_doc(spinta, EXAMPLE))
     country = _element(checked, "property", "datasets/gov/example/City/country")
     sizes = _element(checked, "property", "datasets/gov/example/City/sizes")
     assert [e["code"] for e in country["errors"]] == ["UnresolvedReference"]
@@ -128,47 +128,47 @@ def test_many_errors_in_one_manifest_are_each_on_their_element(spinta):
 
 
 def test_element_errors_do_not_contain_internal_context(spinta):
-    checked = spinta.check(_doc(spinta, EXAMPLE))
+    checked = spinta._check_document(_doc(spinta, EXAMPLE))
     sizes = _element(checked, "property", "datasets/gov/example/City/sizes")
     assert set(sizes["errors"][0]["context"]) == {"dataset", "model", "property", "name"}
 
 
 def test_check_does_not_raise_for_content_and_returns_the_document(spinta):
-    checked = spinta.check(_doc(spinta, EXAMPLE))
+    checked = spinta._check_document(_doc(spinta, EXAMPLE))
     assert set(checked) == {"spinta", "manifest", "dataset", "model", "property"}
 
 
 def test_input_document_is_not_changed(spinta):
     doc = _doc(spinta, EXAMPLE)
     before = repr(doc)
-    spinta.check(doc)
+    spinta._check_document(doc)
     assert repr(doc) == before
 
 
 def test_repeated_check_adds_no_duplicates(spinta):
-    checked = spinta.check(_doc(spinta, EXAMPLE))
-    again = spinta.check(spinta.check(checked))
+    checked = spinta._check_document(_doc(spinta, EXAMPLE))
+    again = spinta._check_document(spinta._check_document(checked))
     assert len(spinta.errors(again)) == len(spinta.errors(checked)) == 2
     assert _codes(again) == _codes(checked)
 
 
 def test_fixing_the_reference_clears_the_error(spinta):
-    checked = spinta.check(_doc(spinta, CITIES))
+    checked = spinta._check_document(_doc(spinta, CITIES))
     fixed = _doc(spinta, CITIES.replace("/datasets/gov/locn/Location", "/datasets/gov/cities/City"))
     # `location` now names the model of the document, which has no error.
-    assert spinta.errors(spinta.check(fixed)) == []
+    assert spinta.errors(spinta._check_document(fixed)) == []
     assert spinta.errors(checked) != []
 
 
 def test_errors_of_the_document_are_in_document_order(spinta):
-    checked = spinta.check(_doc(spinta, EXAMPLE))
+    checked = spinta._check_document(_doc(spinta, EXAMPLE))
     assert [e["code"] for e in spinta.errors(checked)] == ["UnresolvedReference", "UndefinedEnum"]
 
 
 def test_read_error_is_reproduced_by_the_check_and_stays_on_its_element(spinta):
     # A bad formula is in `given`, so the rebuilt row reproduces its error.
     text = CITIES + ",,,,bad,string,,,(,,\n"
-    checked = spinta.check(_doc(spinta, text))
+    checked = spinta._check_document(_doc(spinta, text))
     bad = _element(checked, "property", "datasets/gov/cities/City/bad")
     assert bad["errors"] != []
 
@@ -178,11 +178,11 @@ def test_edited_element_loses_its_old_read_errors(spinta):
     key = "datasets/gov/cities/City/bad"
     # The reader stored the error when it read the table.
     assert _element(doc, "property", key)["errors"] != []
-    checked = spinta.check(doc)
+    checked = spinta._check_document(doc)
     assert _element(checked, "property", key)["errors"] != []
     # The user fixes the row: its `given` changes, so the error is gone.
     checked["property"][key]["given"]["prepare"] = "1"
-    fixed = spinta.check(checked)
+    fixed = spinta._check_document(checked)
     assert _element(fixed, "property", key)["errors"] == []
 
 
@@ -191,9 +191,9 @@ def test_read_problem_of_the_document_is_kept_once(spinta):
     text = CITIES + ",,,,id,integer,,,,,\n"
     doc = _doc(spinta, text)
     assert len(_manifest(doc)["errors"]) == 1
-    checked = spinta.check(doc)
+    checked = spinta._check_document(doc)
     assert [e["index"] for e in _manifest(checked)["errors"]] == [5]
-    again = spinta.check(checked)
+    again = spinta._check_document(checked)
     assert len(_manifest(again)["errors"]) == 1
 
 
@@ -203,7 +203,7 @@ def test_wrong_cell_count_is_a_document_error_and_survives_the_check(spinta):
     doc = _doc(spinta, CITIES.replace(",,,,id,integer,,,,,", ",,,,id,integer"))
     problem = _manifest(doc)["errors"][0]
     assert problem["code"] == "TabularManifestError"
-    checked = spinta.check(doc)
+    checked = spinta._check_document(doc)
     assert problem in _manifest(checked)["errors"]
     # The row of `City/id` is gone, so the model's key names nothing. The error
     # names a property that is not in the document, so it goes to the manifest.
@@ -240,7 +240,7 @@ def test_element_of_maps_the_context_to_the_element():
 
 
 def test_manifest_error_has_the_keys_of_3_3(spinta):
-    checked = spinta.check(_doc(spinta, CITIES))
+    checked = spinta._check_document(_doc(spinta, CITIES))
     error = _element(checked, "property", "datasets/gov/cities/City/location")["errors"][0]
     assert set(error) == {"code", "severity", "message", "template", "context", "index", "key"}
 
@@ -249,12 +249,12 @@ def test_check_of_a_malformed_document_raises(spinta):
     doc = _doc(spinta, CITIES)
     doc["spinta"]["format"] = 99
     with pytest.raises(SimpleManifestError):
-        spinta.check(doc)
+        spinta._check_document(doc)
 
 
 def test_check_of_a_list_of_one_document(spinta):
     doc = _doc(spinta, CITIES)
-    assert spinta.check([doc]) == spinta.check(doc)
+    assert spinta._check_document([doc]) == spinta._check_document(doc)
 
 
 # `ORDER` refers to `Customer`, which only `CUSTOMERS` defines (3.1, merged first).
@@ -265,8 +265,8 @@ CUSTOMERS = HEADER + ("datasets/gov/shop,,,,,,,,,,\n,,,Customer,,,id,,,,\n,,,,id
 
 
 def test_check_of_several_documents_checks_them_as_one(spinta):
-    assert spinta.errors(spinta.check(_doc(spinta, ORDER)), code="UnresolvedReference")
-    checked = spinta.check([_doc(spinta, ORDER), _doc(spinta, CUSTOMERS)])
+    assert spinta.errors(spinta._check_document(_doc(spinta, ORDER)), code="UnresolvedReference")
+    checked = spinta._check_document([_doc(spinta, ORDER), _doc(spinta, CUSTOMERS)])
     assert spinta.errors(checked, code="UnresolvedReference") == []
     assert "datasets/gov/shop/Customer" in checked["model"]
     assert "datasets/gov/shop/Order" in checked["model"]
@@ -275,22 +275,22 @@ def test_check_of_several_documents_checks_them_as_one(spinta):
 def test_check_of_documents_that_define_one_path_differently_raises(spinta):
     other = HEADER + ("datasets/gov/shop,,,,,,,,,,\n,,,Customer,,,name,,,,\n,,,,name,string,,,,,\n")
     with pytest.raises(SimpleManifestError):
-        spinta.check([_doc(spinta, CUSTOMERS), _doc(spinta, other)])
+        spinta._check_document([_doc(spinta, CUSTOMERS), _doc(spinta, other)])
 
 
 def test_check_with_check_names_off_is_accepted(spinta):
-    checked = spinta.check(_doc(spinta, CITIES), check_names=False)
+    checked = spinta._check_document(_doc(spinta, CITIES), check_names=False)
     assert spinta.errors(checked, code="UnresolvedReference")
 
 
 def test_threads_share_one_instance_and_get_serial_results():
     spinta = Spinta()
     doc = _doc(spinta, EXAMPLE)
-    expected = spinta.check(doc)
+    expected = spinta._check_document(doc)
     results = []
 
     def run():
-        results.append(spinta.check(doc))
+        results.append(spinta._check_document(doc))
 
     threads = [threading.Thread(target=run) for _ in range(4)]
     for t in threads:
@@ -320,10 +320,78 @@ def test_check_of_a_document_with_an_unresolved_base_does_not_raise(spinta):
     )
     doc = spinta.copy(text.encode("utf-8"), "csv")
 
-    checked = spinta.check(doc)
+    checked = spinta._check_document(doc)
 
     [base] = checked["base"].values()
     assert base["implied"]["model"] is None
     assert base["implied"]["ref"] is None
     assert [e["code"] for e in spinta.errors(checked, code=["UnresolvedReference"])] == ["UnresolvedReference"]
     assert checked["model"]["datasets/gov/ar/City"]["implied"]["base"] is None
+
+
+def test_check_returns_the_errors_of_the_document(spinta):
+    """`check` returns a list of the errors, as `errors` stores them, in document order (3.3)."""
+    doc = _doc(spinta, EXAMPLE)
+
+    errors = spinta.check(doc)
+
+    assert isinstance(errors, list)
+    # The errors are the stored ones, with the `manifest` of the input in their context (3.3).
+    stored = spinta.errors(spinta._check_document(doc))
+    assert [{**e, "context": {k: v for k, v in e["context"].items() if k != "manifest"}} for e in errors] == stored
+    assert list(errors[0]["context"]) == ["type", "manifest", "dataset", "model", "property", "ref"]
+    assert errors[0]["context"]["manifest"] == "<memory>"
+    assert [e["code"] for e in errors] == ["UnresolvedReference", "UndefinedEnum"]
+    assert errors[0]["message"] == (
+        "Model 'datasets/gov/example/Country' referenced by 'ref' property 'country' was not found in the manifest."
+    )
+    assert errors[0]["index"] == 4
+    assert errors[0]["key"] == "ref"
+    assert errors[0]["severity"] == "error"
+
+
+def test_check_of_a_valid_document_is_empty(spinta):
+    assert spinta.check(_doc(spinta, CSV_TABLE)) == []
+
+
+def test_check_code_keeps_only_the_codes_given(spinta):
+    doc = _doc(spinta, EXAMPLE)
+
+    assert [e["code"] for e in spinta.check(doc, code="UnresolvedReference")] == ["UnresolvedReference"]
+    assert [e["code"] for e in spinta.check(doc, code=["UndefinedEnum"])] == ["UndefinedEnum"]
+    assert [e["code"] for e in spinta.check(doc, code=("UndefinedEnum", "UnresolvedReference"))] == [
+        "UnresolvedReference",
+        "UndefinedEnum",
+    ]
+    assert spinta.check(doc, code=["NoSuchCode"]) == []
+
+
+def test_check_strict_references_of_the_call(spinta):
+    doc = _doc(spinta, CITIES)
+
+    assert [e["severity"] for e in spinta.check(doc)] == ["error"]
+    assert [e["severity"] for e in spinta.check(doc, strict_references=False)] == ["warning"]
+
+
+def test_check_collects_read_errors_with_link_and_check_errors(spinta):
+    """A row that cannot be read is an error of the reader, and the other rows are still checked (3.4, 4.10)."""
+    text = (
+        "dataset,resource,base,model,property,type,ref,access\n"
+        "datasets/gov/example,,,,,,,\n"
+        ",,,Country,,,code,\n"
+        ",,,,code,string,,public\n"
+        ",,,,name,string,,open,extra\n"
+        ",,,,place,ref,datasets/gov/example/Place,\n"
+    )
+
+    errors = spinta.check(_doc(spinta, text))
+
+    assert [e["code"] for e in errors] == ["TabularManifestError", "UnresolvedReference"]
+    assert errors[0]["severity"] == "error"
+    assert errors[0]["index"] == 4
+    assert errors[1]["severity"] == "error"
+    assert errors[1]["context"]["property"] == "place"
+
+
+def test_check_does_not_raise_for_the_content_of_the_document(spinta):
+    assert spinta.check(_doc(spinta, EXAMPLE))

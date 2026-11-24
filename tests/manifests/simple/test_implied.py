@@ -860,7 +860,7 @@ def test_downgraded_reference_has_implied_as_an_object(spinta):
 
 def test_strict_check_of_unresolved_reference_has_no_target(spinta):
     # `check` is strict by default: the reference stays a `ref`, and its target is unknown (4.6).
-    checked = spinta.check(_doc_csv(spinta, UNRESOLVED))
+    checked = spinta._check_document(_doc_csv(spinta, UNRESOLVED))
     implied = _implied(checked, "property", "datasets/gov/cities/City/location")
     assert implied["type"] == "ref"
     assert implied["ref_model"] is None

@@ -66,7 +66,7 @@ def test_index_of_a_later_document_is_shifted_and_unique(spinta):
 def test_error_index_moves_with_its_element(spinta):
     # `Country/region` names a model that no document defines, so it is an error of the second document.
     second = SECOND + ",,,,region,ref,/datasets/gov/x/Region,,,,\n"
-    checked = spinta.check([_doc(spinta, FIRST), _doc(spinta, second)])
+    checked = spinta._check_document([_doc(spinta, FIRST), _doc(spinta, second)])
     element = checked["property"]["datasets/gov/b/Country/region"]
     assert [e["code"] for e in element["errors"]] == ["UnresolvedReference"]
     assert element["errors"][0]["index"] == element["index"]
