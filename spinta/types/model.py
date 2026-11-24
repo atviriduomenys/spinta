@@ -329,6 +329,9 @@ def _link_model_page(model: Model):
 @overload
 @commands.link.register(Context, Base)
 def link(context: Context, base: Base):
+    if base.default:
+        # Matched to a default base (`copy -b`). Its model is not loaded, so there is nothing to link (3.x).
+        return
     parent_name: str = base.parent
     try:
         base.parent = commands.get_model(context, base.model.manifest, parent_name)
@@ -808,6 +811,9 @@ def resolve_property(parent_prop: Property, prop: str) -> Property | None:
 
 @commands.resolve_property.register(Base, str)
 def resolve_property(base: Base, prop: str) -> Property | None:
+    if base.default:
+        # The model of a default base is not loaded, so none of its properties can be resolved.
+        return None
     return commands.resolve_property(base.parent, prop)
 
 

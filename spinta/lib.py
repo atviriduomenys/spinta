@@ -29,6 +29,7 @@ from spinta.core.enums import Access
 from spinta.exceptions import BaseError
 from spinta.manifests.mermaid.helpers import write_mermaid_manifest
 from spinta.manifests.rdf.writer import render_rdf_manifest
+from spinta.manifests.simple.bases import DefaultBases, default_models, visibility_scope
 from spinta.manifests.simple.check import LoadedDocument, _with_errors, check_document, load_document, with_implied
 from spinta.manifests.simple.errors import index_of_line, manifest_error, read_error
 from spinta.manifests.simple.from_tabular import tabular_to_simple
@@ -167,6 +168,8 @@ class Spinta:
         columns: Sequence[str] | None = None,
         order_by: str | None = None,
         include: Sequence[SimpleManifest] = (),
+        base: Sequence[SimpleManifest | str | os.PathLike] = (),
+        base_visibility: Sequence[str] | None = None,
         format_names: bool = False,
         rename_duplicates: bool = False,
         on_error: Callable[[ManifestError, bool], None] | None = None,
@@ -176,6 +179,15 @@ class Spinta:
         A raw source (a path, bytes or an open file) is always read to a
         `simple` manifest. A `simple` manifest, or a list of them, is written
         in `format`, `simple` by default. A list is merged first.
+
+        `base` is a list of default base manifests, paths or `simple` documents
+        (`spinta copy -b`). A model that has no base is matched to the one model
+        of the same name, without its dataset, in them: the match is written as
+        the model's base. No match, or more than one, is a `DefaultBaseNotFound`
+        error of the model, and the model is written without a base. `base_visibility`
+        names the visibilities (`public`, `package`, `protected`, `private`) of the
+        models that must match; the others get no error. `None` is all of them.
+        The base manifests are only read to build the match, and are then released.
 
         Errors do not raise. Each error of the run is passed to `on_error(error,
         raised)`, in order: the errors stored in a `simple` result, or the errors
@@ -193,6 +205,8 @@ class Spinta:
             columns=columns,
             order_by=order_by,
             include=include,
+            base=base,
+            base_visibility=base_visibility,
             format_names=format_names,
             rename_duplicates=rename_duplicates,
         )
@@ -209,6 +223,8 @@ class Spinta:
         columns: Sequence[str] | None,
         order_by: str | None,
         include: Sequence[SimpleManifest],
+        base: Sequence[SimpleManifest | str | os.PathLike],
+        base_visibility: Sequence[str] | None,
         format_names: bool,
         rename_duplicates: bool,
     ) -> _CopyRun:
@@ -220,9 +236,16 @@ class Spinta:
             if not _is_document(manifest):
                 # A raw source is read to `simple`. Renaming happens in the read, so it is allowed (3.1).
                 _refuse_output_options("simple", {**options, "rename_duplicates": False})
+                bases = self._default_bases(base, base_visibility)
                 doc, stop = self._read_with_stop(manifest, format, rename_duplicates=rename_duplicates)
-                return self._simple_run(doc, stop)
-            return self._write_docs(_checked_documents(manifest), format or "simple", options, stop=None)
+                return self._simple_run(doc, stop, bases)
+            fmt = format or "simple"
+            # The output is checked before any base is read, so a refused option raises before anything is loaded.
+            _check_output_format(fmt)
+            _refuse_output_options(fmt, options)
+            docs = _checked_documents(manifest)
+            bases = self._default_bases(base, base_visibility)
+            return self._write_docs(docs, fmt, options, stop=None, bases=bases)
 
     def _copy_files(
         self,
@@ -236,13 +259,16 @@ class Spinta:
         order_by: str | None = None,
         format_names: bool = False,
         rename_duplicates: bool = False,
+        base: Sequence[SimpleManifest | str | os.PathLike] = (),
+        base_visibility: Sequence[str] | None = None,
         on_error: Callable[[ManifestError, bool], None] | None = None,
     ) -> Any:
         """`spinta copy FILE... -o OUTPUT`: each file is read to `simple` (3.5, rule 2), then the documents are written.
 
         `files` are `(path, input format)` pairs; a `None` format is detected from the path. A row that cannot
         be read stops a table output before anything is written, so its `output` is `None` (3.5, rule 4). A
-        `simple` output keeps every element (4.10), so it is written with its errors.
+        `simple` output keeps every element (4.10), so it is written with its errors. `base` is the `-b`
+        default bases, see `copy`.
         """
         with self._lock:
             options = _copy_checked(
@@ -255,12 +281,13 @@ class Spinta:
                 format_names=format_names,
                 rename_duplicates=rename_duplicates,
             )
+            bases = self._default_bases(base, base_visibility)
             reads = [self._read_with_stop(path, fmt, rename_duplicates=rename_duplicates) for path, fmt in files]
             stop = next((error for _, error in reads if error is not None), None)
             if stop is not None and format != "simple":
                 return _report(_CopyRun(None, [(_as_error(stop), True)], stop), on_error)
             docs = [doc for doc, _ in reads]
-            return _report(self._write_docs(docs, format, options, stop), on_error)
+            return _report(self._write_docs(docs, format, options, stop, bases=bases), on_error)
 
     def _write_docs(
         self,
@@ -268,16 +295,51 @@ class Spinta:
         fmt: str,
         options: dict[str, Any],
         stop: Exception | None,
+        bases: DefaultBases | None = None,
     ) -> _CopyRun:
         """Write `docs` as one document (3.1), in `fmt`. `options` are checked by `_refuse_output_options`."""
         _check_output_format(fmt)
         _refuse_output_options(fmt, options)
         doc = docs[0] if len(docs) == 1 else merge_documents(docs, version=self.version)
         if fmt == "simple":
-            return self._simple_run(doc, stop)
-        return self._render(doc, fmt, **{name: options[name] for name in _RENDER_OPTIONS})
+            return self._simple_run(doc, stop, bases)
+        return self._render(doc, fmt, bases, **{name: options[name] for name in _RENDER_OPTIONS})
 
-    def _simple_run(self, doc: SimpleManifest, stop: Exception | None) -> _CopyRun:
+    def _default_bases(
+        self,
+        base: Sequence[SimpleManifest | str | os.PathLike],
+        base_visibility: Sequence[str] | None,
+    ) -> DefaultBases | None:
+        """The index of the default bases (`copy -b`), or `None` when there are none (3.1).
+
+        Each base manifest is loaded only to list its models, in a context of its own. The index keeps
+        names and keys, so the contexts are released once it is built.
+        """
+        if base is None:
+            base = ()
+        if isinstance(base, str | bytes | os.PathLike | dict) or not isinstance(base, Sequence):
+            raise ValueError("`base` takes a list of manifests, not one manifest (3.1).")
+        bases = list(base)
+        if not bases:
+            if base_visibility is not None:
+                raise ValueError("`base_visibility` needs `base`: name the default base manifests too (3.1).")
+            return None
+        index = DefaultBases(scope=visibility_scope(base_visibility))
+        for item in bases:
+            loaded = load_document(self._rc, self._base_document(item), check_names=None, strict_references=False)
+            index.add(default_models(loaded.context, loaded.manifest))
+        return index
+
+    def _base_document(self, item: SimpleManifest | str | os.PathLike) -> SimpleManifest:
+        """A default base given as a path, read by its format, or as a `simple` document (3.1)."""
+        if isinstance(item, dict):
+            return _checked_documents(item)[0]
+        if isinstance(item, str | os.PathLike):
+            doc, _ = self._read_with_stop(item, None)
+            return doc
+        raise ValueError(f"A default base is a path or a `simple` document, not {type(item).__name__} (3.1).")
+
+    def _simple_run(self, doc: SimpleManifest, stop: Exception | None, bases: DefaultBases | None = None) -> _CopyRun:
         """A `simple` result: `doc` with the link errors of this run stored on its elements (3.4, 4.10).
 
         The document is loaded as `check` loads it, without `strict_references`. So a reference that is not in
@@ -285,7 +347,13 @@ class Spinta:
         report it. The read errors are kept. A read that stopped does not remove the elements: the output keeps
         every element (4.10), so `stop` only marks the error that stopped the read.
         """
-        loaded = load_document(self._rc, doc, check_names=None, strict_references=False)
+        loaded = load_document(
+            self._rc,
+            doc,
+            check_names=None,
+            strict_references=False,
+            default_bases=bases,
+        )
         out = with_implied(_with_errors(doc, loaded.log, loaded.collector.errors), loaded)
         return _CopyRun(out, _simple_reports(out, stop), stop)
 
@@ -293,6 +361,7 @@ class Spinta:
         self,
         doc: SimpleManifest,
         fmt: str,
+        bases: DefaultBases | None = None,
         *,
         source: bool,
         access: str,
@@ -313,6 +382,7 @@ class Spinta:
             check_names=False if (format_names or rename_duplicates) else None,
             strict_references=False,
             rename_duplicates=rename_duplicates,
+            default_bases=bases,
         )
         stop = _load_stop(loaded)
         if stop is not None:

@@ -392,10 +392,12 @@ def write_mermaid_manifest(
 
         if model.base:
             label = ", ".join(pk.name for pk in model.base.pk)
+            base_parent = model.base.parent
             mermaid.add_relationship(
                 MermaidRelationship(
                     node1=model.name,
-                    node2=model.base.parent.name,
+                    # A default base (`copy -b`) is not loaded, so its parent is only the name of its model.
+                    node2=base_parent if isinstance(base_parent, str) else base_parent.name,
                     type=RelationshipType.INHERITANCE,
                     label=label,
                 )

@@ -52,6 +52,23 @@ def copy(
         None, help=("Order by a specified column (currently only access column is supported)")
     ),
     rename_duplicates: bool = Option(False, help=("Rename duplicate model names by adding number suffix")),
+    base: list[str] = Option(
+        None,
+        "-b",
+        "--base",
+        help=(
+            "Default base manifest. A model without a base is matched to the one model of the same name, without its "
+            "dataset, in the default bases, and that model becomes its base. Can be given more than once."
+        ),
+    ),
+    base_visibility: str | None = Option(
+        None,
+        "--base-visibility",
+        help=(
+            "Comma separated visibilities (public, package, protected, private) of the models that must match a "
+            "default base. Other models get no error when they do not match. Default: all."
+        ),
+    ),
     manifests: list[str] = Argument(None, help=("Source manifest files to copy from")),
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
@@ -69,9 +86,13 @@ def copy(
         rename_duplicates=rename_duplicates,
         manifests=manifests,
         dataset=dataset,
+        base=base,
+        base_visibility=_split_visibility(base_visibility),
         on_error=errors,
     )
-    if table is not None and not errors.count:
+    # The table is printed whenever it was written: an error that was collected is printed on stderr, and the
+    # output is still produced (3.1, 3.5).
+    if table is not None:
         echo(table)
     errors.summary()
     if errors.raised:
@@ -90,12 +111,15 @@ def copy_manifest(
     manifests: list[str] = None,
     output_type: str | None = None,
     dataset: str | None = None,
+    base: list[str] | None = None,
+    base_visibility: list[str] | None = None,
     on_error: Callable[[ManifestError, bool], None] | None = None,
 ) -> str | None:
     """Copy models from CSV manifest files into another CSV manifest file
 
     Returns the table for stdout, when the copy goes through `Spinta.copy` and
     has no `output`. Without `on_error` the error that stops a table is raised.
+    `base` are the default base manifests (`-b`), see `Spinta.copy`.
     """
     lib_format = _lib_output_format(output, output_type)
     lib_paths = _lib_input_paths(manifests)
@@ -113,8 +137,13 @@ def copy_manifest(
             order_by=order_by,
             format_names=format_names,
             rename_duplicates=rename_duplicates,
+            base=base or [],
+            base_visibility=base_visibility,
             on_error=on_error,
         )
+    if base or base_visibility is not None:
+        # The default bases are a `Spinta.copy` option, so only its inputs and outputs take them.
+        raise NotImplementedError("`--base` is not implemented yet for this input or output.")
 
     # Only what `Spinta.copy` does not take yet, or does not take at all (3.5, rule 5), keeps this path.
     access = get_enum_by_name(Access, access)
@@ -178,6 +207,13 @@ def copy_manifest(
             echo(table)
 
 
+def _split_visibility(value: str | None) -> list[str] | None:
+    """`--base-visibility public,package` as a list. `None` when the option is not given."""
+    if value is None:
+        return None
+    return [name.strip() for name in value.split(",")]
+
+
 def _lib_output_format(output: str | None, output_type: str | None) -> str | None:
     """The `Spinta.copy` format of an output (3.5, rule 3), or `None` when the CLI keeps its own path.
 
@@ -226,6 +262,8 @@ def _copy_with_lib(
     order_by: str | None,
     format_names: bool,
     rename_duplicates: bool,
+    base: list[str],
+    base_visibility: list[str] | None,
     on_error: Callable[[ManifestError, bool], None] | None,
 ) -> str | None:
     """`spinta copy` through `Spinta.copy` (3.5). The CLI parses the options and writes the result.
@@ -248,7 +286,14 @@ def _copy_with_lib(
     if output:
         echo(manifest_banner(store.manifest))
 
-    result = Spinta._from_context(context)._copy_files(files, fmt, on_error=on_error, **options)
+    result = Spinta._from_context(context)._copy_files(
+        files,
+        fmt,
+        base=base,
+        base_visibility=base_visibility,
+        on_error=on_error,
+        **options,
+    )
     if output and fmt == "simple":
         # The document keeps every element, so it is written even when a row could not be read (4.10).
         _write_output(output, canonical_json(result))

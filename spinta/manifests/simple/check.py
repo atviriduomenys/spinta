@@ -20,6 +20,7 @@ from spinta.core.context import create_context
 from spinta.exceptions import BaseError
 from spinta.handlers import ErrorCollector
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.simple.bases import DefaultBases, link_default_bases
 from spinta.manifests.simple.errors import (
     READ_ERROR_CODE,
     element_of,
@@ -63,11 +64,14 @@ def load_document(
     check_names: bool | None,
     strict_references: bool,
     rename_duplicates: bool = False,
+    default_bases: DefaultBases | None = None,
 ) -> LoadedDocument:
     """Load, link and check `doc` into nodes, collecting every error (3.4).
 
     `rename_duplicates` is read as the tabular reader reads it (`copy`). The
-    nodes are what `copy` renders and what `check` reports on.
+    nodes are what `copy` renders and what `check` reports on. `default_bases`
+    matches the models that have no base to the default bases, in the link
+    phase, before the models are linked (`copy -b`, see `spinta.manifests.simple.bases`).
     """
     validate_document(doc)
 
@@ -109,6 +113,8 @@ def load_document(
     commands.load(context, manifest, rename_duplicates=rename_duplicates, load_internal=False, full_load=True)
     with manager.guard():
         load_manifest_nodes(context, manifest, schemas)
+        if default_bases is not None:
+            link_default_bases(context, manifest, default_bases)
         commands.link(context, manifest)
         commands.check(context, manifest)
     return LoadedDocument(context=context, manifest=manifest, collector=collector, log=log)

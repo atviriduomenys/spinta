@@ -1693,3 +1693,144 @@ def test_copy_to_simple_json_exits_1_on_a_row_that_cannot_be_read(context: Conte
     assert "only single dimension can be used" in result.stderr
     assert "Total errors: 1" in result.stderr
     assert (tmp_path / "out.simple.json").exists()
+
+
+_BASE_LOCN = striptable("""
+    d    | r | b | m       | property | type    | ref | uri
+    locn |   |   |         |          |         |     |
+         |   |   | Country |          |         | id  | locn:Country
+         |   |   |         | id       | integer |     |
+         |   |   |         | code     | string  |     |
+""")
+
+_BASE_PLACES = striptable("""
+    d      | r | b | m     | property | type    | ref | uri
+    places |   |   |       |          |         |     |
+           |   |   | Place |          |         | id  |
+           |   |   |       | id       | integer |     |
+""")
+
+_BASE_AR = striptable("""
+    d                            | r | b | m       | property | type    | ref | uri
+    datasets/gov/rc/ar/uapi/addr |   |   |         |          |         |     |
+         |   |   | Country |          |         | id  |
+         |   |   |         | id       | integer |     |
+         |   |   |         | code     | string  |     |
+""")
+
+
+def _base_manifests(context, tmp_path, ar: str = _BASE_AR) -> tuple[Path, Path, Path]:
+    create_tabular_manifest(context, tmp_path / "locn.csv", _BASE_LOCN)
+    create_tabular_manifest(context, tmp_path / "places.csv", _BASE_PLACES)
+    create_tabular_manifest(context, tmp_path / "ar.csv", ar)
+    return tmp_path / "ar.csv", tmp_path / "locn.csv", tmp_path / "places.csv"
+
+
+def test_copy_base_writes_the_base_of_each_model(context: Context, rc, cli, tmp_path):
+    ar, locn, _ = _base_manifests(context, tmp_path)
+
+    result = cli.invoke(rc, ["copy", "-b", locn, "-o", tmp_path / "out.csv", ar], fail=False)
+
+    assert result.exit_code == 0
+    assert "Total errors" not in result.stdout + result.stderr
+    assert "/locn/Country" in (tmp_path / "out.csv").read_text(encoding="utf-8")
+    # The CLI writes what the library returns for the same arguments (D14).
+    spinta = Spinta._from_context(context)
+    expected = spinta.copy(spinta.copy(str(ar)), "csv", base=[str(locn)])
+    assert (tmp_path / "out.csv").read_bytes() == expected
+
+
+def test_copy_base_can_be_given_more_than_once(context: Context, rc, cli, tmp_path):
+    ar, locn, places = _base_manifests(context, tmp_path)
+
+    result = cli.invoke(rc, ["copy", "-b", places, "-b", locn, "-o", tmp_path / "out.csv", ar], fail=False)
+
+    assert result.exit_code == 0
+    assert "/locn/Country" in (tmp_path / "out.csv").read_text(encoding="utf-8")
+
+
+def test_copy_base_prints_the_table_and_the_error_when_a_model_has_no_match(context: Context, rc, cli, tmp_path):
+    # The error is printed on stderr and counted. The table is still written, and the exit status stays 0.
+    ar, locn, _ = _base_manifests(context, tmp_path, ar=_BASE_AR + "\n         |   |   | Standalone |  |  |  |")
+
+    result = cli.invoke(rc, ["copy", "-b", locn, ar], fail=False)
+
+    assert result.exit_code == 0
+    assert "Standalone" in result.stdout
+    assert "has no match in the default bases" in result.stderr
+    assert "Total errors: 1" in result.stderr
+
+
+def test_copy_base_writes_the_output_when_a_model_has_no_match(context: Context, rc, cli, tmp_path):
+    ar, locn, _ = _base_manifests(context, tmp_path, ar=_BASE_AR + "\n         |   |   | Standalone |  |  |  |")
+
+    result = cli.invoke(rc, ["copy", "-b", locn, "-o", tmp_path / "out.simple.json", ar], fail=False)
+
+    assert result.exit_code == 0
+    assert "has no match in the default bases" in result.stderr
+    doc = json.loads((tmp_path / "out.simple.json").read_text(encoding="utf-8"))
+    standalone = doc["model"]["datasets/gov/rc/ar/uapi/addr/Standalone"]
+    assert [error["code"] for error in standalone["errors"]] == ["DefaultBaseNotFound"]
+
+
+def test_copy_base_visibility_limits_the_errors(context: Context, rc, cli, tmp_path):
+    _, locn, _ = _base_manifests(context, tmp_path)
+    create_tabular_manifest(
+        context,
+        tmp_path / "ar.csv",
+        striptable("""
+    d                            | r | b | m       | property | type    | ref | uri | visibility
+    datasets/gov/rc/ar/uapi/addr |   |   |         |          |         |     |     |
+         |   |   | Country |          |         | id  |     |
+         |   |   |         | id       | integer |     |     |
+         |   |   | Hidden  |          |         |     |     | private
+    """),
+    )
+    ar = tmp_path / "ar.csv"
+
+    result = cli.invoke(rc, ["copy", "-b", locn, "--base-visibility", "public,package", ar], fail=False)
+    assert result.exit_code == 0
+    assert "Total errors" not in result.stdout + result.stderr
+
+    result = cli.invoke(rc, ["copy", "-b", locn, ar], fail=False)
+    assert "Total errors: 1" in result.stderr
+
+
+def test_copy_base_visibility_needs_base(context: Context, rc, cli, tmp_path):
+    ar, _, _ = _base_manifests(context, tmp_path)
+
+    result = cli.invoke(rc, ["copy", "--base-visibility", "public", "-o", tmp_path / "out.csv", ar], fail=False)
+
+    assert isinstance(result.exception, ValueError)
+    assert "needs `base`" in str(result.exception)
+    assert not (tmp_path / "out.csv").exists()
+
+
+def test_copy_base_refuses_an_input_it_does_not_read_yet(context: Context, rc, cli, tmp_path):
+    _, locn, _ = _base_manifests(context, tmp_path)
+    (tmp_path / "model.xsd").write_text("<xs:schema/>", encoding="utf-8")
+
+    result = cli.invoke(rc, ["copy", "-b", locn, "-o", tmp_path / "out.csv", tmp_path / "model.xsd"], fail=False)
+
+    assert isinstance(result.exception, NotImplementedError)
+    assert not (tmp_path / "out.csv").exists()
+
+
+def test_copy_base_options_reach_the_library(context: Context, rc, cli, tmp_path, monkeypatch):
+    calls = []
+    run = Spinta._copy_files
+
+    def spy(self, files, format, **options):
+        calls.append(options)
+        return run(self, files, format, **options)
+
+    monkeypatch.setattr(Spinta, "_copy_files", spy)
+    ar, locn, places = _base_manifests(context, tmp_path)
+    cli.invoke(
+        rc,
+        ["copy", "-b", str(locn), "-b", str(places), "--base-visibility", "public", "-o", tmp_path / "out.csv", ar],
+    )
+
+    [options] = calls
+    assert options["base"] == [str(locn), str(places)]
+    assert options["base_visibility"] == ["public"]

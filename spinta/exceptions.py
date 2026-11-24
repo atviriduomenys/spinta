@@ -364,6 +364,15 @@ class UnresolvedReference(BaseError):
     template = "Model {ref!r} referenced by {type!r} property {property!r} was not found in the manifest."
 
 
+class DefaultBaseNotFound(BaseError):
+    """A model that has no base has no single model of the same name in the default bases (`copy -b`).
+
+    Stored as an error of the model. The model is still written, without a base (3.1).
+    """
+
+    template = "Model {model!r} has no match in the default bases: {reason}."
+
+
 class SourceNotSet(UserError):
     status_code = 404
     template = (

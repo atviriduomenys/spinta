@@ -326,7 +326,7 @@ class _RdfExporter:
         _add_texts(section, shape, model.title, model.description, SH.name, SH.description)
         # A base without `rdfs:subClassOf` is carried by `sh:node`, so the base shape applies to the
         # instances of the model. Several shapes can target the same class, and `sh:node` keeps them apart.
-        base = model.base.parent if model.base else None
+        base = _loaded_base(model)
         if base is not None and self._is_exported(base) and self._subclass_base(model) is None:
             section.add(shape, SH.node, self._shape_iri(base))
         for prop in _exported_properties(model, self.access):
@@ -465,8 +465,8 @@ class _RdfExporter:
         """
         current = model
         seen = {id(current)}
-        while not current.uri and current.base is not None and current.base.parent is not None:
-            current = current.base.parent
+        while not current.uri and _loaded_base(current) is not None:
+            current = _loaded_base(current)
             if id(current) in seen:
                 break
             seen.add(id(current))
@@ -478,10 +478,11 @@ class _RdfExporter:
         It is written only when the class IRIs differ and the model's class is described here.
         Otherwise the base is carried by `sh:node`, see `_shape`.
         """
-        if model.base is None or model.base.parent is None:
+        base_model = _loaded_base(model)
+        if base_model is None:
             return None
         cls = self._class_iri(model)
-        base = self._class_iri(model.base.parent)
+        base = self._class_iri(base_model)
         if cls == base or not self._is_described(cls):
             return None
         return base
@@ -584,6 +585,14 @@ def _owner(model: Model) -> str | None:
     if model.external and model.external.dataset:
         return model.external.dataset.name
     return None
+
+
+def _loaded_base(model: Model) -> Model | None:
+    """The base model of `model` as a node. `None` when it has no base, or the base is a default base (`copy -b`):
+    that model is not loaded, so it has no IRI here."""
+    if model.base is None or not isinstance(model.base.parent, Model):
+        return None
+    return model.base.parent
 
 
 def _dataset_name(model: Model) -> str:

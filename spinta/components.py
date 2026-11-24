@@ -451,12 +451,39 @@ class Namespace(MetaData):
         return isinstance(self.parent, Manifest)
 
 
+class StubProperty:
+    """A key of a model that is not loaded, as a default base gives it (`copy -b`, see `spinta.manifests.simple.bases`).
+
+    Only the name and the place of the property are known, so writers that need no more can use it as a property.
+    """
+
+    name: str
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    @property
+    def place(self) -> str:
+        return self.name
+
+    def __eq__(self, other: object) -> bool:
+        return isinstance(other, StubProperty) and other.name == self.name
+
+    def __hash__(self) -> int:
+        return hash(self.name)
+
+    def __repr__(self) -> str:
+        return f"StubProperty({self.name!r})"
+
+
 class Base(ExtraMetaData):
     model: Model  # a.base.b - here `model` is `b`
-    parent: Model  # a.base.b - here `parent` is `a`
-    pk: list[Property]  # a.base.b - list of properties of `a` model
+    parent: Model | str  # a.base.b - here `parent` is `a`; a name when `b` is a default base (not loaded)
+    pk: list[Property] | list[StubProperty]  # a.base.b - list of properties of `a` model
     lang: LangData = None
     level: Level
+    # Matched to a default base by `copy -b`: `parent` is the name of a model that is not loaded.
+    default: bool = False
 
     schema = {
         "name": {},

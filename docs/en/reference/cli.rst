@@ -97,6 +97,23 @@ Arguments
 - ``<dataset-name>``
   The name of the dataset. For Mermaid diagram, the specified dataset will not be wrapped in Mermaid class diagram `namespace <https://mermaid.js.org/syntax/classDiagram.html#define-namespace>`_. For RDF Turtle, only models of the specified dataset are written, see `Dataset selection`_. The dataset must exist in the manifest, otherwise the command fails.
 
+Default bases
+-------------
+
+The ``-b``, ``--base`` option gives a default base manifest. A model that has no base is matched to the one model of the same name, without its dataset, in the default bases, and the matched model becomes its base. The base is written as a ``base`` row, with the keys of the matched model as ``ref``:
+
+.. code-block:: bash
+
+   spinta copy ar.txt -b locn.txt -o manifest.csv
+
+If ``locn.txt`` has ``Country`` in the ``locn`` dataset, then ``datasets/gov/rc/ar/uapi/addr/Country`` in ``ar.txt`` gets the base ``/locn/Country``. The option can be given more than once.
+
+- A model with no match, or with more than one model of its name in the default bases, gets a ``DefaultBaseNotFound`` error. The error is printed on stderr and counted in ``Total errors``. The output is still written, and the exit status stays ``0``.
+- ``--base-visibility`` takes a comma separated list of ``public``, ``package``, ``protected`` and ``private``. Only models with one of these visibilities get the error. By default all models do.
+- The default base manifests are read only to find the matches. Their models are not written.
+- The option works with ``csv``, ``ascii``, ``xlsx`` and ``simple`` inputs, and with table, CSV, XLSX, Mermaid, RDF Turtle and ``simple`` outputs.
+- A model matched to a default base has no ``rdfs:subClassOf`` in RDF Turtle output, because the base model is not loaded.
+
 Mermaid.js output
 -----------------
 
