@@ -16,6 +16,13 @@ Stulpelis „Ką daryti“:
 
 ## Pakeitimai
 
+### 2026-11-24
+
+| Puslapis | Kas pasikeitė | Ką daryti |
+|----------|---------------|-----------|
+| [Pakeitimai pagal versijas](versiju-pakeitimai.md) | Papildyta 2.2.0 versijos pakeitimais: `models:` konfigūracijos užrašymas, Redis keymap su datomis pirminiame rakte, OAS su atgalinėmis nuorodomis. | **Patikrinti**, jei naudojate `models:` nustatymus arba manifeste yra `x[]` / `backref`. |
+| [OAS generavimas](oas-generavimas.md) | Nurodyta, kad manifestams su atgalinių nuorodų masyvais ar savybėmis per nuorodą OAS reikia generuoti ne senesne nei 2.2.0 versija. | **Patikrinti** – jei tokių savybių yra ir OAS generuotas senesne versija, sugeneruoti iš naujo. |
+
 ### 2026-11-12
 
 | Puslapis | Kas pasikeitė | Ką daryti |

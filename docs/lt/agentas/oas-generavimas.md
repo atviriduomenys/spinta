@@ -44,7 +44,9 @@ linteriu, užklausų parametrų ribos ir kt.). `spinta udts oas` šiuos reikalav
 nepriimami (juose nėra `info.description`, o `servers` adresas – `get.data.gov.lt`).
 
 OAS generuokite **ne senesne nei Spinta 1.3.1** versija – jos sugeneruotas OAS sėkmingai
-importuotas į vartus. Kintant vartų ir kitiems reikalavimams, atitinkamai atnaujinamas ir
+importuotas į vartus. Jei manifeste yra atgalinių nuorodų masyvų (`x[]`, `backref`) ar savybių,
+nurodytų per nuorodą (pvz. `salis.rajonas.pavadinimas`), generuokite **ne senesne nei 2.2.0** –
+senesnės versijos jų neaprašo, todėl vartai tokius atsakymus atmeta. Kintant vartų ir kitiems reikalavimams, atitinkamai atnaujinamas ir
 generatorius, todėl rekomenduojama naudoti **naujausią** Spinta versiją. Jei agentas senesnis,
 pirmiausia jį [atnaujinkite](atnaujinimas.md).
 :::
