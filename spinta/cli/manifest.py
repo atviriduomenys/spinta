@@ -220,7 +220,8 @@ def _lib_output_format(output: str | None, output_type: str | None) -> str | Non
     """The `Spinta.copy` format of an output (3.5, rule 3), or `None` when the CLI keeps its own path.
 
     Without `-o` the table is printed, as `ascii`. The extension decides the
-    format, as it always did: `.mmd`, `.ttl` and `.simple.json` first.
+    format, as it always did: `.mmd`, `.ttl` and `.simple.json` first, `.txt`
+    is the `ascii` table.
     """
     if output is None:
         return "ascii"
@@ -238,6 +239,8 @@ def _lib_output_format(output: str | None, output_type: str | None) -> str | Non
         return "xlsx"
     if output.endswith(".csv"):
         return "csv"
+    if output.endswith(".txt"):
+        return "ascii"
     return None
 
 

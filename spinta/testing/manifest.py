@@ -10,19 +10,30 @@ from spinta.components import Context, Store
 from spinta.core.config import RawConfig, configure_rc
 from spinta.manifests.components import Manifest, ManifestPath
 from spinta.manifests.helpers import detect_manifest_from_path
-from spinta.manifests.tabular.helpers import normalizes_columns, render_tabular_manifest, striptable
+from spinta.manifests.tabular.helpers import (
+    datasets_to_tabular,
+    read_ascii_tabular_table,
+    render_tabular_manifest,
+    render_tabular_manifest_rows,
+    striptable,
+)
 from spinta.testing.context import TestContext, create_test_context
 
 
 def compare_manifest(manifest: Manifest, expected: str, context: Context = None) -> tuple[str, str]:
+    """Render `manifest` as an ASCII table, and render `expected` table the same way.
+
+    The expected table is read with the same reader, that reads manifest files, and
+    rendered with the same writer, that writes manifests, so both sides can only
+    differ in the values.
+    """
     expected = striptable(expected)
     if not context:
         context = Context("empty")
     if expected:
-        header = expected.splitlines()[0]
-        cols = normalizes_columns(header.split("|"))
-        sizes = {c: len(x) - 2 for c, x in zip(cols, f" {header} ".split("|"))}
-        actual = render_tabular_manifest(context, manifest, cols, sizes=sizes)
+        cols, rows = read_ascii_tabular_table(expected)
+        actual = render_tabular_manifest_rows(datasets_to_tabular(context, manifest), cols)
+        expected = render_tabular_manifest_rows(rows, cols)
     else:
         actual = render_tabular_manifest(context, manifest)
     return actual, expected

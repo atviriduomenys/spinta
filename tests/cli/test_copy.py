@@ -382,7 +382,7 @@ def test_copy_to_stdout(context: Context, rc, cli, tmp_path):
     d | r | b | m | property | type
     datasets/gov/example     |
       | data                 | sql
-                             |
+      |   |   |   |          |
       |   |   | City         |
       |   |   |   | name     | string
     """)
@@ -1536,6 +1536,17 @@ def test_copy_csv_output_is_the_library_output(context: Context, rc, cli, tmp_pa
     spinta = Spinta._from_context(context)
     expected = spinta.copy(spinta.copy(str(manifest)), "csv", access="open", source=False)
     assert (tmp_path / "out.csv").read_bytes() == expected
+
+
+def test_copy_txt_output_is_the_ascii_table(context: Context, rc, cli, tmp_path):
+    # A `.txt` output is the ASCII table (`ascii`), the same text the library returns.
+    manifest = _parity_manifest(context, tmp_path)
+    result = cli.invoke(rc, ["copy", "-o", tmp_path / "out.txt", manifest])
+    assert result.exit_code == 0, result.output
+
+    spinta = Spinta._from_context(context)
+    expected = spinta.copy(spinta.copy(str(manifest)), "ascii")
+    assert (tmp_path / "out.txt").read_text(encoding="utf-8") == expected
 
 
 def test_copy_table_output_is_the_library_output(context: Context, rc, cli, tmp_path):

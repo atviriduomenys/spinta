@@ -5,7 +5,6 @@ import logging
 import pathlib
 import textwrap
 import types
-import uuid
 from collections.abc import Callable, Iterable, Iterator
 from itertools import zip_longest
 from operator import itemgetter
@@ -46,6 +45,16 @@ from spinta.exceptions import (
 )
 from spinta.manifests.components import Manifest
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.tabular.ascii_table import (
+    ASCII_TABLE_WIDTH,
+    WRAP_MIN_WIDTH,
+    escape,
+    split_cells,
+    split_continuation,
+    strip_wrap_marker,
+    unescape,
+    wrap,
+)
 from spinta.manifests.tabular.components import (
     ACCESS,
     COUNT,
@@ -61,6 +70,7 @@ from spinta.manifests.tabular.components import (
     SOURCE,
     STATUS,
     TITLE,
+    TYPE,
     URI,
     VISIBILITY,
     BackendRow,
@@ -2031,14 +2041,17 @@ def striptable(table):
     return textwrap.dedent(table).strip()
 
 
-def _join_escapes(row: list[str]) -> list[str]:
-    res = []
-    for v in row:
-        if res and res[-1] and res[-1].endswith("\\"):
-            res[-1] = res[-1][:-1] + "|" + v
-        else:
-            res.append(v)
-    return res
+def _fit_row(row: list[str], header: list[str], dim: int) -> list[str]:
+    """Put the cells of a row into the columns of the header.
+
+    Merged dimension cells are written without the separators between them,
+    so the missing cells are inserted right after the value of the merged cell.
+    """
+    row = row[: len(header)]
+    rem = len(header) - len(row)
+    row = row[: dim - rem] + [""] * rem + row[dim - rem :]
+    assert len(header) == len(row), row
+    return row
 
 
 def _read_ascii_tabular_manifest(
@@ -2054,21 +2067,44 @@ def _read_ascii_tabular_manifest(
     if header is None:
         return
     header = normalizes_columns(
-        header.split("|"),
+        split_cells(header),
         check_column_names=check_column_names,
     )
     yield "1", header
 
     # Find index where dimension columns end.
     dim = sum(1 for h in header if h in DATASET[:6])
+
+    # A wrapped row continues on the following lines, so the row is only
+    # yielded, when the next row starts (or the table ends).
+    row: list[str] | None = None
+    row_line = ""
+    continued = False
     for i, line in enumerate(lines, 2):
-        row = _join_escapes(line.split("|"))
-        row = [x.strip() for x in row]
-        row = row[: len(header)]
-        rem = len(header) - len(row)
-        row = row[: dim - rem] + [""] * rem + row[dim - rem :]
-        assert len(header) == len(row), line
-        yield str(i), row
+        line, wrapped = strip_wrap_marker(line)
+        if continued:
+            # Continuation line of a wrapped row, its cells are appended to the
+            # cells of the row above.
+            pieces = _fit_row(split_continuation(line), header, dim)
+            for j, piece in enumerate(pieces):
+                if piece:
+                    row[j] += unescape(piece)
+        else:
+            if row is not None:
+                yield row_line, row
+            row = [unescape(cell) for cell in _fit_row(split_cells(line), header, dim)]
+            row_line = str(i)
+        continued = wrapped
+
+    if row is not None:
+        yield row_line, row
+
+
+def read_ascii_tabular_table(manifest: str) -> tuple[list[ManifestColumn], list[ManifestRow]]:
+    """Read an ASCII table as the column names and rows, that `render_tabular_manifest_rows` can render."""
+    rows = read_ascii_tabular_rows(manifest)
+    cols: list[ManifestColumn] = next(rows, [])
+    return cols, [torow(cols, dict(zip(cols, row))) for row in rows]
 
 
 def read_ascii_tabular_rows(
@@ -2892,80 +2928,195 @@ def render_tabular_manifest(
     context: Context,
     manifest: Manifest,
     cols: list[ManifestColumn] = None,
-    *,
-    sizes: dict[ManifestColumn, int] = None,
 ) -> str:
     rows = datasets_to_tabular(context, manifest)
-    return render_tabular_manifest_rows(rows, cols, sizes=sizes)
+    return render_tabular_manifest_rows(rows, cols)
+
+
+_DIM_STEP = len(" | ") + 1  # A dimension column, that is merged into a value, and its separator.
 
 
 def render_tabular_manifest_rows(
     rows: Iterable[ManifestRow],
     cols: list[ManifestColumn] = None,
     *,
-    sizes: dict[ManifestColumn, int] = None,
+    width: int = ASCII_TABLE_WIDTH,
 ) -> str:
-    cols = cols or MANIFEST_COLUMNS
-    hs = 1 if ID in cols else 0  # hierarchical cols start
-    he = cols.index(PROPERTY)  # hierarchical cols end
-    hsize = 1  # hierarchical column size
-    bsize = 3  # border size
-    if sizes is None:
-        sizes = dict(
-            [(c, len(c)) for c in cols[:hs]] + [(c, 1) for c in cols[hs:he]] + [(c, len(c)) for c in cols[he:]]
-        )
-        rows = list(rows)
-        for row in rows:
-            for i, col in enumerate(cols):
-                val = "" if row[col] is None else str(row[col])
-                if col == ID:
-                    sizes[col] = 2
-                elif i < he:
-                    size = (hsize + bsize) * (he - hs - i) + sizes[PROPERTY]
-                    if size < len(val):
-                        sizes[PROPERTY] += len(val) - size
-                elif sizes[col] < len(val):
-                    sizes[col] = len(val)
+    """Render rows as an ASCII table, `_read_ascii_tabular_manifest` reads it back to the same rows.
 
-    line = []
-    for col in cols:
-        size = sizes[col]
-        line.append(col[:size].ljust(size))
-    lines = [line]
+    Without `cols` only columns that have at least one value are shown, with
+    `cols` columns are shown as requested. Columns are always in `DATASET`
+    order.
 
-    for row in rows:
-        if ID in cols:
-            value = row[ID]
-            if isinstance(value, uuid.UUID):
-                value = str(value)
-            line = [value[:2] if value else "  "]
-        else:
-            line = []
+    Dimension values are merged from the first value to the `type` column.
+    Values, that do not fit into the table `width`, are wrapped into several
+    lines, see `spinta.manifests.tabular.ascii_table`.
+    """
+    cells = [{c: _ascii_value(row.get(c)) for c in DATASET} for row in rows]
+    if cols is None:
+        cols = [c for c in DATASET if any(cell[c] for cell in cells)]
+    else:
+        requested = set(cols)
+        cols = [c for c in DATASET if c in requested]
+    if not cols:
+        return ""
 
-        for i, col in enumerate(cols[hs : he + 1]):
-            val = row[col] or ""
-            if val:
-                depth = i
-                break
-        else:
-            val = ""
-            depth = 0
-
-        line += [" " * hsize] * depth
-        size = (hsize + bsize) * (he - hs - depth) + sizes[PROPERTY]
-        line += [val.ljust(size)]
-
-        for col in cols[he + 1 :]:
-            val = "" if row[col] is None else str(row[col])
-            val = val.replace("|", "\\|")
-            size = sizes[col]
-            line.append(val.ljust(size))
-
-        lines.append(line)
-
-    lines = [" | ".join(line) for line in lines]
-    lines = [line.rstrip() for line in lines]
+    layout = _ascii_layout(cells, cols, width)
+    lines = [_ascii_header(layout)]
+    for cell in cells:
+        lines.extend(_ascii_row(cell, layout))
     return "\n".join(lines)
+
+
+class _AsciiLayout(NamedTuple):
+    cols: list[str]
+    dims: list[str]
+    widths: dict[str, int]
+
+
+def _ascii_value(value: Any) -> str:
+    """A cell value as text, a table row can not contain line breaks."""
+    if value is None:
+        return ""
+    return " ".join(str(value).splitlines()).strip()
+
+
+def _ascii_label(col: str) -> str:
+    """Dimension columns are shown with a single letter header, except `property`."""
+    if col in MAIN_DIMENSIONS and col != PROPERTY:
+        return col[:1]
+    return col
+
+
+def _ascii_layout(cells: list[dict[str, str]], cols: list[str], width: int) -> _AsciiLayout:
+    dims = [c for c in cols if c in MAIN_DIMENSIONS]
+    minimum = {c: len(_ascii_label(c)) for c in cols}
+
+    widths: dict[str, int] = {}
+    if ID in cols:
+        widths[ID] = minimum[ID]
+    for col in dims[:-1]:
+        widths[col] = minimum[col]
+    if dims:
+        widths[dims[-1]] = max([minimum[dims[-1]]] + _merged_widths(cells, dims))
+
+    natural = {c: max([minimum[c]] + [len(escape(cell[c])) for cell in cells]) for c in cols if c not in widths}
+    if TYPE in natural:
+        # The type column is never wrapped.
+        widths[TYPE] = natural.pop(TYPE)
+
+    # Other text columns can be wrapped, when the table is wider than `width`.
+    separators = len(" | ") * (len(cols) - 1)
+    fixed = sum(widths.values())
+    budget = max(width, sum(minimum.values()) + separators) - separators - fixed
+    if sum(natural.values()) <= budget:
+        widths.update(natural)
+    else:
+        floor = {c: min(natural[c], max(minimum[c], WRAP_MIN_WIDTH)) for c in natural}
+        widths.update(_shrink(natural, floor, budget))
+    return _AsciiLayout(cols=cols, dims=dims, widths=widths)
+
+
+def _merged_widths(cells: list[dict[str, str]], dims: list[str]) -> list[int]:
+    """Widths of the last dimension column, that are needed to show merged values."""
+    result = []
+    last = len(dims) - 1
+    for cell in cells:
+        filled = [i for i, c in enumerate(dims) if cell[c]]
+        if len(filled) == 1:
+            i = filled[0]
+            result.append(len(escape(cell[dims[i]])) - _DIM_STEP * (last - i))
+        elif len(filled) > 1 and cell[dims[last]]:
+            result.append(len(escape(cell[dims[last]])))
+    return result
+
+
+def _shrink(
+    natural: dict[str, int],
+    floor: dict[str, int],
+    budget: int,
+) -> dict[str, int]:
+    """Shrink the widest columns, so that all of them together fit into `budget`.
+
+    A column is never shrunk below its `floor`. Columns, that are narrower than
+    the widest ones, keep their natural width.
+    """
+
+    def widths(cap: int) -> dict[str, int]:
+        return {c: min(natural[c], max(cap, floor[c])) for c in natural}
+
+    if sum(widths(0).values()) > budget:
+        return dict(floor)
+
+    low, high = 0, max(natural.values())
+    while low < high:
+        middle = (low + high + 1) // 2
+        if sum(widths(middle).values()) <= budget:
+            low = middle
+        else:
+            high = middle - 1
+
+    result = widths(low)
+    spare = budget - sum(result.values())
+    for c in natural:
+        if spare <= 0:
+            break
+        if result[c] < natural[c]:
+            result[c] += 1
+            spare -= 1
+    return result
+
+
+def _ascii_header(layout: _AsciiLayout) -> str:
+    cells = [_ascii_label(c).ljust(layout.widths[c]) for c in layout.cols]
+    return " | ".join(cells).rstrip()
+
+
+def _ascii_row(cell: dict[str, str], layout: _AsciiLayout) -> list[str]:
+    """Render a row, returns one line, or more lines when the row is wrapped."""
+    widths = layout.widths
+    pieces = {c: wrap(cell[c], widths[c]) for c in layout.cols if c not in layout.dims and c != ID}
+    lines = max([len(p) for p in pieces.values()] + [1])
+
+    # Each segment is a list of texts, one text for each line of the row.
+    segments: list[list[str]] = []
+    if ID in layout.cols:
+        # Identifiers are shown shortened, only the first two characters.
+        segments.append([escape(cell[ID][:2].strip()).ljust(widths[ID])] + [" " * widths[ID]] * (lines - 1))
+
+    filled = [i for i, c in enumerate(layout.dims) if cell[c]]
+    if len(filled) > 1:
+        # Values in several dimensions, they can not be merged.
+        for c in layout.dims:
+            segments.append(_ascii_segment(escape(cell[c]), widths[c], lines))
+    else:
+        first = filled[0] if filled else len(layout.dims)
+        for c in layout.dims[:first]:
+            segments.append(_ascii_segment("", widths[c], lines))
+        if filled:
+            span = layout.dims[first:]
+            size = sum(widths[c] for c in span) + len(" | ") * (len(span) - 1)
+            segments.append(_ascii_segment(escape(cell[span[0]]), size, lines))
+
+    for c in layout.cols:
+        if c in layout.dims or c == ID:
+            continue
+        texts = [piece.ljust(widths[c]) for piece in pieces[c]]
+        texts += [" " * widths[c]] * (lines - len(texts))
+        segments.append(texts)
+
+    result = []
+    for n in range(lines):
+        separator = " | " if n == 0 else " : "
+        line = separator.join(segment[n] for segment in segments).rstrip()
+        if n < lines - 1:
+            line += " \\"
+        result.append(line)
+    return result
+
+
+def _ascii_segment(text: str, size: int, lines: int) -> list[str]:
+    return [text.ljust(size)] + [" " * size] * (lines - 1)
 
 
 SHORT_NAMES = {
@@ -3013,6 +3164,7 @@ def write_tabular_manifest(
     rows: Manifest | Iterable[ManifestRow] | None = None,
     cols: list[ManifestColumn] = None,
 ) -> None:
+    requested = cols
     cols = cols or DATASET
 
     if rows is None:
@@ -3025,6 +3177,10 @@ def write_tabular_manifest(
         write_csv(pathlib.Path(path), rows, cols)
     elif path.endswith(".xlsx"):
         write_xlsx(pathlib.Path(path), rows, cols)
+    elif path.endswith(".txt"):
+        # Without `cols` the ASCII table shows only the columns that have values.
+        table = render_tabular_manifest_rows(rows, requested)
+        pathlib.Path(path).write_text(table, encoding="utf-8")
     else:
         raise ValueError(f"Unknown tabular manifest format {path!r}.")
 

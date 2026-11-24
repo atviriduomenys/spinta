@@ -26,7 +26,23 @@ def test_show(context, rc, cli: SpintaCliRunner, tmp_path):
 
     result = cli.invoke(rc, ["show", tmp_path / "manifest.csv"])
 
-    assert striptable(result.stdout) == manifest
+    assert striptable(result.stdout) == striptable("""
+d | r | m | property | type   | ref     | source      | access
+datasets/gov/example |        |         |             | protected
+  | data             | memory | default |             | protected
+  |   |   |          |        |         |             |
+  |   | Country      |        | code    | salis       | open
+  |   |   | code     | string |         | kodas       | public
+  |   |   | name     | string |         | pavadinimas | open
+  |   |   |          |        |         |             |
+  |   | City         |        | name    | miestas     | open
+  |   |   | name     | string |         | pavadinimas | open
+  |   |   | country  | ref    | Country | salis       | open
+  |   |   |          |        |         |             |
+  |   | Capital      |        | name    | miestas     | protected
+  |   |   | name     | string |         | pavadinimas | protected
+  |   |   | country  | ref    | Country | salis       | protected
+    """)
 
 
 def test_show_prop_with_underscore(context, rc, cli: SpintaCliRunner, tmp_path):
@@ -46,4 +62,14 @@ def test_show_prop_with_underscore(context, rc, cli: SpintaCliRunner, tmp_path):
 
     result = cli.invoke(rc, ["show", tmp_path / "manifest.csv"])
 
-    assert striptable(result.stdout) == manifest
+    assert striptable(result.stdout) == striptable("""
+d | r | m | property | type   | ref     | source      | access
+datasets/gov/example |        |         |             | protected
+  | data             | memory | default |             | protected
+  |   |   |          |        |         |             |
+  |   | Country      |        | code    | salis       | open
+  |   |   | code     | string |         | kodas       | public
+  |   |   | name     | string |         | pavadinimas | open
+  |   |   | _updated | string |         | atnaujintas | open
+  |   |   | _error   | string |         | klaida      | open
+    """)

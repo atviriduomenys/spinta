@@ -80,6 +80,14 @@ New features:
   ``(N more...)`` item, where ``N`` is the number of items not drawn. The limit
   is set by the new ``uml_max_enum_items`` configuration option.
 
+- ``spinta show`` and ``spinta copy`` ASCII tables hide columns without any
+  value, unless the column is requested with ``--columns``. Dimension values
+  are merged from the first value up to ``type``, the ``property`` column is
+  widened to fit them. Long values are wrapped to fit into 80 characters: a
+  wrapped line ends with ``\``, and the continuation line separates its cells
+  with ``:``. Pipes and colons inside values are escaped with a backslash, for
+  example ``\|`` and ``\:``.
+
 - ``spinta copy`` and ``Spinta.copy()`` give a model or a property the
   ``status``, ``visibility``, ``access``, ``uri``, ``eli``, ``title`` and
   ``description`` that it does not set, from its nearest base that sets them.

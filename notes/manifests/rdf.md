@@ -224,6 +224,10 @@ datasets/gov/rc/ar/uapi/addr,,,,,,
 
 spinta show .tmp/inheritance/base.csv
 spinta show .tmp/inheritance/manifest.csv
+spinta copy .tmp/inheritance/manifest.csv -o .tmp/inheritance/manifest.txt
+
+spinta show .tmp/simple/datasets/gov/anta/antais/anr/dsa.csv
+spinta show .tmp/simple/datasets/gov/finmin/vsakis/far_duomenys/dsa.csv
 
 spinta copy .tmp/inheritance/base.csv .tmp/inheritance/manifest.csv -o .tmp/inheritance/result.csv
 

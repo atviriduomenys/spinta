@@ -461,13 +461,15 @@ class TestSynchronizationPathCatalogToAgent:
 
         # Check.
         context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
-        assert render_tabular_manifest(context, final_manifest) == striptable("""
-            id | d | r | b | m | property | type     | ref | source                                                | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title     | description
-            f8 | vssa                     |          |     |                                                       |             |         |        |       |       |           |            |        |     |     | VSSA      | vssa
-            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
-               |                          |          |     |                                                       |             |         |        |       |       |           |            |        |     |     |           |
-            7d |   |   |   | Country      |          | id  | model_country                                         |             |         |        |       | 4     | completed | package    | open   |     |     | Country   | country
-            de |   |   |   |   | id       | integer  |     | id                                                    |             |         |        |       | 4     |           |            |        |     |     | Id        | id
+        assert render_tabular_manifest(context, final_manifest) == striptable(r"""
+            id | d | r | m | property | type     | ref | source                     | level | status    | visibility | access | title     | description
+            f8 | vssa                 |          |     |                            |       |           |            |        | VSSA      | vssa
+            c3 |   | geography        | dask/csv |     | https://get.data.gov.lt/   | 4     |           |            |        | Geography | geography \
+               :   :                  :          :     : datasets/org/vssa/example/ :       :           :            :        :           : \
+               :   :                  :          :     : :ns                        :       :           :            :        :           :
+               |   |   |   |          |          |     |                            |       |           |            |        |           |
+            7d |   |   | Country      |          | id  | model_country              | 4     | completed | package    | open   | Country   | country
+            de |   |   |   | id       | integer  |     | id                         | 4     |           |            |        | Id        | id
         """)
 
         assert get_request_context(mock_dataset_manifest_get) == [
@@ -514,13 +516,15 @@ class TestSynchronizationPathCatalogToAgent:
 
         # Check.
         context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
-        assert render_tabular_manifest(context, final_manifest) == striptable("""
-            id | d | r | b | m | property | type     | ref | source                                                | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title     | description
-            f8 | vssa                     |          |     |                                                       |             |         |        |       |       |           |            |        |     |     | VSSA      | vssa
-            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
-               |                          |          |     |                                                       |             |         |        |       |       |           |            |        |     |     |           |
-            7d |   |   |   | Country      |          | id  | model_country                                         |             |         |        |       | 4     | completed | package    | open   |     |     | Country   | country
-            de |   |   |   |   | id       | integer  |     | id                                                    |             |         |        |       | 4     |           |            |        |     |     | Id        | id
+        assert render_tabular_manifest(context, final_manifest) == striptable(r"""
+            id | d | r | m | property | type     | ref | source                     | level | status    | visibility | access | title     | description
+            f8 | vssa                 |          |     |                            |       |           |            |        | VSSA      | vssa
+            c3 |   | geography        | dask/csv |     | https://get.data.gov.lt/   | 4     |           |            |        | Geography | geography \
+               :   :                  :          :     : datasets/org/vssa/example/ :       :           :            :        :           : \
+               :   :                  :          :     : :ns                        :       :           :            :        :           :
+               |   |   |   |          |          |     |                            |       |           |            |        |           |
+            7d |   |   | Country      |          | id  | model_country              | 4     | completed | package    | open   | Country   | country
+            de |   |   |   | id       | integer  |     | id                         | 4     |           |            |        | Id        | id
         """)
 
         assert get_request_context(mock_dataset_manifest_get) == [
@@ -576,14 +580,16 @@ class TestSynchronizationPathCatalogToAgent:
 
         # Check.
         context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
-        assert render_tabular_manifest(context, final_manifest) == striptable("""
-            id | d | r | b | m | property | type     | ref | source                                                | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title     | description
-            f8 | vssa                     |          |     |                                                       |             |         |        |       |       |           |            |        |     |     | VSSA      | vssa
-            c3 |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/vssa/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography | geography
-               |                          |          |     |                                                       |             |         |        |       |       |           |            |        |     |     |           |
-            7d |   |   |   | Country      |          | id  | model_country                                         |             |         |        |       | 4     | completed | package    | open   |     |     | Country   | country
-            de |   |   |   |   | id       | integer  |     | id                                                    |             |         |        |       | 4     |           |            |        |     |     | Id        | id
-            6c |   |   |   |   | size     | integer  |     | size                                                  |             |         |        |       | 4     |           |            |        |     |     | Size      | size
+        assert render_tabular_manifest(context, final_manifest) == striptable(r"""
+            id | d | r | m | property | type     | ref | source                     | level | status    | visibility | access | title     | description
+            f8 | vssa                 |          |     |                            |       |           |            |        | VSSA      | vssa
+            c3 |   | geography        | dask/csv |     | https://get.data.gov.lt/   | 4     |           |            |        | Geography | geography \
+               :   :                  :          :     : datasets/org/vssa/example/ :       :           :            :        :           : \
+               :   :                  :          :     : :ns                        :       :           :            :        :           :
+               |   |   |   |          |          |     |                            |       |           |            |        |           |
+            7d |   |   | Country      |          | id  | model_country              | 4     | completed | package    | open   | Country   | country
+            de |   |   |   | id       | integer  |     | id                         | 4     |           |            |        | Id        | id
+            6c |   |   |   | size     | integer  |     | size                       | 4     |           |            |        | Size      | size
         """)
 
         assert get_request_context(mock_dataset_manifest_get) == [
@@ -637,13 +643,15 @@ class TestSynchronizationPathCatalogToAgent:
 
         # Check.
         context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
-        assert render_tabular_manifest(context, final_manifest) == striptable("""
-            id | d | r | b | m | property | type     | ref  | source                                               | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
-            f8 | cct                      |          |      |                                                      |             |         |        |       |       |           |            |        |     |     | CCT        | cct
-            c3 |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/org/cct/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
-               |                          |          |      |                                                      |             |         |        |       |       |           |            |        |     |     |            |
-            7d |   |   |   | Item         |          | uuid | model_item                                           |             |         |        |       | 4     | completed | package    | open   |     |     | Item       | item
-            de |   |   |   |   | uuid     | integer  |      | uuid                                                 |             |         |        |       | 4     |           |            |        |     |     | Unique Id  | unique id
+        assert render_tabular_manifest(context, final_manifest) == striptable(r"""
+            id | d | r | m | property | type     | ref  | source                     | level | status    | visibility | access | title      | description
+            f8 | cct                  |          |      |                            |       |           |            |        | CCT        | cct
+            c3 |   | technology       | dask/csv |      | https://get.data.gov.lt/   | 4     |           |            |        | Technology | technology \
+               :   :                  :          :      : datasets/org/cct/example/  :       :           :            :        :            : \
+               :   :                  :          :      : :ns                        :       :           :            :        :            :
+               |   |   |   |          |          |      |                            |       |           |            |        |            |
+            7d |   |   | Item         |          | uuid | model_item                 | 4     | completed | package    | open   | Item       | item
+            de |   |   |   | uuid     | integer  |      | uuid                       | 4     |           |            |        | Unique Id  | unique id
         """)
 
         assert get_request_context(mock_dataset_manifest_get) == [
@@ -705,13 +713,15 @@ class TestSynchronizationPathCatalogToAgent:
 
         # Check.
         context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
-        assert render_tabular_manifest(context, final_manifest) == striptable("""
-            id | d | r | b | m | property | type     | ref | source                                               | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
-               | vssa                     |          |     |                                                      |             |         |        |       |       |           |            |        |     |     | VSSA2      | vssa2
-               |   | geography            | dask/csv |     | https://get.data.gov.lt/datasets/org/cct/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Geography2 | geography2
-               |                          |          |     |                                                      |             |         |        |       |       |           |            |        |     |     |            |
-               |   |   |   | Country      |          | id  | model_country2                                       |             |         |        |       | 4     | completed | package    | open   |     |     | Country2   | country2
-               |   |   |   |   | id       | integer  |     | id2                                                  |             |         |        |       | 4     |           |            |        |     |     | id2        | id2
+        assert render_tabular_manifest(context, final_manifest) == striptable(r"""
+            d | r | m | property | type     | ref | source                     | level | status    | visibility | access | title      | description
+            vssa                 |          |     |                            |       |           |            |        | VSSA2      | vssa2
+              | geography        | dask/csv |     | https://get.data.gov.lt/   | 4     |           |            |        | Geography2 | geography2 \
+              :                  :          :     : datasets/org/cct/example/  :       :           :            :        :            : \
+              :                  :          :     : :ns                        :       :           :            :        :            :
+              |   |   |          |          |     |                            |       |           |            |        |            |
+              |   | Country      |          | id  | model_country2             | 4     | completed | package    | open   | Country2   | country2
+              |   |   | id       | integer  |     | id2                        | 4     |           |            |        | id2        | id2
         """)
 
         assert get_request_context(mock_dataset_manifest_get) == [
@@ -773,13 +783,15 @@ class TestSynchronizationPathCatalogToAgent:
 
         # Check.
         context, final_manifest = load_manifest_and_context(rc, local_manifest_path)
-        assert render_tabular_manifest(context, final_manifest) == striptable("""
-        id | d | r | b | m | property | type     | ref  | source                                                   | source.type | prepare | origin | count | level | status    | visibility | access | uri | eli | title      | description
-        f8 | cct                      |          |      |                                                          |             |         |        |       |       |           |            |        |     |     | CCT        | cct
-        c3 |   | technology           | dask/csv |      | https://get.data.gov.lt/datasets/org/company/example/:ns |             |         |        |       | 4     |           |            |        |     |     | Technology | technology
-           |                          |          |      |                                                          |             |         |        |       |       |           |            |        |     |     |            |
-        7d |   |   |   | Item         |          | uuid | model_a                                                  |             |         |        |       | 4     | completed | package    | open   |     |     | Item       | item
-        de |   |   |   |   | uuid     | integer  |      | property_a                                               |             |         |        |       | 4     |           |            |        |     |     | Unique ID  | unique id
+        assert render_tabular_manifest(context, final_manifest) == striptable(r"""
+        id | d | r | m | property | type     | ref  | source                     | level | status    | visibility | access | title      | description
+        f8 | cct                  |          |      |                            |       |           |            |        | CCT        | cct
+        c3 |   | technology       | dask/csv |      | https://get.data.gov.lt/   | 4     |           |            |        | Technology | technology \
+           :   :                  :          :      : datasets/org/company/      :       :           :            :        :            : \
+           :   :                  :          :      : example/:ns                :       :           :            :        :            :
+           |   |   |   |          |          |      |                            |       |           |            |        |            |
+        7d |   |   | Item         |          | uuid | model_a                    | 4     | completed | package    | open   | Item       | item
+        de |   |   |   | uuid     | integer  |      | property_a                 | 4     |           |            |        | Unique ID  | unique id
         """)
 
         assert get_request_context(mock_dataset_manifest_get) == [
