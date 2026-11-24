@@ -173,3 +173,58 @@ Error summary: 142 errors of 1499 jobs
 1 InvalidName
     1 Invalid '…' namespace code name.
 ```
+
+## Inheritance
+**`.tmp/locn.csv`** (base)
+
+```csv
+```
+
+**`.tmp/dsa.csv`** (inherits from `locn`)
+
+```csv
+```
+
+Things to notice:
+
+- **Dataset:** `datasets/gov/rc/ar/uapi/addr` sets no `title`, `description` or `access`. It takes `Location`, `Location dataset` and `open` from `locn`, because one of its models has the base `/locn/Country`. It also gets the `locn`, `dct` and `skos` prefixes.
+- **Resource:** `addr_src` sets no `title` or `access`. Its model `Country` has the base `/locn/Country`, which sits under resource `locn_src`, so `addr_src` takes `Locn source` and `open`.
+- **Nesting matters:** in the simple format a resource row applies to the models below it, which is why `Country` is in `locn_src`. Dataset and resource values are taken from the nearest base that sets them.
+- **Given vs. implied:** in a `simple` output the inherited values go into `implied`, and `given` stays empty for `addr_src`. Other outputs (ASCII, CSV, etc.) write them as if they were given.
+- **Copy the files together:** copying `dsa.csv` alone gives a "base not found" warning, because `locn` isn't there to inherit from.
+
+I checked this with the code in the working tree. The scratch files are in `.tmp/`, which is git-ignored. Do you want me to add this as a test or a docs example?
+
+```nu
+
+mkdir .tmp/inheritance
+
+"
+dataset,resource,base,model,property,type,ref,access,title,description,uri
+locn,,,,,,,open,Location,Location dataset,
+,,,,,prefix,locn,,,,http://www.w3.org/ns/locn#
+,,,,,prefix,dct,,,,http://purl.org/dc/terms/
+,,,,,prefix,skos,,,,http://www.w3.org/2004/02/skos/core#
+,locn_src,,,,,,open,Locn source,,
+,,,Country,,,id,,Country,,locn:Country
+,,,,id,integer,,,Identifier,,dct:identifier
+,,,,code,string,,,Code,,skos:notation
+" | str trim | save ".tmp/inheritance/base.csv"
+
+"
+dataset,resource,base,model,property,type,ref
+datasets/gov/rc/ar/uapi/addr,,,,,,
+,addr_src,,,,,
+,,/locn/Country,,,,id
+,,,Country,,,id
+,,,,id,integer,
+,,,,code,string,
+,,,,name@lt,string,
+" | str trim | save ".tmp/inheritance/manifest.csv"
+
+spinta show .tmp/inheritance/base.csv
+spinta show .tmp/inheritance/manifest.csv
+
+spinta copy .tmp/inheritance/base.csv .tmp/inheritance/manifest.csv -o .tmp/inheritance/result.csv
+
+```

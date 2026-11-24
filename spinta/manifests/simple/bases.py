@@ -9,8 +9,9 @@ match: the model gets a `DefaultBaseNotFound` error, and the output is still
 written (3.1).
 
 The base manifests are loaded only to build a `DefaultBases` index: the index
-keeps names and keys, never nodes. Once the index is built, the base contexts
-are released. The matched base is not linked against a loaded model: its
+keeps names, keys and the values that each model gives (see
+`spinta.manifests.inherit`), never nodes. Once the index is built, the base
+contexts are released. The matched base is not linked against a loaded model: its
 `parent` is the name of the model, and its `pk` are `StubProperty` objects (see
 `spinta.components.Base`). Readers know nothing about the base manifests. A
 writer meets such a base only as a name, so it draws no relation that needs the
@@ -30,6 +31,7 @@ from typing import Any
 from spinta import commands
 from spinta.components import Base, Model, StubProperty
 from spinta.exceptions import DefaultBaseNotFound
+from spinta.manifests.inherit import ModelSource, source_of_model
 from spinta.nodes import get_node, load_node
 
 # The visibilities that `--base-visibility` takes, as Visibility names. `absent` is the visibility of a model
@@ -40,18 +42,24 @@ _ABSENT = "absent"
 
 @dataclass(frozen=True)
 class DefaultModel:
-    """A model of a default base: its path, its name without the dataset, and its key names."""
+    """A model of a default base: its path, its name without the dataset, its key names, and its values.
+
+    `source` is what the base gives the model that matches it: the values it sets, given or inherited, and those
+    of its properties (see `spinta.manifests.inherit`). Inheritance takes them from there.
+    """
 
     path: str
     name: str
     keys: tuple[str, ...] = ()
+    source: ModelSource | None = None
 
 
 @dataclass
 class DefaultBases:
     """The models of the default bases, by name, and the visibilities whose models must match (3.1).
 
-    Holds names only. The base manifests it was built from are not kept.
+    Holds names, keys and the values of each model, as plain data. The base manifests it was built from are
+    not kept.
     """
 
     scope: frozenset[str]
@@ -93,7 +101,14 @@ def default_models(context, manifest) -> list[DefaultModel]:
     for model in commands.get_models(context, manifest).values():
         if model.name.startswith("_"):
             continue
-        found.append(DefaultModel(path=model.name, name=model.basename, keys=_keys_of(model)))
+        found.append(
+            DefaultModel(
+                path=model.name,
+                name=model.basename,
+                keys=_keys_of(model),
+                source=source_of_model(context, manifest, model),
+            )
+        )
     return found
 
 
@@ -156,6 +171,7 @@ def _matched_base(context, manifest, model: Model, match: DefaultModel) -> Base:
     load_node(context, base, data)
     base.model = model
     base.default = True
+    base.source = match.source
     commands.load(context, base, data, manifest)
     base.pk = [StubProperty(key) for key in match.keys]
     return base

@@ -80,6 +80,14 @@ New features:
   ``(N more...)`` item, where ``N`` is the number of items not drawn. The limit
   is set by the new ``uml_max_enum_items`` configuration option.
 
+- ``spinta copy`` and ``Spinta.copy()`` give a model or a property the
+  ``status``, ``visibility``, ``access``, ``uri``, ``eli``, ``title`` and
+  ``description`` that it does not set, from its nearest base that sets them.
+  Datasets and resources are not inherited. A ``simple`` output keeps ``given``
+  as written and fills in ``implied``, the other outputs write the values.
+  ``implied`` of models and properties has the new ``title``, ``description``
+  and ``eli`` keys.
+
 Bug fixes:
 
 - Array items with an enum, for example ``tags[]`` with ``ref`` to an enum,

@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 from pathlib import Path
 
@@ -1834,3 +1836,98 @@ def test_copy_base_options_reach_the_library(context: Context, rc, cli, tmp_path
     [options] = calls
     assert options["base"] == [str(locn), str(places)]
     assert options["base_visibility"] == ["public"]
+
+
+def _inherit_example(tmp_path):
+    """The example of the inheritance: `dsa.txt` is based on the `locn` manifest of `base.txt` (ASCII)."""
+    from tests.manifests.simple.test_inherit import BASE_TXT, DSA_TXT
+
+    dsa = tmp_path / "dsa.txt"
+    dsa.write_text(DSA_TXT, encoding="utf-8")
+    base = tmp_path / "base.txt"
+    base.write_text(BASE_TXT, encoding="utf-8")
+    return dsa, base
+
+
+def test_copy_inherits_the_values_of_the_base_to_csv(context: Context, rc, cli, tmp_path):
+    dsa, base = _inherit_example(tmp_path)
+
+    result = cli.invoke(rc, ["copy", str(dsa), str(base), "-o", tmp_path / "out.csv"], fail=False)
+
+    assert result.exit_code == 0
+    # The CLI writes what the library returns for the same arguments (D14).
+    spinta = Spinta._from_context(context)
+    expected = spinta.copy([spinta.copy(str(dsa)), spinta.copy(str(base))], "csv")
+    assert (tmp_path / "out.csv").read_bytes() == expected
+    dataset = None
+    rows = []
+    for row in csv.DictReader(io.StringIO((tmp_path / "out.csv").read_text(encoding="utf-8"))):
+        dataset = row["dataset"] or dataset
+        rows.append((dataset, row))
+    addr = [row for name, row in rows if name == "datasets/gov/rc/ar/uapi/addr"]
+    assert {row["ref"]: row["uri"] for row in addr if row["type"] == "prefix"}["locn"] == "http://www.w3.org/ns/locn#"
+    [country] = [row for row in addr if row["model"] == "Country"]
+    assert (country["uri"], country["title"]) == ("locn:Country", "Country")
+    [identifier] = [row for row in addr if row["property"] == "id"]
+    assert (identifier["uri"], identifier["title"]) == ("dct:identifier", "Identifier")
+
+
+def test_copy_inherits_the_values_of_the_base_to_simple_json(context: Context, rc, cli, tmp_path):
+    dsa, base = _inherit_example(tmp_path)
+
+    result = cli.invoke(rc, ["copy", str(dsa), str(base), "-o", tmp_path / "out.simple.json"], fail=False)
+
+    assert result.exit_code == 0
+    doc = json.loads((tmp_path / "out.simple.json").read_text(encoding="utf-8"))
+    country = doc["model"]["datasets/gov/rc/ar/uapi/addr/Country"]
+    # `given` is as written, and `implied` has the inherited values.
+    assert "title" not in country["given"]
+    assert country["implied"]["title"] == "Country"
+    assert country["implied"]["uri"] == "http://www.w3.org/ns/locn#Country"
+
+
+def test_copy_inherits_the_values_of_the_base_to_turtle(context: Context, rc, cli, tmp_path):
+    dsa, base = _inherit_example(tmp_path)
+
+    result = cli.invoke(rc, ["copy", str(dsa), str(base), "-o", tmp_path / "out.ttl"], fail=False)
+
+    assert result.exit_code == 0
+    ttl = (tmp_path / "out.ttl").read_text(encoding="utf-8")
+    assert 'sh:name "Identifier" ;\n        sh:path dct:identifier ;' in ttl
+    assert 'sh:name "Country" ;\n    sh:targetClass locn:Country ;' in ttl
+
+
+def test_read_for_sync_keeps_the_values_as_written(context: Context, rc, tmp_path):
+    from spinta import commands
+    from spinta.cli.manifest import _read_and_return_manifest
+    from spinta.testing.context import create_test_context
+
+    dsa, base = _inherit_example(tmp_path)
+    own = create_test_context(rc)
+    manifest = _read_and_return_manifest(own, [str(dsa), str(base)])
+
+    country = commands.get_model(own, manifest, "datasets/gov/rc/ar/uapi/addr/Country")
+    assert country.title == ""
+    assert country.uri == ""
+
+
+def test_copy_inherits_the_values_of_the_base_to_internal_sql(context: Context, rc, tmp_path):
+    import sqlalchemy as sa
+
+    from spinta.cli.manifest import copy_manifest
+    from spinta.core.context import configure_context
+    from spinta.testing.context import create_test_context
+
+    dsa, base = _inherit_example(tmp_path)
+    own = create_test_context(rc)
+    own = configure_context(own, [str(dsa), str(base)], check_names=True)
+    output = f"sqlite:///{tmp_path / 'manifest.db'}"
+
+    # The internal SQL output has no CLI option, so it is written by `copy_manifest` as `copy` does for it.
+    copy_manifest(own, manifests=[str(dsa), str(base)], output=output, output_type="internal_sql")
+
+    engine = sa.create_engine(output)
+    with engine.connect() as conn:
+        rows = conn.execute(sa.text("select path, title, uri from _manifest where dim = 'model'")).fetchall()
+    models = {row.path: (row.title, row.uri) for row in rows}
+    assert models["datasets/gov/rc/ar/uapi/addr/Country"] == ("Country", "locn:Country")

@@ -189,6 +189,13 @@ class Spinta:
         models that must match; the others get no error. `None` is all of them.
         The base manifests are only read to build the match, and are then released.
 
+        A value that a model or a property does not set (`status`, `visibility`,
+        `access`, `uri`, `eli`, `title`, `description`) is inherited from its
+        nearest base that sets it, see `spinta.manifests.inherit`. Datasets and
+        resources are not inherited. A `simple` result keeps
+        `given` and fills in `implied`; a table, RDF or Mermaid result writes the
+        inherited values as if they were given.
+
         Errors do not raise. Each error of the run is passed to `on_error(error,
         raised)`, in order: the errors stored in a `simple` result, or the errors
         found while writing a table. `raised` is true for the error that stopped

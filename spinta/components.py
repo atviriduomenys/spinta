@@ -484,6 +484,8 @@ class Base(ExtraMetaData):
     level: Level
     # Matched to a default base by `copy -b`: `parent` is the name of a model that is not loaded.
     default: bool = False
+    # Of a default base: the values of the base model, see `spinta.manifests.inherit.ModelSource`.
+    source: Any = None
 
     schema = {
         "name": {},

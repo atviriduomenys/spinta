@@ -174,6 +174,7 @@ def copy_manifest(
             order_by=order_by,
             rename_duplicates=rename_duplicates,
             verbose=verbose,
+            inherit=True,
         )
     else:
         rows = _read_and_return_rows(
@@ -185,6 +186,7 @@ def copy_manifest(
             order_by=order_by,
             rename_duplicates=rename_duplicates,
             verbose=verbose,
+            inherit=True,
         )
     if output:
         if output_type == "mermaid":
@@ -356,6 +358,7 @@ def _read_and_return_manifest(
     verbose: bool = True,
     check_config: bool = True,
     ensure_backends: bool = True,
+    inherit: bool = False,
 ) -> Iterator[ManifestRow]:
     context = configure_context(context, manifests, ensure_backends=ensure_backends)
     store = load_manifest(
@@ -365,6 +368,7 @@ def _read_and_return_manifest(
         verbose=verbose,
         full_load=True,
         check_config=check_config,
+        inherit=inherit,
     )
 
     if format_names:
@@ -383,6 +387,7 @@ def _read_and_return_rows(
     order_by: ManifestColumn = None,
     rename_duplicates: bool = False,
     verbose: bool = True,
+    inherit: bool = False,
 ) -> Iterator[ManifestRow]:
     context = configure_context(context, manifests)
     store = load_manifest(
@@ -391,6 +396,7 @@ def _read_and_return_rows(
         load_internal=False,
         verbose=verbose,
         full_load=True,
+        inherit=inherit,
     )
     if format_names:
         reformat_names(context, store.manifest)

@@ -110,9 +110,28 @@ If ``locn.txt`` has ``Country`` in the ``locn`` dataset, then ``datasets/gov/rc/
 
 - A model with no match, or with more than one model of its name in the default bases, gets a ``DefaultBaseNotFound`` error. The error is printed on stderr and counted in ``Total errors``. The output is still written, and the exit status stays ``0``.
 - ``--base-visibility`` takes a comma separated list of ``public``, ``package``, ``protected`` and ``private``. Only models with one of these visibilities get the error. By default all models do.
-- The default base manifests are read only to find the matches. Their models are not written.
+- The default base manifests are read only to find the matches. Their models are not written, but the values of their models are inherited (see `Inherited values`_).
 - The option works with ``csv``, ``ascii``, ``xlsx`` and ``simple`` inputs, and with table, CSV, XLSX, Mermaid, RDF Turtle and ``simple`` outputs.
 - A model matched to a default base has no ``rdfs:subClassOf`` in RDF Turtle output, because the base model is not loaded.
+
+Inherited values
+----------------
+
+A model or a property that does not set ``status``, ``visibility``, ``access``, ``uri``, ``eli``, ``title`` or ``description`` takes the value from its nearest base that sets it. This is done for ``spinta copy``, and for ``Spinta.copy()`` in the library, whatever the input and output formats are:
+
+- a model takes it from its base model, a property from the property of its base model with the same name;
+- datasets and resources are not inherited;
+- the access of a base is taken before the access of the owner (the dataset of a model, or the model of a property). The owner's access is used only when no base sets one.
+
+A value is taken only when the element does not set it. The ``uri`` of a base is written with a prefix of the dataset of the element: the prefix that has the same IRI, if the dataset has one under another name, else the same prefix name when it is free there (it is then added to the dataset), else the full IRI. A ``uri`` with an undeclared prefix is not taken.
+
+For example, with ``locn.txt`` that has ``Country`` with ``uri`` ``locn:Country`` and ``title`` ``Country`` in the ``locn`` dataset, the ``Country`` model of ``ar.txt`` gets the same ``uri`` and ``title`` when it has none, and the ``locn`` prefix is added to its dataset:
+
+.. code-block:: bash
+
+   spinta copy ar.txt locn.txt -o manifest.csv
+
+A ``simple`` output keeps ``given`` as it was written, and fills in the inherited values in ``implied``. Other outputs write the inherited values as if they were given.
 
 Mermaid.js output
 -----------------

@@ -90,6 +90,9 @@ KEYS = {
         "visibility",
         "count",
         "uri",
+        "title",
+        "description",
+        "eli",
         "source",
         "prepare",
         "ref",
@@ -108,6 +111,9 @@ KEYS = {
         "status",
         "visibility",
         "uri",
+        "title",
+        "description",
+        "eli",
         "source",
         "prepare",
         "ref_model",
@@ -151,6 +157,9 @@ EXPECTED_51 = {
         "prepare": None,
         "ref": ["datasets/gov/rc/ar/uapi/addr/Country/id"],
         "unique": [["datasets/gov/rc/ar/uapi/addr/Country/id"]],
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("model", "datasets/gov/rc/ar/uapi/addr/City"): {
         "name": "City",
@@ -166,6 +175,9 @@ EXPECTED_51 = {
         "prepare": None,
         "ref": ["datasets/gov/rc/ar/uapi/addr/City/id"],
         "unique": [["datasets/gov/rc/ar/uapi/addr/City/id"]],
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/rc/ar/uapi/addr/Country/id"): {
         "name": "id",
@@ -186,6 +198,9 @@ EXPECTED_51 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/rc/ar/uapi/addr/Country/code"): {
         "name": "code",
@@ -206,6 +221,9 @@ EXPECTED_51 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/rc/ar/uapi/addr/Country/name"): {
         "name": "name",
@@ -226,6 +244,9 @@ EXPECTED_51 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/rc/ar/uapi/addr/Country/name@lt"): {
         "name": "name@lt",
@@ -246,6 +267,9 @@ EXPECTED_51 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/rc/ar/uapi/addr/City/id"): {
         "name": "id",
@@ -266,6 +290,9 @@ EXPECTED_51 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/rc/ar/uapi/addr/City/name"): {
         "name": "name",
@@ -286,6 +313,9 @@ EXPECTED_51 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/rc/ar/uapi/addr/City/name@lt"): {
         "name": "name@lt",
@@ -306,6 +336,9 @@ EXPECTED_51 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/rc/ar/uapi/addr/City/country"): {
         "name": "country",
@@ -326,6 +359,9 @@ EXPECTED_51 = {
         "ref": ["datasets/gov/rc/ar/uapi/addr/Country/id"],
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
 }
 
@@ -382,6 +418,9 @@ EXPECTED_52 = {
             ["datasets/gov/example/Country/id", "datasets/gov/example/Country/code"],
             ["datasets/gov/example/Country/code"],
         ],
+        "title": "Country",
+        "description": None,
+        "eli": None,
     },
     ("model", "datasets/gov/example/Capital"): {
         "name": "Capital",
@@ -397,6 +436,9 @@ EXPECTED_52 = {
         "prepare": None,
         "ref": ["datasets/gov/example/Capital/id"],
         "unique": [["datasets/gov/example/Capital/id"]],
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("model", "Standalone"): {
         "name": "Standalone",
@@ -412,6 +454,9 @@ EXPECTED_52 = {
         "prepare": None,
         "ref": [],
         "unique": [],
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("unique", "datasets/gov/example/Country/code"): {"name": "code", "ref": ["datasets/gov/example/Country/code"]},
     ("scope", "datasets/gov/example/Country/read"): {
@@ -461,6 +506,9 @@ EXPECTED_52 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/Country/name"): {
         "name": "name",
@@ -481,6 +529,9 @@ EXPECTED_52 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/Country/name@C"): {
         "name": "name@C",
@@ -501,6 +552,9 @@ EXPECTED_52 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/Country/tags[]"): {
         "name": "tags[]",
@@ -521,6 +575,9 @@ EXPECTED_52 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/Country/geo"): {
         "name": "geo",
@@ -541,6 +598,9 @@ EXPECTED_52 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/Country/cities"): {
         "name": "cities",
@@ -561,6 +621,9 @@ EXPECTED_52 = {
         "ref": ["datasets/gov/example/City/country"],
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/Country/title"): {
         "name": "title",
@@ -581,6 +644,9 @@ EXPECTED_52 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": "Title",
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/City/country"): {
         "name": "country",
@@ -601,6 +667,9 @@ EXPECTED_52 = {
         "ref": ["datasets/gov/example/Country/id", "datasets/gov/example/Country/code"],
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/City/country.name"): {
         "name": "country.name",
@@ -621,6 +690,9 @@ EXPECTED_52 = {
         "ref": ["datasets/gov/example/Country/name"],
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/City/countries[]"): {
         "name": "countries[]",
@@ -641,6 +713,9 @@ EXPECTED_52 = {
         "ref": ["datasets/gov/example/Country/id", "datasets/gov/example/Country/code"],
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/Capital/id"): {
         "name": "id",
@@ -661,6 +736,9 @@ EXPECTED_52 = {
         "ref": ["datasets/gov/example/City/id"],
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "datasets/gov/example/Capital/since"): {
         "name": "since",
@@ -681,6 +759,9 @@ EXPECTED_52 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
     ("property", "Standalone/n"): {
         "name": "n",
@@ -701,6 +782,9 @@ EXPECTED_52 = {
         "ref": None,
         "enum": None,
         "unit": None,
+        "title": None,
+        "description": None,
+        "eli": None,
     },
 }
 

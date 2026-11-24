@@ -20,6 +20,7 @@ from spinta.core.context import create_context
 from spinta.exceptions import BaseError
 from spinta.handlers import ErrorCollector
 from spinta.manifests.helpers import load_manifest_nodes
+from spinta.manifests.inherit import inherit_manifest
 from spinta.manifests.simple.bases import DefaultBases, link_default_bases
 from spinta.manifests.simple.errors import (
     READ_ERROR_CODE,
@@ -65,6 +66,7 @@ def load_document(
     strict_references: bool,
     rename_duplicates: bool = False,
     default_bases: DefaultBases | None = None,
+    inherit: bool = True,
 ) -> LoadedDocument:
     """Load, link and check `doc` into nodes, collecting every error (3.4).
 
@@ -72,6 +74,8 @@ def load_document(
     nodes are what `copy` renders and what `check` reports on. `default_bases`
     matches the models that have no base to the default bases, in the link
     phase, before the models are linked (`copy -b`, see `spinta.manifests.simple.bases`).
+    `inherit` gives the elements the values they do not set, from their bases,
+    before they are linked (see `spinta.manifests.inherit`).
     """
     validate_document(doc)
 
@@ -115,6 +119,8 @@ def load_document(
         load_manifest_nodes(context, manifest, schemas)
         if default_bases is not None:
             link_default_bases(context, manifest, default_bases)
+        if inherit:
+            inherit_manifest(context, manifest)
         commands.link(context, manifest)
         commands.check(context, manifest)
     return LoadedDocument(context=context, manifest=manifest, collector=collector, log=log)

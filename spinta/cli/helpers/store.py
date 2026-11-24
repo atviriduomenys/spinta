@@ -18,6 +18,7 @@ from spinta.components import Config, Context, Store
 from spinta.core.config import DEFAULT_CONFIG_PATH
 from spinta.exceptions import ClientsMigrationRequired
 from spinta.manifests.components import Manifest
+from spinta.manifests.inherit import inherit_manifest
 
 
 def _ensure_config_dir(
@@ -121,6 +122,7 @@ def load_manifest(
     load_internal: bool = True,
     full_load: bool = False,
     check_config: bool = True,
+    inherit: bool = False,
 ) -> Store:
     if store is None:
         store = load_store(
@@ -134,6 +136,8 @@ def load_manifest(
     commands.load(
         context, store.manifest, rename_duplicates=rename_duplicates, load_internal=load_internal, full_load=full_load
     )
+    if inherit:
+        inherit_manifest(context, store.manifest)
     commands.link(context, store.manifest)
     commands.check(context, store.manifest)
     return store

@@ -4,14 +4,17 @@
 that has a node gets its `implied`: what Spinta derived for it. Typed values
 (levels, counts, types, parsed `prepare` formulas, resolved references) come
 from the node, so a downgraded reference has `type` `object` and `null` for
-the keys that name its target (4.6). Raw cells (`source`, `title`,
-`description`, `ref`) come from `given`. An element that has no node, such as
-an element that could not be read, keeps `implied` `null`, so a reader
-rebuilds it from `given` (4.7 step 2).
+the keys that name its target (4.6). Raw cells (`source`, `ref`) come from
+`given`. `title`, `description` and `eli` of a model or a property are what it
+sets, given or inherited from a base (see `spinta.manifests.inherit`). An
+element that has no node, such as an element that could not be read, keeps
+`implied` `null`, so a reader rebuilds it from `given` (4.7 step 2).
 
 Keys are derived by the rules of 4.6. Access is the effective one: the given
-cell, else the access of the owner, else `private`. It is taken from the
-document, not from the node, because a node does not inherit it everywhere.
+cell, else the access that the element inherits from a base (the node has it,
+see `spinta.manifests.inherit`), else the access of the owner, else `private`.
+`title`, `description` and `eli` of a model or a property are the values it
+sets, given or inherited, so an inherited value is in `implied` and not in `given`.
 """
 
 from __future__ import annotations
@@ -23,7 +26,7 @@ from lark import ParseError
 
 from spinta import commands, spyna
 from spinta.core.enums import Access
-from spinta.manifests.open_api.openapi_config import KNOWN_PREFIXES
+from spinta.manifests.inherit import expand_uri
 from spinta.manifests.simple.types import MANIFEST_TYPE, SPINTA_KEY, SimpleManifest
 from spinta.manifests.tabular.elements import escape
 from spinta.manifests.tabular.helpers import _parse_dtype_string, combine_source_prepare
@@ -187,27 +190,12 @@ def _parse(text: str | None) -> Any:
         return None
 
 
-def _iri(value: str | None, dataset: Any, manifest: Any) -> str | None:
-    """An IRI with its prefix expanded (4.6), first by the dataset's prefixes, then by the manifest's."""
-    if not value:
-        return None
-    prefix, sep, local = value.partition(":")
-    if not sep or local.startswith("//"):
-        return value
-    for prefixes in (getattr(dataset, "prefixes", None) or {}, manifest.prefixes or {}):
-        declared = prefixes.get(prefix)
-        if declared is not None and getattr(declared, "uri", None):
-            return declared.uri + local
-    if prefix in KNOWN_PREFIXES:
-        return KNOWN_PREFIXES[prefix] + local
-    return value
-
-
 class _Env:
-    """What the builders need: the manifest, the document and the access of each element."""
+    """What the builders need: the manifest, the document, its nodes and the access of each element."""
 
-    def __init__(self, manifest: Any, doc: SimpleManifest) -> None:
+    def __init__(self, manifest: Any, doc: SimpleManifest, found: dict[Key, _Found]) -> None:
         self.manifest = manifest
+        self.found = found
         self.elements: dict[Key, dict[str, Any]] = {
             (type_, path): element
             for type_, elements in doc.items()
@@ -217,13 +205,15 @@ class _Env:
         self._access: dict[Key, str] = {}
 
     def access(self, key: Key) -> str:
-        """The effective access (4.6): given, else the owner's, else `private`."""
+        """The effective access (4.6): given, else inherited from a base, else the owner's, else `private`."""
         if key in self._access:
             return self._access[key]
         element = self.elements.get(key)
         given = element.get("given") if element else None
         if given and given.get("access"):
             value = get_enum_by_name(Access, given["access"]).name
+        elif (inherited := self._inherited_access(key)) is not None:
+            value = inherited
         else:
             parent = element.get("parent") if element else None
             if parent is None or parent["type"] == MANIFEST_TYPE:
@@ -232,6 +222,15 @@ class _Env:
                 value = self.access((parent["type"], parent["path"]))
         self._access[key] = value
         return value
+
+    def _inherited_access(self, key: Key) -> str | None:
+        """The access that the node of `key` has from a base, or `None` when no base gives one."""
+        found = self.found.get(key)
+        given = getattr(found.node, "given", None) if found is not None else None
+        value = getattr(given, "access", None)
+        if value is None or value == "":
+            return None
+        return value.name if isinstance(value, Access) else get_enum_by_name(Access, value).name
 
     def given_access(self, key: Key) -> str | None:
         """The access cell of an element, as written, or `null` (4.6 `access` L of a comment)."""
@@ -252,6 +251,11 @@ def _backend(key, element, found, env):
 
 def _prefix(key, element, found, env):
     return {"name": found.node.name}
+
+
+def _text(value: Any) -> str | None:
+    """A text that the element sets, given or inherited, `null` when it sets none."""
+    return value or None
 
 
 def _dataset(key, element, found, env):
@@ -308,7 +312,10 @@ def _model(key, element, found, env):
         "status": _name_of(model.status),
         "visibility": _name_of(model.visibility),
         "count": _int_value(model.count),
-        "uri": _iri(model.uri, dataset, env.manifest),
+        "uri": expand_uri(model.uri, dataset, env.manifest),
+        "title": _text(model.title),
+        "description": _text(model.description),
+        "eli": _text(model.eli),
         "source": (external.name or None) if external else None,
         "prepare": _expr(external.prepare) if external else None,
         "ref": [f"{model.name}/{p.name}" for p in pkeys],
@@ -390,7 +397,10 @@ def _property(key, element, found, env):
         "access": env.access(key),
         "status": _name_of(prop.status),
         "visibility": _name_of(prop.visibility),
-        "uri": _iri(prop.uri, dataset, env.manifest),
+        "uri": expand_uri(prop.uri, dataset, env.manifest),
+        "title": _text(prop.title),
+        "description": _text(prop.description),
+        "eli": _text(prop.eli),
         "source": (external.name or None) if external is not None else None,
         "prepare": _expr(external.prepare) if external is not None else None,
         "ref_model": ref_model,
@@ -497,7 +507,7 @@ def implied_of_document(context, manifest, doc: SimpleManifest) -> dict[Key, dic
     from `given` on read (4.7 step 2).
     """
     found = _index(context, manifest)
-    env = _Env(manifest, doc)
+    env = _Env(manifest, doc, found)
     out: dict[Key, dict[str, Any] | None] = {}
     for key, element in env.elements.items():
         type_ = key[0]
