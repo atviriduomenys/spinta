@@ -281,8 +281,19 @@ def _resource(key, element, found, env):
     }
 
 
+def _unresolved_base(base: Any) -> bool:
+    """Whether a base names a model that is not in the document (3.4). Its parent is then the name, not a node.
+
+    A default base (`copy -b`) has its model name as the parent too, but it is matched, and it is marked `default`.
+    """
+    return isinstance(base.parent, str) and not getattr(base, "default", False)
+
+
 def _base(key, element, found, env):
     base = found.node
+    if _unresolved_base(base):
+        # A downgraded base has `null` for the model it names (4.6), and its keys are not known.
+        return {"name": base.name, "model": None, "ref": None, "level": _int_value(base.level)}
     parent = _name(base.parent)
     return {
         "name": base.name,
@@ -306,7 +317,7 @@ def _model(key, element, found, env):
     return {
         "name": name,
         "resource": f"{_name(dataset)}/{_name(resource)}" if dataset is not None and resource is not None else None,
-        "base": _name(model.base.parent) if model.base is not None else None,
+        "base": _name(model.base.parent) if model.base is not None and not _unresolved_base(model.base) else None,
         "level": _int_value(model.level),
         "access": env.access(key),
         "status": _name_of(model.status),

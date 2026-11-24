@@ -307,3 +307,23 @@ def test_manifest_error_of_a_base_error_uses_its_severity():
         severity = "warning"
 
     assert manifest_error(Warn())["severity"] == "warning"
+
+
+def test_check_of_a_document_with_an_unresolved_base_does_not_raise(spinta):
+    """A base that is not in the document is reported, and its implied keys are null (3.4, 4.6)."""
+    text = (
+        "dataset,resource,base,model,property,type,ref\n"
+        "datasets/gov/ar,,,,,,\n"
+        ",,/locn/City,,,,id\n"
+        ",,,City,,,id\n"
+        ",,,,id,integer,\n"
+    )
+    doc = spinta.copy(text.encode("utf-8"), "csv")
+
+    checked = spinta.check(doc)
+
+    [base] = checked["base"].values()
+    assert base["implied"]["model"] is None
+    assert base["implied"]["ref"] is None
+    assert [e["code"] for e in spinta.errors(checked, code=["UnresolvedReference"])] == ["UnresolvedReference"]
+    assert checked["model"]["datasets/gov/ar/City"]["implied"]["base"] is None

@@ -3,7 +3,8 @@
 Elements of all documents are concatenated, in order, and nothing is removed
 (D6). The `index` values of a later document are shifted, so that they stay
 unique. The same `type` and `path` in two documents is kept once when `given`
-and `implied` are equal, and raises `SimpleManifestError` otherwise. A
+and `implied` are equal, and raises `SimpleManifestError` otherwise. An
+`implied` that is `null` in one of them is not a difference (4.6). A
 `manifest` element is an input file, so the same input in two documents is
 kept once with the columns of both, and the errors of both.
 """
@@ -46,7 +47,7 @@ def merge_documents(docs: list[SimpleManifest], *, version: str) -> SimpleManife
                     if type_ == MANIFEST_TYPE:
                         _join_manifest(kept, element, offset)
                         continue
-                    if kept["given"] == element["given"] and kept["implied"] == element["implied"]:
+                    if same_element(kept, element):
                         continue
                     raise SimpleManifestError(f"{type_} {path!r} is defined in two documents with different content.")
                 new = _copy.deepcopy(element)
@@ -55,6 +56,16 @@ def merge_documents(docs: list[SimpleManifest], *, version: str) -> SimpleManife
                 target[path] = new
 
     return out
+
+
+def same_element(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    """Whether two elements of the same path are the same (3.1): equal `given`, and equal `implied` when both have one.
+
+    `implied` is `null` when it is not computed (4.6), so a `null` on one side is not a difference.
+    """
+    if a["given"] != b["given"]:
+        return False
+    return a["implied"] is None or b["implied"] is None or a["implied"] == b["implied"]
 
 
 def _join_manifest(kept: dict[str, Any], other: dict[str, Any], offset: int) -> None:

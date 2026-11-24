@@ -109,7 +109,12 @@ def load_document(
     # Read the rows of `given` as the reader does, keeping read errors on their elements.
     log = TabularReadLog()
     schemas = list(
-        _read_tabular_manifest_rows(None, read_simple_rows(doc), rename_duplicates=rename_duplicates, log=log)
+        _read_tabular_manifest_rows(
+            None,
+            read_simple_rows(doc),
+            rename_duplicates=rename_duplicates,
+            log=log,
+        )
     )
 
     store = load_store(context, verbose=False, check_config=False)

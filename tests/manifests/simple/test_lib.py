@@ -245,9 +245,9 @@ def test_option_that_the_output_does_not_take_is_refused_not_ignored(spinta, fmt
         spinta.copy(golden(), fmt, **option)
 
 
-def test_option_not_implemented_yet_is_refused(spinta):
-    with pytest.raises(NotImplementedError):
-        spinta.copy(golden(), "csv", include=[golden()])
+def test_include_takes_simple_documents_only(spinta):
+    with pytest.raises(ValueError, match="a `simple` document, not str"):
+        spinta.copy(golden(), "csv", include=[CSV_TABLE])
 
 
 def test_simple_result_refuses_renames_until_they_are_implemented(spinta):

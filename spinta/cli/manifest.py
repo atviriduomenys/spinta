@@ -69,6 +69,15 @@ def copy(
             "default base. Other models get no error when they do not match. Default: all."
         ),
     ),
+    include: list[str] = Option(
+        None,
+        "-i",
+        "--include",
+        help=(
+            "Manifest whose elements the references of the source manifests need. Only the referenced elements are "
+            "copied, and in `.simple.json` they have no `index`. Can be given more than once."
+        ),
+    ),
     manifests: list[str] = Argument(None, help=("Source manifest files to copy from")),
 ):
     """Copy models from CSV manifest files into another CSV manifest file"""
@@ -88,6 +97,7 @@ def copy(
         dataset=dataset,
         base=base,
         base_visibility=_split_visibility(base_visibility),
+        include=include,
         on_error=errors,
     )
     # The table is printed whenever it was written: an error that was collected is printed on stderr, and the
@@ -113,13 +123,15 @@ def copy_manifest(
     dataset: str | None = None,
     base: list[str] | None = None,
     base_visibility: list[str] | None = None,
+    include: list[str] | None = None,
     on_error: Callable[[ManifestError, bool], None] | None = None,
 ) -> str | None:
     """Copy models from CSV manifest files into another CSV manifest file
 
     Returns the table for stdout, when the copy goes through `Spinta.copy` and
     has no `output`. Without `on_error` the error that stops a table is raised.
-    `base` are the default base manifests (`-b`), see `Spinta.copy`.
+    `base` are the default base manifests (`-b`), and `include` the manifests
+    whose referenced elements are copied (`-i`), see `Spinta.copy`.
     """
     lib_format = _lib_output_format(output, output_type)
     lib_paths = _lib_input_paths(manifests)
@@ -139,11 +151,12 @@ def copy_manifest(
             rename_duplicates=rename_duplicates,
             base=base or [],
             base_visibility=base_visibility,
+            include=include or [],
             on_error=on_error,
         )
-    if base or base_visibility is not None:
-        # The default bases are a `Spinta.copy` option, so only its inputs and outputs take them.
-        raise NotImplementedError("`--base` is not implemented yet for this input or output.")
+    if base or base_visibility is not None or include:
+        # The default bases and the includes are `Spinta.copy` options, so only its inputs and outputs take them.
+        raise NotImplementedError("`--base` and `--include` are not implemented yet for this input or output.")
 
     # Only what `Spinta.copy` does not take yet, or does not take at all (3.5, rule 5), keeps this path.
     access = get_enum_by_name(Access, access)
@@ -269,6 +282,7 @@ def _copy_with_lib(
     rename_duplicates: bool,
     base: list[str],
     base_visibility: list[str] | None,
+    include: list[str],
     on_error: Callable[[ManifestError, bool], None] | None,
 ) -> str | None:
     """`spinta copy` through `Spinta.copy` (3.5). The CLI parses the options and writes the result.
@@ -291,11 +305,13 @@ def _copy_with_lib(
     if output:
         echo(manifest_banner(store.manifest))
 
-    result = Spinta._from_context(context)._copy_files(
+    spinta = Spinta._from_context(context)
+    result = spinta._copy_files(
         files,
         fmt,
         base=base,
         base_visibility=base_visibility,
+        include=_read_includes(spinta, include),
         on_error=on_error,
         **options,
     )
@@ -305,6 +321,23 @@ def _copy_with_lib(
     elif output and result is not None:
         _write_output(output, result)
     return None if output else result
+
+
+def _read_includes(spinta: Spinta, include: list[str]) -> list[dict]:
+    """The `-i` manifests as `simple` documents (3.5, rule 2). Each file is read in its own format, as an input is.
+
+    A row of an included file that cannot be read stays in its document, with its error. Only the elements that
+    the references need are copied from it (3.2), so that error is reported only when its element is copied.
+    """
+    if not include:
+        return []
+    docs = []
+    for path in convert_str_to_manifest_path(include):
+        if path.file is not None or path.type not in _LIB_INPUTS:
+            raise NotImplementedError(f"`--include` does not read {path.type!r} manifests yet.")
+        doc, _ = spinta._read_with_stop(str(path.path), path.type)
+        docs.append(doc)
+    return docs
 
 
 class _CopyErrors:

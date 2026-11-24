@@ -114,6 +114,22 @@ If ``locn.txt`` has ``Country`` in the ``locn`` dataset, then ``datasets/gov/rc/
 - The option works with ``csv``, ``ascii``, ``xlsx`` and ``simple`` inputs, and with table, CSV, XLSX, Mermaid, RDF Turtle and ``simple`` outputs.
 - A model matched to a default base has no ``rdfs:subClassOf`` in RDF Turtle output, because the base model is not loaded.
 
+Included manifests
+------------------
+
+The ``-i``, ``--include`` option gives a manifest whose elements the references of the source manifests need. Only the elements that the references need are copied from it, and the rest of the manifest is ignored:
+
+.. code-block:: bash
+
+   spinta copy dsa.txt -i include.txt -o manifest.csv
+
+If ``dsa.txt`` has ``country`` with the ``ref`` ``/locn/Country``, and ``include.txt`` defines ``Country`` in the ``locn`` dataset, then ``Country`` is copied with its dataset and its key properties. Its other properties are not copied. The option can be given more than once.
+
+- A referenced element is copied with the elements it needs: its dataset, its base, the properties that are its keys, the prefixes of its ``uri``, and the items of the enums it uses. Those elements are copied in the same way, so a chain of references is followed.
+- The included manifests are read in the same formats as the source manifests: ``csv``, ``ascii``, ``xlsx`` and ``simple``.
+- In a ``.simple.json`` output, an included element has no ``index``, and keeps the ``given`` it has in its included manifest, with its ``implied``. Its ``given`` is what the included manifest wrote, so the output reads back with its included elements, and copying it to CSV gives the same rows as copying the source with ``-i``.
+- A reference that is not in the source manifests or in an included manifest stays unresolved, as it is without ``-i``.
+
 Inherited values
 ----------------
 

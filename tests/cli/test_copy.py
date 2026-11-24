@@ -1849,6 +1849,102 @@ def test_copy_base_options_reach_the_library(context: Context, rc, cli, tmp_path
     assert options["base_visibility"] == ["public"]
 
 
+_INCLUDE_LOCN = striptable("""
+    d    | r | b | m       | property | type    | ref | uri
+    locn |   |   |         |          |         |     |
+         |   |   | Country |          |         | id  |
+         |   |   |         | id       | integer |     |
+         |   |   |         | code     | string  |     |
+""")
+
+_INCLUDE_AR = striptable("""
+    d                            | r | b | m     | property | type    | ref           | uri
+    datasets/gov/rc/ar/uapi/addr |   |   |       |          |         |               |
+         |   |   | City  |          |         | id            |
+         |   |   |       | id       | integer |               |
+         |   |   |       | country  | ref     | /locn/Country |
+""")
+
+
+def _include_manifests(context, tmp_path) -> tuple[Path, Path]:
+    create_tabular_manifest(context, tmp_path / "locn.csv", _INCLUDE_LOCN)
+    create_tabular_manifest(context, tmp_path / "ar.csv", _INCLUDE_AR)
+    return tmp_path / "ar.csv", tmp_path / "locn.csv"
+
+
+def test_copy_include_writes_the_referenced_elements(context: Context, rc, cli, tmp_path):
+    ar, locn = _include_manifests(context, tmp_path)
+
+    result = cli.invoke(rc, ["copy", "-i", locn, "-o", tmp_path / "out.csv", ar], fail=False)
+
+    assert result.exit_code == 0
+    assert "Total errors" not in result.stdout + result.stderr
+    rows = list(csv.DictReader(io.StringIO((tmp_path / "out.csv").read_text(encoding="utf-8"))))
+    assert any(row["dataset"] == "locn" for row in rows)
+    assert any(row["model"] == "Country" and row["ref"] == "id" for row in rows)
+    # Only the key of `Country` is written, its `code` is not referenced.
+    assert not any(row["property"] == "code" for row in rows)
+    # The CLI writes what the library returns for the same arguments (D14).
+    spinta = Spinta._from_context(context)
+    expected = spinta.copy(spinta.copy(str(ar)), "csv", include=[spinta.copy(str(locn))])
+    assert (tmp_path / "out.csv").read_bytes() == expected
+
+
+def test_copy_include_can_be_given_more_than_once(context: Context, rc, cli, tmp_path):
+    ar, locn = _include_manifests(context, tmp_path)
+
+    once = cli.invoke(rc, ["copy", "-i", locn, "-o", tmp_path / "once.csv", ar], fail=False)
+    twice = cli.invoke(rc, ["copy", "-i", locn, "-i", locn, "-o", tmp_path / "twice.csv", ar], fail=False)
+
+    assert once.exit_code == 0
+    assert twice.exit_code == 0
+    assert (tmp_path / "twice.csv").read_bytes() == (tmp_path / "once.csv").read_bytes()
+
+
+def test_copy_include_simple_json_writes_the_included_elements_as_implied(context: Context, rc, cli, tmp_path):
+    ar, locn = _include_manifests(context, tmp_path)
+
+    result = cli.invoke(rc, ["copy", "-i", locn, "-o", tmp_path / "out.simple.json", ar], fail=False)
+
+    assert result.exit_code == 0
+    doc = json.loads((tmp_path / "out.simple.json").read_text(encoding="utf-8"))
+    country = doc["model"]["locn/Country"]
+    assert country["index"] is None
+    assert country["given"] is not None
+    assert country["implied"]["ref"] == ["locn/Country/id"]
+    # The referencing model keeps its row.
+    city = doc["model"]["datasets/gov/rc/ar/uapi/addr/City"]
+    assert city["index"] is not None
+    assert city["given"] is not None
+
+
+def test_copy_include_refuses_an_input_it_does_not_read_yet(context: Context, rc, cli, tmp_path):
+    ar, _ = _include_manifests(context, tmp_path)
+    (tmp_path / "model.xsd").write_text("<xs:schema/>", encoding="utf-8")
+
+    result = cli.invoke(rc, ["copy", "-i", tmp_path / "model.xsd", "-o", tmp_path / "out.csv", ar], fail=False)
+
+    assert isinstance(result.exception, NotImplementedError)
+    assert not (tmp_path / "out.csv").exists()
+
+
+def test_copy_include_options_reach_the_library(context: Context, rc, cli, tmp_path, monkeypatch):
+    calls = []
+    run = Spinta._copy_files
+
+    def spy(self, files, format, **options):
+        calls.append(options)
+        return run(self, files, format, **options)
+
+    monkeypatch.setattr(Spinta, "_copy_files", spy)
+    ar, locn = _include_manifests(context, tmp_path)
+    cli.invoke(rc, ["copy", "-i", str(locn), "-o", tmp_path / "out.csv", ar])
+
+    [options] = calls
+    [included] = options["include"]
+    assert "locn/Country" in included["model"]
+
+
 def _inherit_example(tmp_path):
     """The example of the inheritance: `dsa.txt` is based on the `locn` manifest of `base.txt` (ASCII)."""
     from tests.manifests.simple.test_inherit import BASE_TXT, DSA_TXT

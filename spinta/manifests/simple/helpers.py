@@ -9,6 +9,7 @@ the dimension keyword `type`, which is written on the first row of a group.
 from __future__ import annotations
 
 import json
+import sys
 from collections.abc import Iterator
 from typing import Any
 
@@ -130,7 +131,7 @@ GROUPED_TYPES = frozenset({"prefix", "enum", "lang"})
 
 
 def _group_starts(rows: list[tuple[int, str, str | None, str, dict]]) -> dict[int, bool]:
-    """Whether each row starts a group of an extra dimension (4.8 step 3).
+    """Whether each row starts a group of an extra dimension (4.8 step 3). `rows` are keyed by their position.
 
     A group is consecutive rows of the same type under the same owner, and for
     an enum the same enum. Its first row has the keyword in `type`. A row
@@ -150,13 +151,86 @@ def _group_starts(rows: list[tuple[int, str, str | None, str, dict]]) -> dict[in
     return starts
 
 
+Key = tuple[str, str]
+
+
+def row_order(doc: SimpleManifest) -> list[Key]:
+    """The `(type, path)` of the rows of `doc`, in the order the reader reads them (4.8).
+
+    A row is an element with `given`. A row with an `index` keeps its place, in
+    `index` order. A row with no `index` is an included element (3.2), so it has
+    no place in the source. It follows its nearest ancestor that is a row: a row
+    with an index comes after the last row of its block, and the deeper ancestors
+    come first when two blocks end on the same row. A row under another row with
+    no index comes after that row. A row with no such ancestor comes last. Siblings
+    are in the order of their type (4.1), then in the order of the document.
+
+    The order is computed from the document alone, so the reader does not need
+    to know which elements were included.
+    """
+    elements = {(type_, path): elem for type_ in doc if type_ != SPINTA_KEY for path, elem in doc[type_].items()}
+    rows = {key: elem for key, elem in elements.items() if elem["given"] is not None}
+    indexed = {key for key, elem in rows.items() if elem["index"] is not None}
+    rank = {type_: i for i, type_ in enumerate(ELEMENT_TYPES)}
+    seq = {key: (rank.get(key[0], len(rank)), i) for i, key in enumerate(elements)}
+
+    def parent(key: Key) -> Key | None:
+        found = elements[key]["parent"]
+        if found is None or found["type"] == MANIFEST_TYPE:
+            return None
+        return found["type"], found["path"]
+
+    def row_parent(key: Key) -> Key | None:
+        current = parent(key)
+        while current is not None and current not in rows:
+            current = parent(current)
+        return current
+
+    def depth(key: Key) -> int:
+        steps, current = 0, parent(key)
+        while current is not None:
+            steps, current = steps + 1, parent(current)
+        return steps
+
+    # The last indexed row of each indexed element's block: its own and its descendants' rows.
+    last: dict[Key, int] = {}
+    for key in indexed:
+        index = rows[key]["index"]
+        current: Key | None = key
+        while current is not None:
+            if current in indexed:
+                last[current] = max(last.get(current, index), index)
+            current = parent(current)
+
+    cache: dict[Key, tuple] = {}
+
+    def position(key: Key) -> tuple:
+        if key in cache:
+            return cache[key]
+        if key in indexed:
+            value: tuple = (rows[key]["index"],)
+        else:
+            anchor = row_parent(key)
+            if anchor is None:
+                value = (sys.maxsize,) + seq[key]
+            elif anchor in indexed:
+                value = (last[anchor], -depth(anchor)) + seq[key]
+            else:
+                value = position(anchor) + seq[key]
+        cache[key] = value
+        return value
+
+    return sorted(rows, key=position)
+
+
 def read_simple_rows(doc: SimpleManifest, dsa_columns=None) -> Iterator[tuple[str, list[str]]]:
-    """Yield `(line, cells)` rows of a `simple` document, in `index` order.
+    """Yield `(line, cells)` rows of a `simple` document, in the order of `row_order`.
 
     The first pair is the header (the columns of the manifests, 4.3), at line `"1"`. Then each
     element with an `index` is one row, at line `index + 1`, the record number
-    of a CSV file (4.2: `index + 1` is the `eid` of the reader). Elements
-    without `index` are implied and have no row.
+    of a CSV file (4.2: `index + 1` is the `eid` of the reader). An element with
+    no `index` is an included element (3.2): it is a row too, with no line, so its
+    line is `""`. Its errors have no row.
 
     The document is validated first (4.9), so a malformed document raises
     `SimpleManifestError` before anything is read.
@@ -165,26 +239,24 @@ def read_simple_rows(doc: SimpleManifest, dsa_columns=None) -> Iterator[tuple[st
     columns = document_columns(doc)
     elements = {(type_, path): elem for type_ in ELEMENT_TYPES for path, elem in doc.get(type_, {}).items()}
 
-    # (index, type, owner path, enum name, element), in row order.
-    rows: list[tuple[int, str, str | None, str, dict]] = []
-    for (type_, path), elem in elements.items():
-        if elem["index"] is None:
-            continue
+    # (index, type, owner path, enum name, (path, element)), in row order.
+    rows: list[tuple[int | None, str, str | None, str, tuple[str, dict]]] = []
+    for type_, path in row_order(doc):
+        elem = elements[(type_, path)]
         owner = _parent_path(elem)
         enum = _enum_name(path, owner, elem["given"]) if type_ == "enum" else ""
         rows.append((elem["index"], type_, owner, enum, (path, elem)))
-    rows.sort(key=lambda r: r[0])
 
-    starts = _group_starts([(i, t, o, e, None) for i, t, o, e, _ in rows])
+    starts = _group_starts([(i, t, o, e, None) for i, (_, t, o, e, _) in enumerate(rows)])
 
     yield "1", columns
     last = 1  # the label of the last row written: the header
     open_dataset = None  # the dataset the reader has open (4.8 step 4)
     open_resource = None  # the resource the reader has open: a model inherits it (4.3, 4.8 step 4)
     open_base = None  # the base the reader has open: a model inherits it (4.3, 4.8 step 4)
-    for index, type_, _owner, enum, (path, elem) in rows:
+    for i, (index, type_, _owner, enum, (path, elem)) in enumerate(rows):
         cells = dict(elem["given"])
-        first = starts.get(index, False)
+        first = starts.get(i, False)
         name = _name_cell(type_, path, elem, elements, first, enum)
         if name is not None and name[0] in columns and name[0] not in cells:
             cells[name[0]] = name[1]
@@ -218,8 +290,11 @@ def read_simple_rows(doc: SimpleManifest, dsa_columns=None) -> Iterator[tuple[st
             yield f"{last + 1}/", ["/" if column == "base" else "" for column in columns]
             open_base = None
 
-        last = index + 1
-        yield str(last), [cells.get(column, "") for column in columns]
+        if index is None:
+            yield "", [cells.get(column, "") for column in columns]
+        else:
+            last = index + 1
+            yield str(last), [cells.get(column, "") for column in columns]
         if type_ == "base":
             open_base = path
 

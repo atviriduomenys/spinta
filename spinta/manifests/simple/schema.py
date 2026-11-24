@@ -140,7 +140,8 @@ def validate_document(doc: Any, dsa_columns: Iterable[str] | None = None) -> Non
     for (type_, path), elem in elements.items():
         where = f"{type_}/{path}"
 
-        # Rule 3.
+        # Rule 3. An element with no `given` has no row. An element with `given` and no `index` is an included
+        # element (3.2), which has no row in the source.
         index = elem["index"]
         given = elem["given"]
         if index is not None:
@@ -149,8 +150,8 @@ def validate_document(doc: Any, dsa_columns: Iterable[str] | None = None) -> Non
             if index in indexes:
                 _fail(f"{where}: index {index} is used twice.")
             indexes.add(index)
-        if (index is None) != (given is None):
-            _fail(f"{where}: index is null exactly when given is null.")
+            if given is None:
+                _fail(f"{where}: index is set, but given is null.")
 
         # Rule 4. Every element but a manifest has a parent: a top level element points to its manifest.
         parent = elem["parent"]

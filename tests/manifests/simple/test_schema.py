@@ -170,17 +170,17 @@ def test_index_zero_is_refused():
         validate_document(doc)
 
 
-def test_index_null_requires_null_given():
+def test_included_element_has_given_and_no_index():
+    # An element of an included manifest keeps its `given`, and has no row in the source (3.2, 4.2).
     doc = _doc()
     doc["model"]["ds/Country"]["index"] = None
-    with pytest.raises(SimpleManifestError, match="null exactly"):
-        validate_document(doc)
+    validate_document(doc)
 
 
-def test_given_null_requires_null_index():
+def test_index_requires_given():
     doc = _doc()
     doc["property"]["ds/Country/id"]["given"] = None
-    with pytest.raises(SimpleManifestError, match="null exactly"):
+    with pytest.raises(SimpleManifestError, match="given is null"):
         validate_document(doc)
 
 

@@ -34,6 +34,7 @@ from spinta.manifests.simple.check import LoadedDocument, _with_errors, check_do
 from spinta.manifests.simple.errors import index_of_line, manifest_error, read_error
 from spinta.manifests.simple.from_tabular import tabular_to_simple
 from spinta.manifests.simple.helpers import check_format
+from spinta.manifests.simple.include import include_documents
 from spinta.manifests.simple.merge import merge_documents
 from spinta.manifests.simple.schema import validate_document
 from spinta.manifests.simple.types import (
@@ -180,6 +181,13 @@ class Spinta:
         `simple` manifest. A `simple` manifest, or a list of them, is written
         in `format`, `simple` by default. A list is merged first.
 
+        `include` is a list of `simple` documents whose elements the references
+        of `manifest` need (3.2). Only the targets of the references are kept,
+        with their parent chain, the prefixes of their CURIEs and the items of
+        their enums; they are merged after `manifest`. In a `simple` result they
+        have no `index`, and keep their `given` and `implied`. Pruning does not link
+        or load anything.
+
         `base` is a list of default base manifests, paths or `simple` documents
         (`spinta copy -b`). A model that has no base is matched to the one model
         of the same name, without its dataset, in them: the match is written as
@@ -237,22 +245,20 @@ class Spinta:
     ) -> _CopyRun:
         """`copy`, with its errors and the error that stopped it (see `_CopyRun`)."""
         with self._lock:
-            if include:
-                raise NotImplementedError("`include` is not implemented yet.")
             options = _copy_options(source, access, dataset, columns, order_by, format_names, rename_duplicates)
             if not _is_document(manifest):
                 # A raw source is read to `simple`. Renaming happens in the read, so it is allowed (3.1).
                 _refuse_output_options("simple", {**options, "rename_duplicates": False})
                 bases = self._default_bases(base, base_visibility)
                 doc, stop = self._read_with_stop(manifest, format, rename_duplicates=rename_duplicates)
-                return self._simple_run(doc, stop, bases)
+                return self._simple_run(self._combined([doc], include), stop, bases)
             fmt = format or "simple"
             # The output is checked before any base is read, so a refused option raises before anything is loaded.
             _check_output_format(fmt)
             _refuse_output_options(fmt, options)
             docs = _checked_documents(manifest)
             bases = self._default_bases(base, base_visibility)
-            return self._write_docs(docs, fmt, options, stop=None, bases=bases)
+            return self._write_docs(docs, fmt, options, stop=None, bases=bases, include=include)
 
     def _copy_files(
         self,
@@ -268,6 +274,7 @@ class Spinta:
         rename_duplicates: bool = False,
         base: Sequence[SimpleManifest | str | os.PathLike] = (),
         base_visibility: Sequence[str] | None = None,
+        include: Sequence[SimpleManifest] = (),
         on_error: Callable[[ManifestError, bool], None] | None = None,
     ) -> Any:
         """`spinta copy FILE... -o OUTPUT`: each file is read to `simple` (3.5, rule 2), then the documents are written.
@@ -294,7 +301,7 @@ class Spinta:
             if stop is not None and format != "simple":
                 return _report(_CopyRun(None, [(_as_error(stop), True)], stop), on_error)
             docs = [doc for doc, _ in reads]
-            return _report(self._write_docs(docs, format, options, stop, bases=bases), on_error)
+            return _report(self._write_docs(docs, format, options, stop, bases=bases, include=include), on_error)
 
     def _write_docs(
         self,
@@ -303,14 +310,23 @@ class Spinta:
         options: dict[str, Any],
         stop: Exception | None,
         bases: DefaultBases | None = None,
+        include: Sequence[SimpleManifest] = (),
     ) -> _CopyRun:
         """Write `docs` as one document (3.1), in `fmt`. `options` are checked by `_refuse_output_options`."""
         _check_output_format(fmt)
         _refuse_output_options(fmt, options)
-        doc = docs[0] if len(docs) == 1 else merge_documents(docs, version=self.version)
+        doc = self._combined(docs, include)
         if fmt == "simple":
             return self._simple_run(doc, stop, bases)
         return self._render(doc, fmt, bases, **{name: options[name] for name in _RENDER_OPTIONS})
+
+    def _combined(self, docs: list[SimpleManifest], include: Sequence[SimpleManifest]) -> SimpleManifest:
+        """The documents as one (3.1), with the elements of `include` that they need (3.2).
+
+        The included elements have no `index` (4.2), see `spinta.manifests.simple.include`.
+        """
+        doc = docs[0] if len(docs) == 1 else merge_documents(docs, version=self.version)
+        return include_documents(doc, _included_documents(include), version=self.version).doc
 
     def _default_bases(
         self,
@@ -346,13 +362,19 @@ class Spinta:
             return doc
         raise ValueError(f"A default base is a path or a `simple` document, not {type(item).__name__} (3.1).")
 
-    def _simple_run(self, doc: SimpleManifest, stop: Exception | None, bases: DefaultBases | None = None) -> _CopyRun:
+    def _simple_run(
+        self,
+        doc: SimpleManifest,
+        stop: Exception | None,
+        bases: DefaultBases | None = None,
+    ) -> _CopyRun:
         """A `simple` result: `doc` with the link errors of this run stored on its elements (3.4, 4.10).
 
         The document is loaded as `check` loads it, without `strict_references`. So a reference that is not in
         the document is downgraded, and its element gets an `UnresolvedReference` warning, as the table outputs
         report it. The read errors are kept. A read that stopped does not remove the elements: the output keeps
-        every element (4.10), so `stop` only marks the error that stopped the read.
+        every element (4.10), so `stop` only marks the error that stopped the read. The included elements (3.2)
+        have no `index`, and keep their `given`.
         """
         loaded = load_document(
             self._rc,
@@ -535,6 +557,23 @@ class Spinta:
         if not _stored_errors(doc):
             return doc, None
         return doc, _first_read_error(fmt, name, text, data, rename_duplicates=rename_duplicates)
+
+
+def _included_documents(include: Sequence[SimpleManifest]) -> list[SimpleManifest]:
+    """The included documents, checked as the main documents are (3.2). A file is read by the caller first."""
+    if isinstance(include, str | bytes | os.PathLike | dict) or not isinstance(include, Sequence):
+        raise ValueError("`include` takes a list of `simple` documents, not one document (3.2).")
+    docs = []
+    for item in include:
+        if not isinstance(item, dict):
+            raise ValueError(
+                f"An included manifest is a `simple` document, not {type(item).__name__}. "
+                "Read a file with `copy` first, as `spinta copy -i` does (3.2)."
+            )
+        validate_document(item)
+        check_format(item)
+        docs.append(item)
+    return docs
 
 
 def _package_config() -> RawConfig:
