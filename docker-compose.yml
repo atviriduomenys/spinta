@@ -46,9 +46,3 @@ services:
 volumes:
   postgres:
   redis_keymap_data:
-
-networks:
-  default:
-    ipam:
-      config:
-        - subnet: 10.20.0.0/24
