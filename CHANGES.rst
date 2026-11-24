@@ -6,7 +6,14 @@ Changes
 
 Improvements:
 
-- Added support for nested config source loading (`#1990`_).
+- Spinta now follows nested ``config`` entries recursively in depth-first order,
+  whether they are declared in YAML files or Python configuration dictionaries.
+  See “Nested configuration files” in the configuration manual (`#1990`_).
+
+Bug fixes:
+
+- Running ``spinta config`` without name filters now lists all configuration
+  values (`#1990`_).
 
 2.2.0 (2026-11-22)
 =====================

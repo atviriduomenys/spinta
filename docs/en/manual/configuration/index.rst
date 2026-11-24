@@ -36,13 +36,9 @@ keymap, a backend, a manifest and an access log, might look like this:
 Configuration file
 ******************
 
-After reading configuration values from command line arguments, environment
-variables and `.env` file, Spinta reads additional configuration sources set
-via `config` option.
-
-`config` option can contain list of comma separated values. Each value can be a
-path to `.yml` file or it can be a python dotted path like
-`myapp.config:CONFIG`, pointing to a dict.
+Use the `config` option to select additional configuration files. See
+:ref:`yaml-config-file` for the supported values and :ref:`configuration-sources`
+for precedence.
 
 For example we can create an `/tmp/custom.yaml` configuration file:
 
@@ -114,126 +110,6 @@ env` argument::
 
     spinta config -f env backends manifests
 
-.. _nested-config-file:
-
-Nested configuration files
-==========================
-
-Configuration files can include other configuration files using the same
-setting. Included files are loaded in the order in which they are listed, after
-the file that includes them is loaded.
-
-For example, this structure separates model-related settings from Citus
-distribution settings:
-
-.. code-block:: text
-
-    .env
-    config.yml
-    models.yml
-    citus.yml
-    citus_generated.yml
-
-The `.env` file points to the main configuration file:
-
-.. code-block:: sh
-
-    SPINTA_CONFIG=config.yml
-
-The main configuration file includes the two specialised files:
-
-.. code-block:: yaml
-    :caption: config.yml
-
-    config:
-      - models.yml
-      - citus.yml
-
-`models.yml` can contain backend and model property-type settings. `citus.yml`
-can contain manually maintained Citus distribution settings and include
-automatically generated distribution settings:
-
-.. code-block:: yaml
-    :caption: citus.yml
-
-    config:
-      - citus_generated.yml
-
-The resulting loading order is:
-
-1. Spinta's built-in default settings.
-2. `config.yml`.
-3. `models.yml`.
-4. `citus.yml`.
-5. `citus_generated.yml`.
-6. `.env`.
-7. Environment variables.
-8. Command-line settings.
-
-The following simplified example shows how the model settings are combined.
-It illustrates configuration merging only; it is not a complete manifest.
-
-.. code-block:: yaml
-    :caption: models.yml
-
-    models:
-      dataset/Country:
-        backend: default
-        properties:
-          code: string
-      dataset/City:
-        backend: default
-        properties:
-          name: string
-
-.. code-block:: yaml
-    :caption: citus.yml
-
-    config:
-      - citus_generated.yml
-    models.dataset/Country.distribution:
-        type: schema
-    models.dataset/Place.distribution:
-        type: copy
-
-.. code-block:: yaml
-    :caption: citus_generated.yml
-
-    models.dataset/Place.distribution:
-        type: undistributed
-    models.dataset/Origin.distribution:
-        type: copy
-
-To inspect the effective model settings and the file from which each value was
-taken, run:
-
-.. code-block:: sh
-
-    spinta config models
-
-The output will contain the combined settings, for example:
-
-.. code-block:: text
-
-    Origin               Name                                          Value
-    -------------------  --------------------------------------------  -------------
-    models.yml           models.dataset/Country.backend                default
-    models.yml           models.dataset/Country.properties.code        string
-    citus.yml            models.dataset/Country.distribution.type      schema
-    models.yml           models.dataset/City.backend                   default
-    models.yml           models.dataset/City.properties.name           string
-    citus_generated.yml  models.dataset/Place.distribution.type        undistributed
-    citus_generated.yml  models.dataset/Origin.distribution.type       copy
-
-In this example, the manually maintained distribution setting for
-`dataset/Country` supplements the model settings from `models.yml`. The `undistributed`
-setting for `dataset/Place` overrides the `copy` setting from
-`citus.yml`, while `dataset/Origin` retains the generated `copy`
-setting.
-
-Keymap
-******
-
 .. _configuration-sources:
 
 Configuration sources
@@ -246,8 +122,11 @@ previous sources:
 1. Default Spinta configuration `spinta.config:CONFIG`, you can't change this
    without change Spinta's code.
 
-2. Configuration files specified with `config` option (for example
-   `spinta -o config=~/.config/spinta/config.yaml`).
+2. Configuration files selected by the `config` option (for example
+   `spinta -o config=~/.config/spinta/config.yaml`). When several sources set
+   `config`, the highest-priority source supplies the entire list of top-level
+   files. For example, `-o config=b.yaml` takes precedence over
+   `SPINTA_CONFIG=a.yaml`. See :ref:`nested-config-file` for include order.
 
 3. `.env` file containing environment variables with the `SPINTA_` prefix.
 
@@ -267,7 +146,7 @@ but all other values from the configuration file will still be used.
 
 Each configuration source is described in more detail in a separate section:
 
-- :ref:`config-file`
+- :ref:`yaml-config-file`
 - :ref:`env-file`
 - :ref:`env-vars`
 - :ref:`cli-args`
@@ -543,14 +422,13 @@ when running multiple Spinta instances that need to share the same client
 credentials and keys.
 
 
-.. _config-file:
+.. _yaml-config-file:
 
 YAML configuration files
 ************************
 
-`config` option tells Spinta, which additional configuration files to read.
-Configuration files are read right after the default Spinta configuration, but
-before the `.env` file, environment variables and command line arguments.
+The `config` option tells Spinta which additional configuration files to read.
+See :ref:`configuration-sources` for source precedence.
 `config` option can contain list of comma separated values. Each value can be a
 path to `.yaml` file or it can be a python dotted path like
 `myapp.config:CONFIG`, pointing to a dict.
@@ -603,6 +481,114 @@ Configuration files are the recommended way to configure Spinta. Use them for
 the main, long-lived part of the configuration, since they are easier to read,
 review and maintain than other configuration sources, and they are the only
 source that supports complex values.
+
+
+.. _nested-config-file:
+
+Nested configuration files
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A YAML configuration file can include other files by listing them under
+`config`. Spinta loads the including file first, then follows each include
+and its descendants before moving to the next entry. Spinta skips an include
+if its entry has already been seen. This also stops a cycle that refers back
+to an earlier entry. A missing file stops configuration loading and raises an error.
+
+Spinta currently resolves relative YAML paths from the working directory,
+whether they appear in a YAML file, in `.env`, in an environment variable, or
+on the command line.
+
+Keep related overrides in one file per model or dataset. Use a dotted key
+such as `models.datasets/Country` to target a single model.
+
+For example, this structure separates model settings from manually maintained
+and generated Citus distribution settings. Place these files in the directory
+where you run Spinta.
+
+.. code-block:: text
+
+    .env
+    config.yml
+    models.yml
+    citus.yml
+    citus_generated.yml
+
+The `.env` file points to the main configuration file.
+
+.. code-block:: sh
+
+    SPINTA_CONFIG=config.yml
+
+The main configuration file includes the two manually maintained files.
+
+.. code-block:: yaml
+    :caption: config.yml
+
+    config:
+      - models.yml
+      - citus.yml
+
+The `models.yml` file sets backend and property types for two models in the
+same dataset.
+
+.. code-block:: yaml
+    :caption: models.yml
+
+    models.datasets/Country:
+      backend: default
+      properties:
+        code: {type: {name: sqlalchemy.types.String}}
+    models.datasets/City:
+      backend: default
+      properties:
+        name: {type: {name: sqlalchemy.types.String}}
+
+The `citus.yml` file sets distribution options and includes the generated file.
+
+.. code-block:: yaml
+    :caption: citus.yml
+
+    config:
+      - citus_generated.yml
+    models.datasets/Country.distribute:
+      type: schema
+    models.datasets/Place.distribute:
+      type: copy
+
+.. code-block:: yaml
+    :caption: citus_generated.yml
+
+    models.datasets/Place.distribute:
+      type: undistributed
+    models.datasets/Origin.distribute:
+      type: copy
+
+Spinta loads these YAML files in the order `config.yml`, `models.yml`,
+`citus.yml`, and `citus_generated.yml`. See :ref:`configuration-sources` for
+where included files fit in the overall precedence order.
+
+To inspect the model settings and their origins, run this command.
+
+.. code-block:: sh
+
+    spinta config models
+
+.. code-block:: text
+
+    Origin               Env  Name                                               Value
+    -------------------  ---  -------------------------------------------------  -----------------------
+    models.yml                models.datasets/Country.backend                    default
+    models.yml                models.datasets/Country.properties.code.type.name  sqlalchemy.types.String
+    citus.yml                 models.datasets/Country.distribute.type            schema
+    models.yml                models.datasets/City.backend                       default
+    models.yml                models.datasets/City.properties.name.type.name     sqlalchemy.types.String
+    citus_generated.yml       models.datasets/Place.distribute.type              undistributed
+    citus_generated.yml       models.datasets/Origin.distribute.type             copy
+
+The `schema` setting from `citus.yml` extends the model settings for
+`datasets/Country`. The generated `undistributed` setting for `datasets/Place`
+overrides the `copy` setting from `citus.yml`, and `datasets/Origin` gets its
+`copy` setting from the generated file.
 
 
 .. _env-file:
