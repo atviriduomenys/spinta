@@ -35,6 +35,7 @@ from spinta.dimensions.lang.components import LangData
 from spinta.dimensions.prefix.components import UriPrefix
 from spinta.dimensions.scope.components import Scope
 from spinta.exceptions import (
+    BaseError,
     DataTypeCannotBeUsedForNesting,
     InvalidBackRefReferenceAmount,
     MultipleErrors,
@@ -79,6 +80,7 @@ from spinta.manifests.tabular.components import (
     TabularFormat,
 )
 from spinta.manifests.tabular.constants import DATASET, DataTypeEnum
+from spinta.manifests.tabular.elements import ElementTable, describe_row, is_skipped_row
 from spinta.manifests.tabular.formats.gsheets import read_gsheets_manifest
 from spinta.spyna import SpynaAST
 from spinta.types.datatype import Array, ArrayBackRef, BackRef, DataType, Denorm, ExternalRef, Inherit, Object, Ref
@@ -126,8 +128,59 @@ ALLOWED_ARRAY_TYPES = [
 ALLOWED_NESTING_TYPES = ALLOWED_PARTIAL_TYPES + ALLOWED_ARRAY_TYPES + [DataTypeEnum.TEXT.value]
 
 
+def _record_error(log: TabularReadLog, line: str, element: Any, e: Exception) -> None:
+    """Keep a read error with its row (4.10): on the element, or as a problem if there is none."""
+    log.errors.append((line, e))
+    code, message = _error_pair(e)
+    if element is not None:
+        element.errors.append((code, message))
+    elif line not in log.table.failed_lines:
+        log.table.problem(line, message, code)
+
+
+def _error_pair(e: Exception) -> tuple[str, str]:
+    """The code and the message of a read error, as stored on an element (4.10)."""
+    if isinstance(e, BaseError):
+        return type(e).__name__, e.message
+    return "TabularManifestError", str(e)
+
+
+class TabularReadLog:
+    """Filled by the tabular reader when a caller asks for it.
+
+    `rows` maps each row label (`line`) to the cells of that row, as the user
+    wrote them, with every column of the header. `errors` lists `(line, error)`
+    for each row that could not be read. With a log the reader does not stop at
+    a bad row, it records the error and reads the next row.
+    """
+
+    def __init__(self) -> None:
+        self.rows: dict[str, dict[str, str]] = {}
+        self.errors: list[tuple[str, TabularManifestError]] = []
+        # The element of each row, and the problems of rows that make none (section 7, change 2).
+        self.table = ElementTable()
+
+
 class TabularManifestError(Exception):
-    pass
+    """A manifest row or header cannot be read.
+
+    `line` is the row label as the reader numbers it (the record number for
+    CSV, `{sheet}:{row}` for XLSX), `column` the column name, if known.
+    """
+
+    def __init__(self, message: str = "", *, line: str | None = None, column: str | None = None):
+        super().__init__(message)
+        self.line = line
+        self.column = column
+
+
+def _location(path: str | None, line: str | int) -> str:
+    """A message prefix for a row: `path:line`, or only the line when the rows have no path.
+
+    A `simple` document is read from memory, so it has no path (`None:4:` would
+    name nothing).
+    """
+    return f"{path}:{line}" if path else f"line {line}"
 
 
 def _detect_header(
@@ -139,7 +192,7 @@ def _detect_header(
     unknown_columns = set(header[: len(DATASET)]) - set(DATASET)
     if unknown_columns:
         unknown_columns = ", ".join(sorted(unknown_columns, key=header.index))
-        raise TabularManifestError(f"{path}:{line}: Unknown columns: {unknown_columns}.")
+        raise TabularManifestError(f"{_location(path, line)}: Unknown columns: {unknown_columns}.")
     return header
 
 
@@ -156,12 +209,14 @@ def _detect_dimension(
     if len(dimensions) > 1:
         dimensions = ", ".join([f"{k}: {row[k]}" for k in dimensions])
         raise TabularManifestError(
-            f"{path}:{line}: In one row only single dimension can be used, but found more than one: {dimensions}"
+            f"{_location(path, line)}: In one row only single dimension can be used, but found more than one: {dimensions}"
         )
 
     if row["type"]:
         if row["type"] not in EXTRA_DIMENSIONS:
-            raise TabularManifestError(f"{path}:{line}:type: Unknown additional dimension name {row['type']}.")
+            raise TabularManifestError(
+                f"{_location(path, line)}:type: Unknown additional dimension name {row['type']}."
+            )
         return row["type"]
 
     return ""
@@ -226,7 +281,7 @@ class TabularReader:
         raise NotImplementedError
 
     def error(self, message: str) -> None:
-        raise TabularManifestError(f"{self.path}:{self.line}: {message}")
+        raise TabularManifestError(f"{_location(self.path, self.line)}: {message}", line=self.line)
 
 
 class ManifestReader(TabularReader):
@@ -1771,7 +1826,13 @@ class State:
                 ):
                     yield from parent.items()
                 self.stack.pop()
-                parent.leave()
+                try:
+                    parent.leave()
+                except (TabularManifestError, BaseError) as e:
+                    # The error belongs to the reader that is leaving (for example a
+                    # property whose `prepare` is not allowed), not to the row being read.
+                    e.reader = parent
+                    raise
             else:
                 break
 
@@ -1786,32 +1847,71 @@ def _read_tabular_manifest_rows(
     *,
     rename_duplicates: bool = True,
     allow_updates: bool = False,
+    log: TabularReadLog | None = None,
 ) -> Iterator[ParsedRow]:
+    """Read rows into schemas.
+
+    With `log` a row that cannot be read is not fatal: its error is recorded
+    in `log.errors` and the reader goes on with the next row. Without it the
+    first error is raised, as before.
+    """
     _, header = next(rows, (None, None))
     if header is None:
         # Looks like an empty file.
         return
     header = _detect_header(path, 1, header)
+    if log is not None:
+        log.table.columns = list(header)
 
     defaults = {k: "" for k in MANIFEST_COLUMNS}
 
     state = State()
     state.rename_duplicates = rename_duplicates
+    if log is not None:
+        log.table.rename_duplicates = rename_duplicates
     reader = ManifestReader(state, path, "1", allow_updates=allow_updates)
     reader.read({})
     yield from state.release(reader)
 
     for line, row in rows:
-        _check_row_size(path, line, header, row)
-        row = dict(zip(header, row))
-        row = {**defaults, **row}
-        dimension = _detect_dimension(path, line, row)
-        Reader = READERS[dimension]
-        reader = Reader(state, path, line, allow_updates=allow_updates)
-        reader.read(row)
-        yield from state.release(reader)
+        element = None
+        try:
+            _check_row_size(path, line, header, row)
+            row = dict(zip(header, row))
+            row = {**defaults, **row}
+            if log is not None:
+                log.rows[line] = row
+            dimension = _detect_dimension(path, line, row)
+            Reader = READERS[dimension]
+            reader = Reader(state, path, line, allow_updates=allow_updates)
+            if log is not None:
+                element = describe_row(log.table, state, dimension, row, line)
+                reader.element = element
+            reader.read(row)
+            released = list(state.release(reader))
+        except (TabularManifestError, BaseError) as e:
+            if isinstance(e, TabularManifestError) and e.line is None:
+                e.line = line
+            if log is None:
+                raise
+            leaving = getattr(e, "reader", None)
+            if leaving is not None:
+                _record_error(log, leaving.line, getattr(leaving, "element", None), e)
+            else:
+                _record_error(log, line, element, e)
+            continue
+        if log is not None and element is None and line not in log.table.failed_lines:
+            if not is_skipped_row(row):
+                log.table.problem(line, "This row does not make an element.")
+        yield from released
 
-    yield from state.release()
+    try:
+        yield from state.release()
+    except (TabularManifestError, BaseError) as e:
+        if log is None:
+            raise
+        leaving = getattr(e, "reader", None)
+        _record_error(log, leaving.line, getattr(leaving, "element", None), e)
 
 
 def _check_row_size(
@@ -1825,7 +1925,7 @@ def _check_row_size(
         table = [["∅" if x is None else x for x in v] for v in zip_longest(header, row)]
         table = tabulate(table, headers=["header", "row"])
         raise TabularManifestError(
-            f"{path}:{line}: "
+            f"{_location(path, line)}: "
             "Number of row cells do not match table header, see what is "
             "missing, missing cells marked with ∅ symbol:\n"
             f"{table}"
@@ -1838,6 +1938,7 @@ def read_tabular_manifest(
     path: str = None,
     file: IO = None,
     rename_duplicates: bool = False,
+    log: TabularReadLog | None = None,
 ) -> Iterator[ParsedRow]:
     if format_ == TabularFormat.GSHEETS:
         rows = read_gsheets_manifest(path)
@@ -1855,6 +1956,7 @@ def read_tabular_manifest(
             path,
             rows,
             rename_duplicates=rename_duplicates,
+            log=log,
         )
     except Exception:
         if isinstance(rows, types.GeneratorType):
@@ -1902,8 +2004,8 @@ def _empty_rows_counter():
     return _counter
 
 
-def _read_xlsx_manifest(path: str) -> Iterator[tuple[str, list[str]]]:
-    wb = openpyxl.load_workbook(path)
+def _read_xlsx_manifest(path: str, file: IO[bytes] = None) -> Iterator[tuple[str, list[str]]]:
+    wb = openpyxl.load_workbook(file if file is not None else path)
 
     yield "1", DATASET
 

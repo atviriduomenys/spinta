@@ -104,6 +104,13 @@ def load_store(
     return store
 
 
+def manifest_banner(manifest) -> str:
+    """The line that tells which manifest is being loaded."""
+    if manifest.path:
+        return f"Loading {type(manifest).__name__} manifest {manifest.name} ({manifest.path})..."
+    return f"Loading {type(manifest).__name__} manifest {manifest.name}"
+
+
 def load_manifest(
     context: Context,
     *,
@@ -123,12 +130,7 @@ def load_manifest(
             check_config=check_config,
         )
     if verbose:
-        if store.manifest.path:
-            click.echo(
-                f"Loading {type(store.manifest).__name__} manifest {store.manifest.name} ({store.manifest.path})..."
-            )
-        else:
-            click.echo(f"Loading {type(store.manifest).__name__} manifest {store.manifest.name}")
+        click.echo(manifest_banner(store.manifest))
     commands.load(
         context, store.manifest, rename_duplicates=rename_duplicates, load_internal=load_internal, full_load=full_load
     )

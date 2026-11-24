@@ -6,7 +6,6 @@ import warnings
 from typer import Context as TyperContext
 from typer import Option, Typer, echo
 
-import spinta
 from spinta.cli import auth, config, data, get, inspect, manifest, migrate, pii, pull, push, server, sync
 from spinta.cli.admin import admin
 from spinta.cli.comment import comment
@@ -18,6 +17,7 @@ from spinta.cli.udts import app as udts
 from spinta.cli.uncomment import uncomment
 from spinta.cli.upgrade import upgrade
 from spinta.core.context import create_context
+from spinta.lib import Spinta
 from spinta.warnings import SpintaDeprecationWarning
 
 app = Typer()
@@ -104,4 +104,4 @@ def main(
         )
 
     if version:
-        echo(spinta.__version__)
+        echo(Spinta().version)

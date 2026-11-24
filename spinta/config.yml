@@ -240,6 +240,16 @@ default_auth_client:
 default_access_level:
   type: string
 
+# How an unresolved `ref`, `backref`, array `ref` or `base` is handled while
+# linking: `downgrade` (downgrade to object, the default) or `error`.
+unresolved_references:
+  type: string
+
+# Whether to set up logging (handlers on the root logger, log files). Turned
+# off by `spinta.lib.Spinta`, which does not configure logging for the host.
+setup_logging:
+  type: boolean
+
 default_distribution_strategy:
   type: string
 

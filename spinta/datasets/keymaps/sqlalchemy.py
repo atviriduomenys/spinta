@@ -362,7 +362,10 @@ def configure(context: Context, keymap: SqlAlchemyKeyMap):
     config: Config = context.get("config")
     dsn = rc.get("keymaps", keymap.name, "dsn", required=True)
     sync_transaction_size = rc.get("keymaps", keymap.name, "sync_transaction_size", default=10000, cast=int)
-    ensure_data_dir(config.data_path)
+    # The data directory is made only when the DSN is in it, so that a DSN
+    # without `{data_dir}` (for example in-memory `sqlite://`) creates nothing (3.6).
+    if "{data_dir}" in dsn:
+        ensure_data_dir(config.data_path)
     dsn = dsn.format(data_dir=config.data_path)
     if dsn.startswith("sqlite:///"):
         dsn = dsn.replace("sqlite:///", "sqlite+spinta:///")

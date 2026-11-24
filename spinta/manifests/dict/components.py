@@ -21,7 +21,7 @@ class JsonManifest(DictManifest):
 
     @staticmethod
     def detect_from_path(path: str) -> bool:
-        return path.endswith(".json") and not path.startswith("openapi+file://")
+        return path.endswith(".json") and not path.endswith(".simple.json") and not path.startswith("openapi+file://")
 
 
 class XmlManifest(DictManifest):

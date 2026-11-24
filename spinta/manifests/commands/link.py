@@ -7,9 +7,11 @@ from spinta.manifests.components import Manifest, get_manifest_object_names
 
 @commands.link.register(Context, Manifest)
 def link(context: Context, manifest: Manifest):
+    manager = context.get("error_manager")
     for node in get_manifest_object_names():
         for obj in commands.get_nodes(context, manifest, node).values():
-            commands.link(context, obj)
+            with manager.guard(obj):
+                commands.link(context, obj)
 
     finalize_param_link(context, manifest)
     finalize_scope_link(context, manifest)

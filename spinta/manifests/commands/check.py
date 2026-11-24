@@ -7,9 +7,11 @@ from spinta.manifests.components import Manifest, get_manifest_object_names
 
 @commands.check.register(Context, Manifest)
 def check(context: Context, manifest: Manifest):
+    manager = context.get("error_manager")
     for node in get_manifest_object_names():
         for obj in commands.get_nodes(context, manifest, node).values():
-            check(context, obj)
+            with manager.guard(obj):
+                check(context, obj)
 
     # Check if the configuration does not contain unknown models
     rc: RawConfig = context.get("rc")

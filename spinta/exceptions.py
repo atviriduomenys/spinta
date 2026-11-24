@@ -97,6 +97,8 @@ class BaseError(Exception):
     template: str = None
     headers: dict[str, str] = {}
     context: dict[str, Any] = {}
+    # `error` or `warning`. Stored as such in a `simple` document (4.10).
+    severity: str = "error"
 
     def __init__(self, *args, **kwargs):
         if len(args) == 0:
@@ -350,6 +352,16 @@ class DataServiceNotFound(UserError):
 
 class ModelReferenceKeyNotFound(BaseError):
     template = "Model reference key {ref!r} not found in {model!r}."
+
+
+class UnresolvedReference(BaseError):
+    """A `ref`, `backref`, array `ref` or `base` names a model that is not in the manifest.
+
+    Raised instead of a downgrade when `unresolved_references = error`, see
+    `spinta.manifests.simple`. Its `context.ref` is the candidate model path.
+    """
+
+    template = "Model {ref!r} referenced by {type!r} property {property!r} was not found in the manifest."
 
 
 class SourceNotSet(UserError):

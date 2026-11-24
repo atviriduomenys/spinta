@@ -21,6 +21,7 @@ def link(context: Context, dtype: Array) -> None:
     if dtype.items:
         commands.link(context, dtype.items.dtype)
         # Items are not linked as properties, so their enum is linked here.
+        dtype.items.enum = None
         dtype.items.enum = link_prop_enum(dtype.items)
 
     intermediate_model: str = dtype.model

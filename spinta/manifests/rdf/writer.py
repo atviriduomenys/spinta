@@ -108,12 +108,26 @@ def write_rdf_manifest(
     If `dataset` is given, only its models are written, with their classes, shapes,
     properties and enums. Items of other datasets are only referenced by their IRIs.
     """
+    text = render_rdf_manifest(context, manifest, access=access, dataset=dataset)
+    path = Path(output)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def render_rdf_manifest(
+    context: Context,
+    manifest: Manifest,
+    *,
+    access: Access = Access.private,
+    dataset: str | None = None,
+) -> str:
+    """The RDF Turtle text that `write_rdf_manifest` writes (3.1, `Spinta.copy` to `rdf`)."""
     if dataset is not None and not commands.has_dataset(context, manifest, dataset):
         available = ", ".join(sorted(commands.get_datasets(context, manifest))) or "none"
         raise click.UsageError(f"Dataset {dataset!r} not found in manifest. Available datasets: {available}.")
     config = context.get("config")
     exporter = _RdfExporter(context, manifest, uri_prefix=config.uri_prefix, access=access, dataset=dataset)
-    exporter.export().write(output)
+    return exporter.export().render()
 
 
 @dataclass(frozen=True)

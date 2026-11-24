@@ -284,9 +284,12 @@ def link(context: Context, model: Model):
     if model.base:
         commands.link(context, model.base)
 
-    # Link model properties.
+    # Link model properties. Each property is guarded, so with error
+    # collection one bad property does not stop the others.
+    manager = context.get("error_manager")
     for prop in model.properties.values():
-        commands.link(context, prop)
+        with manager.guard(prop):
+            commands.link(context, prop)
 
     _link_model_page(model)
 
@@ -520,6 +523,9 @@ def link(context: Context, prop: Property):
             default_access=config.default_access_level,
         )
         link_enums([items, prop] + parents, items.enums, default_access=config.default_access_level)
+    # Until linked, `enum` holds the enum name. An unknown name raises `UndefinedEnum`
+    # and must not leave the name behind, so `check` never sees a string.
+    prop.enum = None
     prop.enum = link_prop_enum(prop)
 
 
@@ -619,8 +625,10 @@ def check(context: Context, model: Model):
         raise exceptions.MissingRequiredProperty(model, prop="_id")
     for scope in model.scopes.values():
         commands.check(context, scope)
+    manager = context.get("error_manager")
     for prop in model.properties.values():
-        commands.check(context, prop)
+        with manager.guard(prop):
+            commands.check(context, prop)
 
     # Check if the model configuration does not contain unknown properties
     rc: RawConfig = context.get("rc")

@@ -10,7 +10,7 @@ from spinta.components import Base, Config, Context, Model, Property
 from spinta.core.enums import Access, Level, load_level
 from spinta.dimensions.comments.components import Comment, CommentGiven
 from spinta.dimensions.scope.components import Scope
-from spinta.exceptions import BackendNotFound, InvalidName
+from spinta.exceptions import BackendNotFound, InvalidName, UnresolvedReference
 from spinta.types import TYPE_OBJECT
 from spinta.utils.naming import is_valid_model_name, is_valid_property_name
 
@@ -67,6 +67,31 @@ def set_dtype_backend(dtype: DataType):
         dtype.backend = dtype.prop.model.backend
 
 
+def get_unresolved_references_mode(context: Context) -> str:
+    """`downgrade` (default) or `error`, see config key `unresolved_references`."""
+    rc = context.get("rc")
+    mode = rc.get("unresolved_references", default="downgrade")
+    if mode not in ("downgrade", "error"):
+        raise ValueError(f"Unknown unresolved_references mode {mode!r}, use 'downgrade' or 'error'.")
+    return mode
+
+
+def _dataset_name(model: Model) -> str | None:
+    dataset = model.external.dataset if model.external else None
+    return getattr(dataset, "name", dataset) or None
+
+
+def _report_unresolved_reference(context: Context, error: UnresolvedReference) -> None:
+    """Store the error as a warning when errors are collected (downgrade mode).
+
+    In `error` mode the caller raises instead, see `get_unresolved_references_mode`.
+    """
+    manager = context.get("error_manager")
+    if manager.collect:
+        error.severity = "warning"
+        manager.handle_error(error)
+
+
 def replace_undeclared_ref_with_object(
     context: Context,
     prop: Property,
@@ -77,6 +102,20 @@ def replace_undeclared_ref_with_object(
     from spinta.types.datatype import Object
 
     ref_str = f"{original_model}[{','.join(refprops)}]" if refprops else original_model
+
+    model = prop.model
+    dataset = _dataset_name(model)
+    error = UnresolvedReference(
+        type=original_type,
+        dataset=dataset,
+        model=model.name,
+        property=prop.place,
+        # The reader already made the target a full path (`/` stripped, or the dataset added).
+        ref=original_model,
+    )
+    if get_unresolved_references_mode(context) == "error":
+        raise error
+    _report_unresolved_reference(context, error)
 
     logger.warning(
         "Model %r referenced by %r property %r was not found in the manifest. Downgrading to object (level 2).",
@@ -122,6 +161,18 @@ def replace_undeclared_base_with_comment(
     base_model = base.parent
     pk: list[str] = base.pk
     base_level: Level | None = base.level
+
+    dataset = _dataset_name(model)
+    error = UnresolvedReference(
+        type="base",
+        dataset=dataset,
+        model=model.name,
+        ref=base_model,
+    )
+    error.template = "Model {ref!r} used as base of {model!r} was not found in the manifest."
+    if get_unresolved_references_mode(context) == "error":
+        raise error
+    _report_unresolved_reference(context, error)
 
     model.base = None
     model_level = model.level if model.level and model.level > Level.structured else None

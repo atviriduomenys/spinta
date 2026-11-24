@@ -1,10 +1,11 @@
+import json
 from pathlib import Path
 
 from pytest import mark
 
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.exceptions import InvalidName, NoModelDefined
+from spinta.lib import Spinta
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest
@@ -1205,9 +1206,8 @@ def test_copy_property_with_underscore_reserved(context: Context, rc, cli: Spint
         ],
         fail=False,
     )
-    assert result.exit_code != 0
-    assert isinstance(result.exception, InvalidName)
-    assert "_op" in str(result.exception)
+    assert result.exit_code == 1
+    assert "_op" in result.stderr
 
 
 def test_copy_property_with_underscore_wrong(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -1236,9 +1236,8 @@ def test_copy_property_with_underscore_wrong(context: Context, rc, cli: SpintaCl
         ],
         fail=False,
     )
-    assert result.exit_code != 0
-    assert isinstance(result.exception, InvalidName)
-    assert "_test" in str(result.exception)
+    assert result.exit_code == 1
+    assert "_test" in result.stderr
 
 
 def test_copy_undeclared_ref_transforms_to_object(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
@@ -1347,9 +1346,8 @@ def test_copy_scope_invalid_name(context: Context, rc, cli: SpintaCliRunner, tmp
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert isinstance(result.exception, InvalidName)
-    assert "LTU" in str(result.exception)
+    assert result.exit_code == 1
+    assert "LTU" in result.stderr
 
 
 def test_copy_scope_no_model_defined(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -1374,8 +1372,8 @@ def test_copy_scope_no_model_defined(context: Context, rc, cli: SpintaCliRunner,
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert isinstance(result.exception, NoModelDefined)
+    assert result.exit_code == 1
+    assert "must be defined on a concrete model" in result.stderr
 
 
 def test_copy_multiple_scopes(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -1458,3 +1456,240 @@ def test_copy_undeclared_base_drops_and_comments(context: Context, rc, cli: Spin
       |   |   |   | name     | string  |        |        |                                                |       | private
     """
     )
+
+
+def test_copy_to_simple_json(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref     | source      | prepare | access
+    datasets/gov/example     |        |         |             |         |
+      | data                 | sql    |         |             |         |
+                             |        |         |             |         |
+      |   |   | Country      |        | code    | salis       |         |
+      |   |   |   | code     | string |         | kodas       |         | public
+      |   |   |   | name     | string |         | pavadinimas |         | open
+    """),
+    )
+
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "-o",
+            tmp_path / "result.simple.json",
+            tmp_path / "manifest.csv",
+        ],
+    )
+
+    doc = json.loads((tmp_path / "result.simple.json").read_text(encoding="utf-8"))
+    assert list(doc["manifest"].values())[0]["errors"] == []
+    assert "datasets/gov/example/Country" in doc["model"]
+    assert "datasets/gov/example/Country/name" in doc["property"]
+
+    # The `simple` file reads back as a manifest.
+    cli.invoke(
+        rc,
+        [
+            "copy",
+            "--no-source",
+            "-o",
+            tmp_path / "result.csv",
+            tmp_path / "result.simple.json",
+        ],
+    )
+    text = (tmp_path / "result.csv").read_text(encoding="utf-8")
+    assert "datasets/gov/example" in text
+    assert "Country" in text
+    assert ",name,string," in text
+
+
+PARITY_TABLE = """
+    d | r | b | m | property | type   | ref     | source      | prepare | access
+    datasets/gov/example     |        |         |             |         |
+      | data                 | sql    |         |             |         |
+                             |        |         |             |         |
+      |   |   | Country      |        | code    | salis       |         |
+      |   |   |   | code     | string |         | kodas       |         | public
+      |   |   |   | name     | string |         | pavadinimas |         | open
+      |   |   |   | status   | string |         | status      |         | open
+                             |        |         |             |         |
+      |   |   | City         |        | name    | miestas     |         |
+      |   |   |   | name     | string |         | pavadinimas |         | open
+      |   |   |   | country  | ref    | Country | salis       |         | open
+"""
+
+
+def _parity_manifest(context, tmp_path):
+    create_tabular_manifest(context, tmp_path / "manifest.csv", striptable(PARITY_TABLE))
+    return tmp_path / "manifest.csv"
+
+
+def test_copy_csv_output_is_the_library_output(context: Context, rc, cli, tmp_path):
+    # `spinta copy` and `Spinta.copy` do the same thing (D14): the file is the bytes the library returns.
+    manifest = _parity_manifest(context, tmp_path)
+    cli.invoke(rc, ["copy", "--access", "open", "--no-source", "-o", tmp_path / "out.csv", manifest])
+
+    spinta = Spinta._from_context(context)
+    expected = spinta.copy(spinta.copy(str(manifest)), "csv", access="open", source=False)
+    assert (tmp_path / "out.csv").read_bytes() == expected
+
+
+def test_copy_table_output_is_the_library_output(context: Context, rc, cli, tmp_path):
+    manifest = _parity_manifest(context, tmp_path)
+    result = cli.invoke(rc, ["copy", "-c", "d,r,b,m,p,type,ref", manifest])
+
+    spinta = Spinta._from_context(context)
+    expected = spinta.copy(spinta.copy(str(manifest)), "ascii", columns=["d", "r", "b", "m", "p", "type", "ref"])
+    assert result.stdout == expected + "\n"
+
+
+def test_copy_mermaid_output_is_the_library_output(context: Context, rc, cli, tmp_path):
+    manifest = _parity_manifest(context, tmp_path)
+    cli.invoke(rc, ["copy", "-o", tmp_path / "out.mmd", manifest])
+
+    spinta = Spinta._from_context(context)
+    expected = spinta.copy(spinta.copy(str(manifest)), "mermaid")
+    assert (tmp_path / "out.mmd").read_text(encoding="utf-8") == expected
+
+
+def test_copy_rdf_output_is_the_library_output(context: Context, rc, cli, tmp_path):
+    manifest = _parity_manifest(context, tmp_path)
+    cli.invoke(rc, ["copy", "--access", "open", "-o", tmp_path / "out.ttl", manifest])
+
+    spinta = Spinta._from_context(context)
+    expected = spinta.copy(spinta.copy(str(manifest)), "rdf", access="open")
+    assert (tmp_path / "out.ttl").read_text(encoding="utf-8") == expected
+
+
+def test_copy_simple_output_is_the_library_document(context: Context, rc, cli, tmp_path):
+    manifest = _parity_manifest(context, tmp_path)
+    cli.invoke(rc, ["copy", "-o", tmp_path / "out.simple.json", manifest])
+
+    doc = json.loads((tmp_path / "out.simple.json").read_text(encoding="utf-8"))
+    assert doc == Spinta._from_context(context).copy(str(manifest))
+
+
+def test_copy_passes_the_parsed_options_to_the_library(context: Context, rc, cli, tmp_path, monkeypatch):
+    calls = []
+    run = Spinta._copy_files
+
+    def spy(self, files, format, **options):
+        calls.append((format, options))
+        return run(self, files, format, **options)
+
+    monkeypatch.setattr(Spinta, "_copy_files", spy)
+    manifest = _parity_manifest(context, tmp_path)
+    cli.invoke(
+        rc,
+        ["copy", "--access", "open", "--no-source", "--order-by", "access", "-o", tmp_path / "out.csv", manifest],
+    )
+
+    [(format, options)] = calls
+    assert format == "csv"
+    assert options["access"] == "open"
+    assert options["source"] is False
+    assert options["order_by"] == "access"
+    assert options["format_names"] is False
+
+
+def test_copy_with_output_names_the_manifest_first(context: Context, rc, cli, tmp_path):
+    # With `-o` the CLI says which manifest it loads, as it always did. Without `-o` it does not.
+    manifest = _parity_manifest(context, tmp_path)
+
+    result = cli.invoke(rc, ["copy", "-o", tmp_path / "out.csv", manifest])
+    assert result.stdout.startswith("Loading ")
+
+    result = cli.invoke(rc, ["copy", manifest])
+    assert not result.stdout.startswith("Loading ")
+
+
+def test_copy_invalid_name_stops_before_printing(context: Context, rc, cli, tmp_path):
+    # The first error that stops the copy is raised, and no table or error is printed before it.
+    (tmp_path / "manifest.csv").write_text(
+        "dataset,resource,base,model,property,type,ref,source,prepare,access\n"
+        "datasets/gov/bad,,,,,,,,,\n"
+        ",,,Bad Model!,,,,,,\n"
+        ",,,,name,string,,,,\n",
+        encoding="utf-8",
+    )
+    result = cli.invoke(
+        rc,
+        ["copy", "-o", tmp_path / "result.csv", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+    assert result.exit_code == 1
+    assert "Bad Model" in result.stderr
+    assert "Bad Model" not in result.stdout
+
+
+@mark.parametrize(
+    "options, message",
+    [
+        (["-c", "d,r"], "`columns` does not apply to `csv` output"),
+        (["-d", "datasets/gov/example"], "`dataset` does not apply to `csv` output"),
+    ],
+)
+def test_copy_refuses_an_option_the_output_does_not_take(context: Context, rc, cli, tmp_path, options, message):
+    # The option is refused before anything is loaded or written, not ignored (3.1).
+    manifest = _parity_manifest(context, tmp_path)
+
+    result = cli.invoke(rc, ["copy", *options, "-o", tmp_path / "out.csv", manifest], fail=False)
+
+    assert isinstance(result.exception, ValueError)
+    assert message in str(result.exception)
+    assert not (tmp_path / "out.csv").exists()
+    assert not result.stdout.startswith("Loading ")
+
+
+def test_copy_refuses_no_source_for_mermaid(context: Context, rc, cli, tmp_path):
+    manifest = _parity_manifest(context, tmp_path)
+
+    result = cli.invoke(rc, ["copy", "--no-source", "-o", tmp_path / "out.mmd", manifest], fail=False)
+
+    assert isinstance(result.exception, ValueError)
+    assert "`source` does not apply to `mermaid` output" in str(result.exception)
+    assert not (tmp_path / "out.mmd").exists()
+
+
+_UNRESOLVED_REF_TABLE = striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare | access
+    datasets/gov/example     |        |      |        |         |
+      | data                 | sql    |      |        |         |
+                             |        |      |        |         |
+      |   |   | City         |        | name |        |         |
+      |   |   |   | name     | string |      |        |         | open
+      |   |   |   | country  | ref    | Nope |        |         | open
+""")
+
+
+def test_copy_warning_is_logged_not_counted_as_an_error(context: Context, rc, cli, tmp_path):
+    # A reference to a missing model is a warning. It was logged and never counted, so the table is still
+    # printed, and the exit status is 0 (3.5, rule 4).
+    create_tabular_manifest(context, tmp_path / "manifest.csv", _UNRESOLVED_REF_TABLE)
+
+    result = cli.invoke(rc, ["copy", tmp_path / "manifest.csv"])
+    assert "Nope" in result.stdout
+    assert "Total errors" not in result.stdout + result.stderr
+
+    result = cli.invoke(rc, ["copy", "-o", tmp_path / "out.csv", tmp_path / "manifest.csv"])
+    assert "Total errors" not in result.stdout + result.stderr
+    assert (tmp_path / "out.csv").exists()
+
+
+def test_copy_to_simple_json_exits_1_on_a_row_that_cannot_be_read(context: Context, rc, cli, tmp_path):
+    # The row is stored in the document, the file is written, and the run exits 1 as a table output does (3.5).
+    (tmp_path / "manifest.csv").write_text(
+        "dataset,resource,base,model,property,type,ref,source,prepare,access\n"
+        "datasets/gov/example,,,,,,,,,\n"
+        ",data,sql,,,,,,,\n",
+        encoding="utf-8",
+    )
+
+    result = cli.invoke(rc, ["copy", "-o", tmp_path / "out.simple.json", tmp_path / "manifest.csv"], fail=False)
+
+    assert result.exit_code == 1
+    assert "only single dimension can be used" in result.stderr
+    assert "Total errors: 1" in result.stderr
+    assert (tmp_path / "out.simple.json").exists()

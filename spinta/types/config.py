@@ -158,7 +158,8 @@ def load(context: Context, config: Config) -> Config:
     config.file_log_level = rc.get("file_log_level", default="DEBUG")
     config.file_log_path = pathlib.Path(rc.get("file_log_path", default=pathlib.Path().home() / ".spinta_logs"))
 
-    setup_logging(config)
+    if rc.get("setup_logging", default=True):
+        setup_logging(config)
 
     config.default_distribution_strategy = rc.get(
         "default_distribution_strategy",

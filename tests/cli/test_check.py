@@ -4,14 +4,8 @@ import pytest
 
 from spinta.components import Context
 from spinta.core.config import RawConfig
-from spinta.exceptions import (
-    InvalidManifestFile,
-    InvalidName,
-    InvalidValue,
-    NoModelDefined,
-    ResourceSourceQueryConflict,
-    UnlinkedQueryParam,
-)
+from spinta.exceptions import ResourceSourceQueryConflict
+from spinta.lib import Spinta
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest_get_context
@@ -201,8 +195,6 @@ def test_check_level(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     )
     assert result.exit_code == 0
     assert "Invalid value." in result.stdout
-    assert "component: spinta.dimensions.enum.components.EnumItem" in result.stdout
-    assert "component: spinta.components.Model" in result.stdout
     assert "model: datasets/gov/example2/Country" in result.stdout
     assert "param: level" in result.stdout
     assert "given: 9" in result.stdout
@@ -268,14 +260,13 @@ def test_check_level_multiple_manifests(context: Context, rc, cli: SpintaCliRunn
     )
     assert result.exit_code == 0
     assert "Invalid value." in result.stdout
-    assert "component: spinta.dimensions.enum.components.EnumItem" in result.stdout
-    assert "component: spinta.components.Model" in result.stdout
     assert "model: datasets/gov/example4/Salis" in result.stdout
     assert "param: level" in result.stdout
     assert "given: 9" in result.stdout
     assert "Total errors: 3" in result.stdout
-    assert "manifest.csv" in result.stdout
-    assert "manifest2.csv" in result.stdout
+    assert "manifest2.csv: 1 error(s)" in result.stdout
+    # The two enum items are not an element of a model, so they name no file.
+    assert "(document): 2 error(s)" in result.stdout
 
 
 def test_check_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -304,9 +295,9 @@ def test_check_access(context: Context, rc, cli: SpintaCliRunner, tmp_path):
 
     result = cli.invoke(rc, ["check", tmp_path / "manifest.csv"], fail=False)
 
-    assert result.exit_code != 0
-    assert result.exc_info[0] is InvalidValue
-    assert result.exception.context.get("given") == "test"
+    assert result.exit_code == 1
+    assert "Invalid value." in result.stdout
+    assert "given: test" in result.stdout
 
 
 def test_check_existing_generated_manifest(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -359,8 +350,8 @@ def test_check_existing_declared_manifest(context: Context, rc, cli: SpintaCliRu
         ],
         fail=False,
     )
-    assert result.exit_code != 0
-    assert result.exc_info[0] is InvalidManifestFile
+    assert result.exit_code == 1
+    assert "'datasets/gov/test' is already defined." in result.stdout
 
 
 def test_check_nested_Backref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -594,9 +585,8 @@ def test_check_prop_underscore_err_1(context: Context, rc, cli: SpintaCliRunner,
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert result.exc_info[0] is InvalidName
-    assert "_op" in str(result.exception)
+    assert result.exit_code == 1
+    assert "Invalid '_op' property code name." in result.stdout
 
 
 def test_check_prop_underscore_err_2(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -627,9 +617,8 @@ def test_check_prop_underscore_err_2(context: Context, rc, cli: SpintaCliRunner,
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert result.exc_info[0] is InvalidName
-    assert "_test123" in str(result.exception)
+    assert result.exit_code == 1
+    assert "Invalid '_test123' property code name." in result.stdout
 
 
 @pytest.mark.parametrize("type", ["dask/xml", "dask/json", "dask/csv"])
@@ -783,9 +772,8 @@ def test_check_scope_invalid_name_err(context: Context, rc, cli: SpintaCliRunner
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert result.exc_info[0] is InvalidName
-    assert "IDS" in str(result.exception)
+    assert result.exit_code == 1
+    assert "Invalid 'IDS' scope code name." in result.stdout
 
 
 def test_check_scope_no_model_defined_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -805,8 +793,8 @@ def test_check_scope_no_model_defined_err(context: Context, rc, cli: SpintaCliRu
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert result.exc_info[0] is NoModelDefined
+    assert result.exit_code == 1
+    assert "Scope is not inside a model." in result.stdout
 
 
 def test_check_scope_missing_ref_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -828,8 +816,8 @@ def test_check_scope_missing_ref_err(context: Context, rc, cli: SpintaCliRunner,
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert "ref" in str(result.exception).lower()
+    assert result.exit_code == 1
+    assert "Property 'country' not found." in result.stdout
 
 
 def test_check_scope_missing_prepare_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -851,8 +839,8 @@ def test_check_scope_missing_prepare_err(context: Context, rc, cli: SpintaCliRun
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert "prepare" in str(result.exception).lower()
+    assert result.exit_code == 1
+    assert "Scope must have a prepare row." in result.stdout
 
 
 def test_check_scope_duplicate_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -875,8 +863,8 @@ def test_check_scope_duplicate_err(context: Context, rc, cli: SpintaCliRunner, t
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert "already defined" in str(result.exception).lower()
+    assert result.exit_code == 1
+    assert "is already defined." in result.stdout
 
 
 def test_check_enum_named_under_property(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -999,9 +987,9 @@ def test_check_query_without_default_requires_linked_property(context: Context, 
 
     result = cli.invoke(rc, ["check", tmp_path / "manifest.csv"], fail=False)
 
-    assert result.exit_code != 0
-    assert result.exc_info[0] is UnlinkedQueryParam
-    assert "DATA_TYPE" in str(result.exception)
+    assert result.exit_code == 1
+    assert "has no default value" in result.stdout
+    assert "DATA_TYPE" in result.stdout
 
 
 def test_check_query_conflicts_flag_applies_to_configured_manifest(
@@ -1022,3 +1010,156 @@ def test_check_query_conflicts_flag_applies_to_configured_manifest(
     assert result.exit_code != 0
     assert result.exc_info[0] is ResourceSourceQueryConflict
     assert "CLIENT_NAME" in str(result.exception)
+
+
+UNRESOLVED_REFERENCE_MANIFEST = """
+    d | r | b | m | property | type   | ref              | access
+    example                  |        |                  |
+                             |        |                  |
+      |   |   | City         |        |                  |
+      |   |   |   | name     | string |                  | private
+      |   |   |   | country  | ref    | example2/Country | private
+    """
+
+
+def test_check_unresolved_reference_is_a_warning_by_default(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(UNRESOLVED_REFERENCE_MANIFEST),
+    )
+
+    result = cli.invoke(rc, ["check", tmp_path / "manifest.csv"], fail=False)
+
+    assert result.exit_code == 0
+    assert "warning: " in result.stdout
+    assert "Total errors" not in result.stdout
+
+
+def test_check_strict_references_makes_an_unresolved_reference_an_error(
+    context: Context, rc, cli: SpintaCliRunner, tmp_path
+):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(UNRESOLVED_REFERENCE_MANIFEST),
+    )
+
+    result = cli.invoke(rc, ["check", "--strict-references", tmp_path / "manifest.csv"], fail=False)
+
+    assert result.exit_code == 1
+    assert "Total errors: 1" in result.stdout
+    assert "Context:" in result.stdout
+    assert "model: example/City" in result.stdout
+
+
+CITY_REFERRING_TO_OTHER_DATASET = """
+    d | r | b | m | property | type   | ref               | access
+    example_a                |        |                   |
+                             |        |                   |
+      |   |   | City         |        |                   |
+      |   |   |   | name     | string |                   | private
+      |   |   |   | country  | ref    | example_b/Country | private
+    """
+
+COUNTRY_IN_OTHER_DATASET = """
+    d | r | b | m | property | type   | ref | access
+    example_b                |        |     |
+                             |        |     |
+      |   |   | Country      |        |     |
+      |   |   |   | name     | string |     | private
+    """
+
+
+def test_check_of_several_files_checks_them_as_one_document(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "city.csv",
+        striptable(CITY_REFERRING_TO_OTHER_DATASET),
+    )
+    create_tabular_manifest(
+        context,
+        tmp_path / "country.csv",
+        striptable(COUNTRY_IN_OTHER_DATASET),
+    )
+
+    alone = cli.invoke(rc, ["check", "--strict-references", tmp_path / "city.csv"], fail=False)
+    together = cli.invoke(
+        rc,
+        ["check", "--strict-references", tmp_path / "city.csv", tmp_path / "country.csv"],
+        fail=False,
+    )
+
+    # The reference is unresolved in `city.csv` alone, and resolved by `country.csv`.
+    assert alone.exit_code == 1
+    assert together.exit_code == 0
+    assert "Total errors" not in together.stdout
+
+
+def test_check_bad_row_is_an_error_and_the_other_rows_are_checked(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # `name` has one cell too many, so it cannot be read. The rows around it are.
+    (tmp_path / "manifest.csv").write_text(
+        "dataset,resource,base,model,property,type,ref,access\n"
+        "datasets/gov/example,,,,,,,\n"
+        ",,,Country,,,code,\n"
+        ",,,,code,string,,public\n"
+        ",,,,name,string,,open,extra\n"
+        ",,,,title,string,,open\n",
+        encoding="utf-8",
+    )
+
+    result = cli.invoke(rc, ["check", tmp_path / "manifest.csv"], fail=False)
+
+    assert result.exit_code == 1
+    assert "Number of row cells do not match table header" in result.stdout
+    assert "Total errors: 1" in result.stdout
+
+
+def test_check_passes_its_options_to_spinta_check(context: Context, rc, cli: SpintaCliRunner, tmp_path, monkeypatch):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable(COUNTRY_IN_OTHER_DATASET),
+    )
+    calls = []
+    original = Spinta._check
+
+    def spy(self, manifest, **kwargs):
+        calls.append((manifest, kwargs))
+        return original(self, manifest, **kwargs)
+
+    monkeypatch.setattr(Spinta, "_check", spy)
+
+    result = cli.invoke(
+        rc,
+        ["check", "--check-names", "--strict-references", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code == 0
+    assert len(calls) == 1
+    manifest, kwargs = calls[0]
+    assert len(manifest) == 1
+    assert list(manifest[0]["manifest"].values())[0]["type"] == "csv"
+    assert kwargs == {"check_names": True, "strict_references": True}
+
+
+def test_version_option_prints_what_spinta_version_returns(rc, cli: SpintaCliRunner, monkeypatch):
+    monkeypatch.setattr(Spinta, "version", property(lambda self: "9.9.9"))
+
+    result = cli.invoke(rc, ["--version"], fail=False)
+
+    assert result.exit_code == 0
+    assert result.stdout.strip() == "9.9.9"
+
+
+def test_check_of_a_format_copy_does_not_read_yet_keeps_the_current_path(rc, cli: SpintaCliRunner, monkeypatch):
+    # `Spinta.copy` reads csv, ascii, xlsx and simple only. Other formats are checked as before.
+    calls = []
+    monkeypatch.setattr(Spinta, "check", lambda self, manifest, **kwargs: calls.append(manifest))
+
+    result = cli.invoke(rc, ["check", "yaml:tests/manifest/datasets/xlsx"], fail=False)
+
+    assert calls == []
+    assert result.exit_code != 0
+    assert "datasets/xlsx" in str(result.exception)

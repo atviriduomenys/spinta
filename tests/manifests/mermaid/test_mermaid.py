@@ -2,7 +2,6 @@ import re
 
 from spinta.cli.manifest import _read_and_return_manifest
 from spinta.components import Context
-from spinta.exceptions import InvalidName
 from spinta.manifests.mermaid.helpers import MERMAID_CONFIG, MermaidClassDef, _mermaid_id, write_mermaid_manifest
 from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
@@ -29,9 +28,6 @@ def test_copy_mmd(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -79,9 +75,6 @@ def test_copy_mmd_visibility(context: Context, rc, cli: SpintaCliRunner, tmp_pat
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -129,9 +122,6 @@ def test_copy_mmd_array(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -181,9 +171,6 @@ def test_copy_mmd_enum(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -240,9 +227,6 @@ def test_copy_mmd_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -299,9 +283,6 @@ def test_copy_mmd_ref_required(context: Context, rc, cli: SpintaCliRunner, tmp_p
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -359,9 +340,6 @@ def test_copy_mmd_backref(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -420,9 +398,6 @@ def test_copy_mmd_backref_not_array(context: Context, rc, cli: SpintaCliRunner, 
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -481,9 +456,6 @@ def test_copy_mmd_backref_required(context: Context, rc, cli: SpintaCliRunner, t
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -541,9 +513,6 @@ def test_copy_mmd_base(context: Context, rc, cli: SpintaCliRunner, tmp_path):
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -598,9 +567,6 @@ def test_copy_mmd_base_ref(context: Context, rc, cli: SpintaCliRunner, tmp_path)
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -656,9 +622,6 @@ def test_copy_with_two_datasets_and_main_specified(context: Context, rc, cli: Sp
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-d",
             "datasets/gov/example",
             "-o",
@@ -860,9 +823,6 @@ def test_copy_mmd_enum_escapes_breakout_chars(context: Context, rc, cli: SpintaC
         rc,
         [
             "copy",
-            "--no-source",
-            "--access",
-            "open",
             "-o",
             tmp_path / "result.mmd",
             tmp_path / "manifest.csv",
@@ -894,7 +854,7 @@ def test_copy_mmd_enum_source_escapes_breakout_chars(context: Context, rc, cli: 
 
     cli.invoke(
         rc,
-        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        ["copy", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
     )
 
     contents = (tmp_path / "result.mmd").read_text()
@@ -919,12 +879,11 @@ def test_copy_mmd_model_name_breakout_chars_rejected(context: Context, rc, cli: 
 
     result = cli.invoke(
         rc,
-        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        ["copy", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert isinstance(result.exception, InvalidName)
+    assert result.exit_code == 1
     assert not (tmp_path / "result.mmd").exists()
 
 
@@ -944,12 +903,11 @@ def test_copy_mmd_property_name_breakout_chars_rejected(context: Context, rc, cl
 
     result = cli.invoke(
         rc,
-        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        ["copy", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
         fail=False,
     )
 
-    assert result.exit_code != 0
-    assert isinstance(result.exception, InvalidName)
+    assert result.exit_code == 1
     assert not (tmp_path / "result.mmd").exists()
 
 
@@ -976,7 +934,7 @@ def test_copy_mmd_standalone_enum(context: Context, rc, cli: SpintaCliRunner, tm
 
     cli.invoke(
         rc,
-        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        ["copy", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
     )
 
     contents = (tmp_path / "result.mmd").read_text()
@@ -1017,7 +975,7 @@ def test_copy_mmd_standalone_enum_used_by_property_is_not_duplicated(
 
     cli.invoke(
         rc,
-        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        ["copy", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
     )
 
     contents = (tmp_path / "result.mmd").read_text()
@@ -1068,7 +1026,7 @@ def test_copy_mmd_enum_limited_to_50_items_by_default(context: Context, rc, cli:
 
     cli.invoke(
         rc,
-        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        ["copy", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
     )
 
     contents = (tmp_path / "result.mmd").read_text()
@@ -1081,7 +1039,7 @@ def test_copy_mmd_enum_with_50_items_is_not_marked(context: Context, rc, cli: Sp
 
     cli.invoke(
         rc,
-        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        ["copy", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
     )
 
     contents = (tmp_path / "result.mmd").read_text()
@@ -1094,7 +1052,7 @@ def test_copy_mmd_enum_limit_is_configurable(context: Context, rc, cli: SpintaCl
 
     cli.invoke(
         rc.fork({"uml_max_enum_items": 3}),
-        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        ["copy", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
     )
 
     contents = (tmp_path / "result.mmd").read_text()
@@ -1107,7 +1065,7 @@ def test_copy_mmd_standalone_enum_limited_to_50_items(context: Context, rc, cli:
 
     cli.invoke(
         rc,
-        ["copy", "--no-source", "--access", "open", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
+        ["copy", "-o", tmp_path / "result.mmd", tmp_path / "manifest.csv"],
     )
 
     contents = (tmp_path / "result.mmd").read_text()
