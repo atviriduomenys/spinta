@@ -32,14 +32,14 @@ _INTERNAL_CONTEXT = frozenset({"component", "manifest", "schema", "entity", "att
 READ_ERROR_CODE = "TabularManifestError"
 
 
-def read_error(code: str, message: str, index: int | None) -> ManifestError:
-    """A `ManifestError` for a row that cannot be read (4.10)."""
+def read_error(code: str, message: str, index: int | None, context: dict[str, str] | None = None) -> ManifestError:
+    """A `ManifestError` for a row that cannot be read (4.10). `context` names what the error is about (3.3)."""
     return {
         "code": code,
         "severity": "error",
         "message": message,
         "template": message,
-        "context": {},
+        "context": dict(context or {}),
         "index": index,
         "key": None,
     }

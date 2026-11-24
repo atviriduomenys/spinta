@@ -41,7 +41,9 @@ class Element:
     appends: int = 0  # number of `append` rows that continue this element
     comments: int = 0  # number of comments under this element
     implied: bool = False  # an implied element has no row (4.2)
-    errors: list[tuple[str, str]] = field(default_factory=list)  # read errors of its row: (code, message)
+    errors: list[tuple[str, str, dict[str, str]]] = field(
+        default_factory=list
+    )  # read errors of its row: (code, message, context)
     # A model only: the paths of the resource and of the base that the reader had open for its row,
     # `None` if none (4.3, 4.8). The writer places the `/` closers of 4.8 from them.
     resource: str | None = None

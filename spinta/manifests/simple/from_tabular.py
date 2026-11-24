@@ -34,7 +34,7 @@ def _element_dict(element: Element, source: str) -> dict[str, Any]:
         "parent": ref,
         "given": element.given,
         "implied": None,  # the reader does not compute it: `copy` and `check` do, from the loaded nodes (4.6)
-        "errors": [read_error(code, message, element.index) for code, message in element.errors],
+        "errors": [read_error(code, message, element.index, context) for code, message, context in element.errors],
     }
     if element.type == "model":
         # The resource and base scope the row was read in (4.2). Not trusted on read: they only place the

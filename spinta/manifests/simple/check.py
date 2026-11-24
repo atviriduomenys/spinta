@@ -228,7 +228,9 @@ def _has_read_errors(doc: SimpleManifest, loaded: LoadedDocument) -> bool:
 def _run_errors(loaded: LoadedDocument) -> list[ManifestError]:
     """The errors of a run: the read errors that the reader found, and the link and check errors."""
     read = [
-        read_error(code, message, None) for element in loaded.log.table.elements for code, message in element.errors
+        read_error(code, message, None, context)
+        for element in loaded.log.table.elements
+        for code, message, context in element.errors
     ]
     read += [read_error(p.code, p.message, None) for p in loaded.log.table.problems]
     return read + [manifest_error(e) for e in loaded.collector.errors]
@@ -249,7 +251,7 @@ def _all_elements(doc: SimpleManifest) -> list[dict[str, Any]]:
 
 
 def _read_errors(element: Element) -> list[ManifestError]:
-    return [read_error(code, message, element.index) for code, message in element.errors]
+    return [read_error(code, message, element.index, context) for code, message, context in element.errors]
 
 
 def _is_duplicate(error: ManifestError, others: list[ManifestError]) -> bool:

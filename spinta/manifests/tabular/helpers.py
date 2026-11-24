@@ -141,18 +141,18 @@ ALLOWED_NESTING_TYPES = ALLOWED_PARTIAL_TYPES + ALLOWED_ARRAY_TYPES + [DataTypeE
 def _record_error(log: TabularReadLog, line: str, element: Any, e: Exception) -> None:
     """Keep a read error with its row (4.10): on the element, or as a problem if there is none."""
     log.errors.append((line, e))
-    code, message = _error_pair(e)
+    code, message, context = _error_pair(e)
     if element is not None:
-        element.errors.append((code, message))
+        element.errors.append((code, message, context))
     elif line not in log.table.failed_lines:
         log.table.problem(line, message, code)
 
 
-def _error_pair(e: Exception) -> tuple[str, str]:
-    """The code and the message of a read error, as stored on an element (4.10)."""
+def _error_pair(e: Exception) -> tuple[str, str, dict[str, str]]:
+    """The code, the message and the context of a read error, as stored on an element (4.10)."""
     if isinstance(e, BaseError):
-        return type(e).__name__, e.message
-    return "TabularManifestError", str(e)
+        return type(e).__name__, e.message, {}
+    return "TabularManifestError", str(e), getattr(e, "context", {})
 
 
 class TabularReadLog:
@@ -178,10 +178,19 @@ class TabularManifestError(Exception):
     CSV, `{sheet}:{row}` for XLSX), `column` the column name, if known.
     """
 
-    def __init__(self, message: str = "", *, line: str | None = None, column: str | None = None):
+    def __init__(
+        self,
+        message: str = "",
+        *,
+        line: str | None = None,
+        column: str | None = None,
+        context: dict[str, str] | None = None,
+    ):
         super().__init__(message)
         self.line = line
         self.column = column
+        # The place the error is about, as `context` of a stored error (3.3), e.g. `{"dataset": "locn"}`.
+        self.context = context or {}
 
 
 def _location(path: str | None, line: str | int) -> str:
@@ -250,6 +259,8 @@ class TabularReader:
     line: str
     type: str
     name: str
+    # The element of the row, set only when the read keeps a log (see `_read_tabular_manifest_rows`).
+    element: Any = None
     data: ManifestRow  # Used when `appendable` is False
     rows: list[dict[str, Any]]  # Used when `appendable` is True
     appendable: bool = False  # Tells if reader is appendable.
@@ -330,7 +341,7 @@ class DatasetReader(TabularReader):
             self.data = {}
         else:
             if dataset_type not in {None, "", "dataset", "ns"}:
-                self.error("Dataset type is not allowed (`type` column where `dataset` column is not empty)")
+                dataset_type = self._unknown_type(dataset_type)
 
             if row["dataset"] in self.state.manifest.datasets:
                 self.error("Dataset already defined.")
@@ -351,6 +362,22 @@ class DatasetReader(TabularReader):
                     "resources": {},
                     "count": row["count"],
                 }
+
+    def _unknown_type(self, dataset_type: str) -> str:
+        """Report an unknown `dataset.type` and return the default type, `dataset`, to read the dataset with.
+
+        With a log the error is kept on the dataset's element and the reader goes on, so the rows of the
+        dataset are read too. Without a log the error is raised.
+        """
+        error = TabularManifestError(
+            f"{_location(self.path, self.line)}: Unknown dataset.type `{dataset_type}`.",
+            line=self.line,
+            context={"dataset": self.name},
+        )
+        if self.element is None:
+            raise error
+        self.element.errors.append(_error_pair(error))
+        return ""
 
     def release(self, reader: TabularReader = None) -> bool:
         return (
@@ -2158,7 +2185,8 @@ def get_relative_model_name(dataset: [str, dict], name: str) -> str:
         return name[1:]
     elif "/" in name:
         return name
-    elif dataset is None:
+    elif not dataset or "name" not in dataset:
+        # No dataset, or the `/` placeholder dataset (`{}`), which has no name.
         return name
     else:
         return "/".join(
