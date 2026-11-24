@@ -491,12 +491,22 @@ Nested configuration files
 A YAML configuration file can include other files by listing them under
 `config`. Spinta loads the including file first, then follows each include
 and its descendants before moving to the next entry. Spinta skips an include
-if its entry has already been seen. This also stops a cycle that refers back
-to an earlier entry. A missing file stops configuration loading and raises an error.
+if it resolves to a file already loaded, including a cycle back to an earlier
+file. A missing file stops configuration loading and raises an error.
 
-Spinta currently resolves relative YAML paths from the working directory,
-whether they appear in a YAML file, in `.env`, in an environment variable, or
-on the command line.
+Spinta resolves relative file paths in a YAML `config` list from the directory
+of the file that declares them. For example, `models.yml` listed in
+`deploy/config.yml` resolves to `deploy/models.yml`. This rule applies at each
+level of nesting. Update any nested paths that previously relied on the
+working directory.
+
+Relative paths declared in `.env`, environment variables, command-line options,
+or Python configuration dictionaries are resolved from the working directory.
+The list can also contain Python references such as `myapp.config:CONFIG` and
+absolute file paths. For example, use `/srv/spinta/models.yml` on Linux or
+`D:/shared/spinta/models.yml` on Windows. The Windows path can point to a
+different drive. If that file includes `details.yml` by relative path, Spinta
+looks for it beside `models.yml`.
 
 Keep related overrides in one file per model or dataset. Use a dotted key
 such as `models.datasets/Country` to target a single model.

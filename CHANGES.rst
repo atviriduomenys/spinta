@@ -8,7 +8,9 @@ Improvements:
 
 - Spinta now follows nested ``config`` entries recursively in depth-first order,
   whether they are declared in YAML files or Python configuration dictionaries.
-  See “Nested configuration files” in the configuration manual (`#1990`_).
+  Relative paths declared in a YAML file are resolved from that file's
+  directory. See “Nested configuration files” in the configuration manual
+  (`#1990`_).
 
 Bug fixes:
 

@@ -1,36 +1,26 @@
+import os
 import pathlib
-from copy import deepcopy
 
 import pytest
 from ruamel.yaml import YAML
+from typer.testing import CliRunner
 
 from spinta import commands
 from spinta.core.config import (
     SCHEMA,
     CliArgs,
-    ConfigSource,
     EnvFile,
     EnvVars,
     KeyFormat,
     Path,
     PyDict,
     RawConfig,
-    nested_config_sources,
+    read_config,
 )
 from spinta.testing.context import create_test_context
 from spinta.utils.schema import NA
 
 yaml = YAML(typ="safe")
-
-
-def create_rc(initial_sources: list[ConfigSource]) -> RawConfig:
-    tmp_rc = RawConfig()
-    tmp_rc.read(deepcopy(initial_sources))
-
-    configs = nested_config_sources(tmp_rc)
-    rc = RawConfig()
-    rc.read(initial_sources + configs)
-    return rc
 
 
 def test_envvars():
@@ -412,29 +402,213 @@ def test_yaml_config(tmp_path: pathlib.Path):
 
 
 def test_nested_yaml_config_load_order(tmp_path: pathlib.Path):
-    (tmp_path / "a.yml").write_text(f"test: 1\nconfig: [{str(tmp_path / 'a_1.yml')},{str(tmp_path / 'a_2.yml')}]")
+    (tmp_path / "a.yml").write_text("test: 1\nconfig: [a_1.yml, a_2.yml]\n")
     (tmp_path / "a_1.yml").write_text("test: 2\na: 1")
-    (tmp_path / "a_2.yml").write_text(f"test: 3\na: 2\nab: 1\nconfig: [{str(tmp_path / 'a_2_1.yml')}]")
+    (tmp_path / "a_2.yml").write_text("test: 3\na: 2\nab: 1\nconfig: [a_2_1.yml]\n")
     (tmp_path / "a_2_1.yml").write_text("test: 4\na: 3\nabc: 1")
-    (tmp_path / "b.yml").write_text(f"config: [{str(tmp_path / 'b_1.yml')}]")
+    (tmp_path / "b.yml").write_text("config: [b_1.yml]\n")
     (tmp_path / "b_1.yml").write_text("debug: true")
     (tmp_path / "c.yml").write_text("debug: false")
-    rc = create_rc(
-        initial_sources=[
-            Path("defaults", "spinta.config:CONFIG"),
-            EnvVars(
-                "envvars",
-                {
-                    "SPINTA_CONFIG": f"{str(tmp_path / 'a.yml')},{str(tmp_path / 'b.yml')},{str(tmp_path / 'c.yml')}",
-                },
-            ),
-        ]
-    )
+
+    config_paths = ",".join(str(tmp_path / name) for name in ("a.yml", "b.yml", "c.yml"))
+    rc = read_config(args=[f"config={config_paths}"])
+
+    yaml_sources = [pathlib.Path(name) for name in rc.get_source_names() if name.endswith(".yml")]
+    assert yaml_sources == [
+        tmp_path / "a.yml",
+        tmp_path / "a_1.yml",
+        tmp_path / "a_2.yml",
+        tmp_path / "a_2_1.yml",
+        tmp_path / "b.yml",
+        tmp_path / "b_1.yml",
+        tmp_path / "c.yml",
+    ]
     assert rc.get("test", cast=int, origin=True) == (4, str(tmp_path / "a_2_1.yml"))
     assert rc.get("a", cast=int, origin=True) == (3, str(tmp_path / "a_2_1.yml"))
     assert rc.get("ab", cast=int, origin=True) == (1, str(tmp_path / "a_2.yml"))
     assert rc.get("abc", cast=int, origin=True) == (1, str(tmp_path / "a_2_1.yml"))
     assert rc.get("debug", origin=True) == (False, str(tmp_path / "c.yml"))
+
+
+def test_nested_yaml_config_deduplicates_paths(tmp_path: pathlib.Path):
+    root_path = tmp_path / "root.yml"
+    defaults_path = tmp_path / "defaults.yml"
+    override_path = tmp_path / "override.yml"
+    defaults_path.write_text(
+        "models.datasets/Country.backend: default\nmodels.datasets/Country.distribute.type: schema\n"
+    )
+    override_path.write_text("models.datasets/Country.distribute.type: copy\n")
+    # Loading a defaults alias after the override would restore the schema distribution.
+    root_path.write_text(f"""\
+    config:
+      - ./defaults.yml
+      - override.yml
+      - defaults.yml
+      - "{defaults_path.as_posix()}"
+    """)
+
+    rc = read_config(args=[f"config={root_path}"])
+
+    yaml_sources = [name for name in rc.get_source_names() if name.endswith(".yml")]
+    assert [pathlib.Path(name) for name in yaml_sources] == [root_path, defaults_path, override_path]
+    assert any(name.endswith("./defaults.yml") for name in yaml_sources)
+    assert [(key, value, pathlib.Path(origin)) for key, value, origin in rc.getall("models", origin=True)] == [
+        (("models", "datasets/Country", "backend"), "default", defaults_path),
+        (("models", "datasets/Country", "distribute", "type"), "copy", override_path),
+    ]
+
+
+def test_nested_yaml_config_resolves_paths_from_each_file(tmp_path: pathlib.Path):
+    deploy_dir = tmp_path / "deploy"
+    (deploy_dir / "primary").mkdir(parents=True)
+    (deploy_dir / "secondary").mkdir()
+    shared_dir = tmp_path / "shared"
+    shared_dir.mkdir()
+    absolute_path = shared_dir / "common.yml"
+    absolute_path.write_text("config: [details.yml]\n")
+    (shared_dir / "details.yml").write_text("models.datasets/Place.distribute.type: copy\n")
+    root_path = deploy_dir / "config.yml"
+    root_path.write_text(f"""\
+    config:
+      - primary/models.yml
+      - secondary/models.yml
+      - "{absolute_path.as_posix()}"
+    """)
+    (deploy_dir / "primary" / "models.yml").write_text("config: [details.yml]\n")
+    (deploy_dir / "primary" / "details.yml").write_text("models.datasets/Country.backend: default\n")
+    (deploy_dir / "secondary" / "models.yml").write_text("models.datasets/City.backend: default\n")
+
+    rc = read_config(args=[f"config={root_path}"])
+
+    yaml_sources = [pathlib.Path(name) for name in rc.get_source_names() if name.endswith(".yml")]
+    assert yaml_sources == [
+        root_path,
+        deploy_dir / "primary" / "models.yml",
+        deploy_dir / "primary" / "details.yml",
+        deploy_dir / "secondary" / "models.yml",
+        absolute_path,
+        shared_dir / "details.yml",
+    ]
+    assert [(key, value, pathlib.Path(origin)) for key, value, origin in rc.getall("models", origin=True)] == [
+        (("models", "datasets/Country", "backend"), "default", deploy_dir / "primary" / "details.yml"),
+        (("models", "datasets/City", "backend"), "default", deploy_dir / "secondary" / "models.yml"),
+        (("models", "datasets/Place", "distribute", "type"), "copy", shared_dir / "details.yml"),
+    ]
+
+
+@pytest.mark.parametrize("cycle_target", ["root.yml", "child.yml"], ids=["parent-cycle", "self-include"])
+def test_nested_yaml_config_skips_cycles(tmp_path: pathlib.Path, cycle_target: str):
+    root_path = tmp_path / "root.yml"
+    child_path = tmp_path / "child.yml"
+    root_path.write_text("config: [child.yml]\nmodels.datasets/Country.backend: default\n")
+    child_path.write_text(f"config: [{cycle_target}]\nmodels.datasets/Country.distribute.type: copy\n")
+
+    rc = read_config(args=[f"config={root_path}"])
+
+    yaml_sources = [pathlib.Path(name) for name in rc.get_source_names() if name.endswith(".yml")]
+    assert yaml_sources == [root_path, child_path]
+    assert [(key, value, pathlib.Path(origin)) for key, value, origin in rc.getall("models", origin=True)] == [
+        (("models", "datasets/Country", "backend"), "default", root_path),
+        (("models", "datasets/Country", "distribute", "type"), "copy", child_path),
+    ]
+
+
+def test_nested_yaml_config_loads_shared_include_at_first_discovery(tmp_path: pathlib.Path):
+    root_path = tmp_path / "root.yml"
+    primary_path = tmp_path / "primary.yml"
+    secondary_path = tmp_path / "secondary.yml"
+    shared_path = tmp_path / "shared.yml"
+    root_path.write_text("config: [primary.yml, secondary.yml]\n")
+    primary_path.write_text("config: [shared.yml]\nmodels.datasets/Country.backend: default\n")
+    shared_path.write_text("models.datasets/Country.distribute.type: schema\nmodels.datasets/City.backend: default\n")
+    secondary_path.write_text("config: [shared.yml]\nmodels.datasets/Country.distribute.type: copy\n")
+
+    rc = read_config(args=[f"config={root_path}"])
+
+    yaml_sources = [pathlib.Path(name) for name in rc.get_source_names() if name.endswith(".yml")]
+    assert yaml_sources == [root_path, primary_path, shared_path, secondary_path]
+    assert [(key, value, pathlib.Path(origin)) for key, value, origin in rc.getall("models", origin=True)] == [
+        (("models", "datasets/Country", "backend"), "default", primary_path),
+        (("models", "datasets/Country", "distribute", "type"), "copy", secondary_path),
+        (("models", "datasets/City", "backend"), "default", shared_path),
+    ]
+
+
+def test_nested_yaml_config_raises_for_missing_include(tmp_path: pathlib.Path):
+    config_dir = tmp_path / "deploy"
+    config_dir.mkdir()
+    root_path = config_dir / "root.yml"
+    root_path.write_text("config: [missing.yml]\n")
+
+    with pytest.raises(FileNotFoundError) as error:
+        read_config(args=[f"config={root_path}"])
+
+    assert pathlib.Path(error.value.filename) == config_dir / "missing.yml"
+
+
+def test_nested_config_skips_builtin_config_reference(tmp_path: pathlib.Path):
+    root_path = tmp_path / "root.yml"
+    root_path.write_text("config: [spinta.config:CONFIG, spinta.config:CONFIG]\ndebug: true\n")
+
+    rc = read_config(args=[f"config={root_path}"])
+
+    assert rc.get_source_names() == ["spinta", str(root_path), "envfile", "envvars", "cliargs"]
+    assert rc.get("debug", origin=True) == (True, str(root_path))
+
+
+def test_nested_config_validates_builtin_source_label_as_include(tmp_path: pathlib.Path):
+    root_path = tmp_path / "root.yml"
+    root_path.write_text("config: [envvars]\n")
+
+    with pytest.raises(Exception, match="Can't import python path: 'envvars'"):
+        read_config(args=[f"config={root_path}"])
+
+
+@pytest.mark.parametrize(
+    ("env_config_key", "cli_override", "selected_source"),
+    [
+        pytest.param(None, False, "dotenv", id="dotenv"),
+        pytest.param("SPINTA_CONFIG", False, "environment", id="environment-over-dotenv"),
+        pytest.param("SPINTA_TESTING__CONFIG", False, "environment", id="active-environment-overlay"),
+        pytest.param("SPINTA_CONFIG", True, "cli", id="cli-over-environment-and-dotenv"),
+    ],
+)
+def test_nested_yaml_config_selects_highest_priority_source(
+    tmp_path: pathlib.Path, env_config_key: str | None, cli_override: bool, selected_source: str
+):
+    for source in ("dotenv", "environment", "cli"):
+        source_dir = tmp_path / source
+        source_dir.mkdir()
+        model = f"models.datasets/{source}/Country"
+        (source_dir / "config.yml").write_text(f"config: [models.yml]\n{model}.backend: default\n")
+        (source_dir / "models.yml").write_text(f"{model}.distribute.type: copy\n")
+
+    envfile = tmp_path / ".env"
+    envfile.write_text(f"SPINTA_CONFIG={tmp_path / 'dotenv' / 'config.yml'}\n")
+    env: dict[str, str | None] = dict.fromkeys(key for key in os.environ if key.upper().startswith("SPINTA_"))
+    if env_config_key is not None:
+        env[env_config_key] = str(tmp_path / "environment" / "config.yml")
+    if env_config_key == "SPINTA_TESTING__CONFIG":
+        env["SPINTA_ENV"] = "testing"
+    args = [f"config={tmp_path / 'cli' / 'config.yml'}"] if cli_override else []
+
+    with CliRunner().isolation(env=env):
+        rc = read_config(args=args, envfile=envfile)
+
+    selected_dir = tmp_path / selected_source
+    assert rc.get_source_names() == [
+        "spinta",
+        str(selected_dir / "config.yml"),
+        str(selected_dir / "models.yml"),
+        "envfile",
+        "envvars",
+        "cliargs",
+    ]
+    model = f"datasets/{selected_source}/Country"
+    assert list(rc.getall("models", origin=True)) == [
+        (("models", model, "backend"), "default", str(selected_dir / "config.yml")),
+        (("models", model, "distribute", "type"), "copy", str(selected_dir / "models.yml")),
+    ]
 
 
 def test_custom_config_fron_environ():
@@ -964,16 +1138,15 @@ def test_auth_settings_fall_back_to_old_names(rc, overrides, expected):
 
 def test_nested_extension(tmp_path: pathlib.Path):
     models_path = tmp_path / "models.yml"
-    str_models_path = str(tmp_path / "models.yml")
     citus_path = tmp_path / "citus.yml"
-    str_citus_path = str(tmp_path / "citus.yml")
     models_path.write_text("""
+    config: [citus.yml]
     models:
         datasets/Example:
             backend: default
             properties:
                 id:
-                    type: sqlalchemy.BigInteger
+                    type: {name: sqlalchemy.BigInteger}
         datasets/Another:
             backend: sql
     """)
@@ -985,18 +1158,12 @@ def test_nested_extension(tmp_path: pathlib.Path):
                 type: schema
     """)
 
-    rc = create_rc(
-        initial_sources=[
-            PyDict(
-                "base",
-                {"config": [str_models_path, str_citus_path]},
-            )
-        ]
-    )
+    rc = read_config(args=[f"config={models_path}"])
+
     assert list(rc.getall("models", origin=True)) == [
-        (("models", "datasets/Example", "backend"), "default", str_models_path),
-        (("models", "datasets/Example", "properties", "id", "type"), "sqlalchemy.BigInteger", str_models_path),
-        (("models", "datasets/Example", "distribute", "type"), "copy", str_citus_path),
-        (("models", "datasets/Another", "backend"), "sql", str_models_path),
-        (("models", "datasets/Other", "distribute", "type"), "schema", str_citus_path),
+        (("models", "datasets/Example", "backend"), "default", str(models_path)),
+        (("models", "datasets/Example", "properties", "id", "type", "name"), "sqlalchemy.BigInteger", str(models_path)),
+        (("models", "datasets/Example", "distribute", "type"), "copy", str(citus_path)),
+        (("models", "datasets/Another", "backend"), "sql", str(models_path)),
+        (("models", "datasets/Other", "distribute", "type"), "schema", str(citus_path)),
     ]

@@ -43,10 +43,29 @@ yaml = YAML(typ="safe")
 
 log = logging.getLogger(__name__)
 
+_SUPPORTED_CONFIG_FILE_SUFFIXES = (".yml", ".yaml")
+_BUILTIN_CONFIG_REFERENCE = "spinta.config:CONFIG"
+
 SCHEMA = {
     "type": "object",
     "items": yaml.load(resource_filename("spinta", "config.yml").read_text()),
 }
+
+
+def _make_sources(
+    configs: list | None = None,
+    envfile=None,
+    args=None,
+):
+    if configs is None:
+        configs = []
+    return [
+        Path(name="spinta", config=_BUILTIN_CONFIG_REFERENCE),
+        *configs,
+        EnvFile("envfile", envfile or ".env"),
+        EnvVars("envvars", os.environ),
+        CliArgs("cliargs", args or []),
+    ]
 
 
 def read_config(args=None, envfile=None):
@@ -57,25 +76,13 @@ def read_config(args=None, envfile=None):
     #     spinta -> config files -> envfile -> envvars -> cliargs
     #
     # Each subsequent source overrides values from all previous sources.
-    def _make_sources():
-        return [
-            Path("spinta", "spinta.config:CONFIG"),
-            EnvFile("envfile", envfile or ".env"),
-            EnvVars("envvars", os.environ),
-            CliArgs("cliargs", args or []),
-        ]
 
     tmp_rc = RawConfig()
-    tmp_rc.read(_make_sources())
-    configs = nested_config_sources(tmp_rc)
+    tmp_rc.read(_make_sources(envfile=envfile, args=args))
+    # The built-in config is already part of the default sources.
+    configs = nested_config_sources(tmp_rc, visited_configs={_BUILTIN_CONFIG_REFERENCE})
     if configs:
-        final_sources = [
-            Path("spinta", "spinta.config:CONFIG"),
-            *configs,
-            EnvFile("envfile", envfile or ".env"),
-            EnvVars("envvars", os.environ),
-            CliArgs("cliargs", args or []),
-        ]
+        final_sources = _make_sources(configs=configs, envfile=envfile, args=args)
         rc = RawConfig()
         rc.read(final_sources)
         return rc
@@ -83,22 +90,37 @@ def read_config(args=None, envfile=None):
         return tmp_rc
 
 
-def nested_config_sources(rc: RawConfig) -> list[ConfigSource]:
-    def _gather_config_sources(rc_: RawConfig) -> Iterator[str]:
-        configs = rc_.get("config", cast=list, default=[])
-        for config in configs:
-            if config in visited_configs:
-                continue
+def nested_config_sources(
+    rc: RawConfig, *, visited_configs: set[str | pathlib.Path] | None = None
+) -> list[ConfigSource]:
+    if visited_configs is None:
+        visited_configs = set()
+    return list(_gather_config_sources(rc, visited_configs))
 
-            tmp_rc = RawConfig()
-            tmp_rc.read([Path(config, config)])
-            visited_configs.add(config)
-            yield config
-            yield from _gather_config_sources(tmp_rc)
 
-    visited_configs = set(rc.get_source_names())
-    additional_sources = list(_gather_config_sources(rc))
-    return [Path(c, c) for c in additional_sources]
+def _gather_config_sources(
+    rc: RawConfig, visited_configs: set[str | pathlib.Path], include_dir: str = ""
+) -> Iterator[ConfigSource]:
+    for source_reference in rc.get("config", cast=list, default=[]):
+        source_key: str | pathlib.Path = source_reference
+        child_include_dir = ""
+        if source_reference.endswith(_SUPPORTED_CONFIG_FILE_SUFFIXES):
+            source_reference = os.path.join(include_dir, source_reference)
+            source_key = pathlib.Path(source_reference).resolve()
+            child_include_dir = os.path.dirname(source_reference)
+        if source_key in visited_configs:
+            continue
+
+        included_rc = RawConfig()
+        included_rc.read([_config_source_from_reference(source_reference)])
+        visited_configs.add(source_key)
+        yield _config_source_from_reference(source_reference)
+        yield from _gather_config_sources(included_rc, visited_configs, child_include_dir)
+
+
+def _config_source_from_reference(reference: str) -> Path:
+    # Display the same reference that is used to load the source.
+    return Path(name=reference, config=reference)
 
 
 class KeyFormat(str, enum.Enum):
@@ -167,7 +189,7 @@ class PyDict(ConfigSource):
 
 class Path(PyDict):
     def read(self, schema: Schema):
-        if self.config.endswith((".yml", ".yaml")):
+        if self.config.endswith(_SUPPORTED_CONFIG_FILE_SUFFIXES):
             path = pathlib.Path(self.config)
             self.config = yaml.load(path.read_text())
         else:
