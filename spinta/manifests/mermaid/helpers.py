@@ -41,6 +41,26 @@ def _mermaid_safe(value: str | None) -> str | None:
     return value.translate(_MMD_ENCODE)
 
 
+def _mermaid_id(name: str) -> str:
+    """Return a Mermaid class id that is safe to use as a CSS class.
+
+    Mermaid turns class ids into CSS selectors for ``classDef`` styling, so
+    ids with characters like ``/`` (dataset qualified names such as
+    ``shacl/LegalResource``) make the renderer fail. Letters and digits are
+    kept, ``_`` becomes ``_u`` and every other character becomes ``_x<hex>_``.
+    This mapping is injective, so different model names never share an id.
+    """
+    parts = []
+    for char in name:
+        if char.isascii() and char.isalnum():
+            parts.append(char)
+        elif char == "_":
+            parts.append("_u")
+        else:
+            parts.append(f"_x{ord(char):x}_")
+    return "".join(parts)
+
+
 class MermaidClassDef(enum.Enum):
     Concept = "stroke:#8FB58F,fill:#F0FDF0,color:#000000"
     Entity = "stroke:#9D8787,fill:#F5E8DF,color:#000000"
@@ -199,7 +219,7 @@ class MermaidClass:
             self.properties[prop.name] = prop
 
     def __str__(self) -> str:
-        class_text = f'class `{_mermaid_safe(self.name)}`["{_mermaid_safe(self.label)}"]:::{self.definition.name}'
+        class_text = f'class `{_mermaid_id(self.name)}`["{_mermaid_safe(self.label)}"]:::{self.definition.name}'
 
         if not self.properties:
             return class_text
@@ -299,7 +319,7 @@ class MermaidRelationship:
         else:
             cardinality = ""
 
-        relationship_text = f"`{_mermaid_safe(self.node1)}` {arrow}{cardinality} `{_mermaid_safe(self.node2)}`"
+        relationship_text = f"`{_mermaid_id(self.node1)}` {arrow}{cardinality} `{_mermaid_id(self.node2)}`"
 
         if self.label:
             relationship_text += f" : {_mermaid_safe(self.label)}"

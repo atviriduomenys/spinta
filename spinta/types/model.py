@@ -16,8 +16,7 @@ from spinta.core.config import RawConfig
 from spinta.core.enums import Action, Level, Mode, load_level, load_status, load_visibility
 from spinta.datasets.components import ExternalBackend
 from spinta.dimensions.comments.helpers import load_comments
-from spinta.dimensions.enum.components import Enums, EnumValue
-from spinta.dimensions.enum.helpers import link_enums, load_enums
+from spinta.dimensions.enum.helpers import link_enums, link_prop_enum, load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
 from spinta.dimensions.scope.components import Scope
@@ -25,7 +24,6 @@ from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
     InlineEnumWithName,
     InvalidCustomPropertyTypeConfiguration,
-    InvalidCustomPropertyTypeWithArgsConfiguration,
     KeymapNotSet,
     MissingConfigurationParameter,
     ModelNotFound,
@@ -33,14 +31,13 @@ from spinta.exceptions import (
     PropertyNotFound,
     ReservedPropertySourceOrModelRefShouldBeSet,
     ReservedPropertyTypeShouldMatchPrimaryKey,
-    UndefinedEnum,
     UnknownPropertyType,
 )
 from spinta.hacks.urlparams import extract_params_sort_values
 from spinta.manifests.components import Manifest
 from spinta.manifests.tabular.components import PropertyRow
 from spinta.nodes import get_node, load_model_properties, load_node
-from spinta.types.datatype import UUID, Integer, Ref, String
+from spinta.types.datatype import UUID, Array, Integer, Ref, String
 from spinta.types.helpers import (
     check_model_name,
     check_property_name,
@@ -71,12 +68,6 @@ def _parse_distribution_strategy(
     model: Model,
     distribute: dict,
 ) -> DistributionStrategy:
-    if len(distribute) == 1:
-        distribute_type_str, value = next(iter(distribute.items()))
-        if value is NA:
-            distribute_type = get_enum_by_value(DistributionType, distribute_type_str)
-            return DistributionStrategy(distribute_type)
-
     distribute_type_str = distribute.get("type", None)
     if distribute_type_str is None:
         raise MissingConfigurationParameter(
@@ -241,7 +232,8 @@ def load(
 
 @load.register(Context, Base, dict, Manifest)
 def load(context: Context, base: Base, data: dict, manifest: Manifest) -> None:
-    load_level(context, base, data["level"])
+    # Not every manifest format gives a level for a base, for example RDF.
+    load_level(context, base, data.get("level"))
 
 
 @overload
@@ -355,42 +347,39 @@ def configure(context: Context, prop: Property):
         return
 
     prop_config = rc.to_dict(*prop_path)
-
     prop_config = flat_dicts_to_nested(prop_config)
+
+    if not prop_config:
+        return
+
     if backend := prop_config.get("backend"):
         prop.backend = backend
 
     if prop_type := prop_config.get("type"):
-        custom_type = None
-        if isinstance(prop_type, str):
-            custom_type = pydoc.locate(prop_type)
+        values = {key: rc.get(*prop_path, "type", key) for key in prop_type}
+        prop_type = values.pop("name", None)
+        if prop_type is None:
+            raise MissingConfigurationParameter(
+                prop, config_type="Property", config_object=prop.place, missing_params="type.name"
+            )
+
+        try:
+            custom_type = pydoc.locate(prop_type)(**values)
             if custom_type is None:
-                raise InvalidCustomPropertyTypeConfiguration(prop, custom_property_type=prop_type)
-        elif isinstance(prop_type, list | dict):
-            values = {key: rc.get(*prop_path, "type", key) for key in prop_type}
-            prop_type = values.pop("name", None)
-            if prop_type is None:
-                raise MissingConfigurationParameter(
-                    prop, config_type="Property", config_object=prop.place, missing_params="type.name"
-                )
+                raise Exception
+        except Exception:
+            raise InvalidCustomPropertyTypeConfiguration(prop, custom_property_type=prop_type, args=values)
 
-            try:
-                custom_type = pydoc.locate(prop_type)(**values)
-                if custom_type is None:
-                    raise Exception
-            except Exception:
-                raise InvalidCustomPropertyTypeWithArgsConfiguration(prop, custom_property_type=prop_type, args=values)
-        if custom_type:
-            # Since this is called before load, it expects dict data that will be converted to Attribute
-            if not hasattr(prop, "external"):
-                prop.external = {
-                    "custom_type": custom_type,
-                }
-            else:
-                if not isinstance(prop.external, dict):
-                    prop.external = {"name": prop.external}
+        # Since this is called before load, it expects dict data that will be converted to Attribute
+        if not hasattr(prop, "external"):
+            prop.external = {
+                "custom_type": custom_type,
+            }
+        else:
+            if not isinstance(prop.external, dict):
+                prop.external = {"name": prop.external}
 
-                prop.external["custom_type"] = custom_type
+            prop.external["custom_type"] = custom_type
 
 
 @load.register(Context, Property, dict, Manifest)
@@ -481,25 +470,6 @@ def load(
     return prop
 
 
-def _link_prop_enum(
-    prop: Property,
-) -> EnumValue | None:
-    if prop.given.enum:
-        enums: list[Enums] = (
-            [prop.enums]
-            + [prop.model.ns.enums]
-            + [ns.enums for ns in prop.model.ns.parents()]
-            + [prop.model.manifest.enums]
-        )
-        for enums_ in enums:
-            if enums_ and prop.given.enum in enums_:
-                return enums_[prop.given.enum]
-        if not is_unit(prop.dtype, prop.given.enum):
-            raise UndefinedEnum(prop, name=prop.given.enum)
-    elif prop.enums:
-        return prop.enums.get("")
-
-
 def property_is_private(prop: Property) -> bool:
     return prop.name.startswith("_")
 
@@ -538,8 +508,19 @@ def link(context: Context, prop: Property):
     link_access_param(
         prop, parents, use_given=not property_is_private(prop), default_access=config.default_access_level
     )
-    link_enums([prop] + parents, prop.enums)
-    prop.enum = _link_prop_enum(prop)
+    link_enums([prop] + parents, prop.enums, default_access=config.default_access_level)
+    if isinstance(prop.dtype, Array) and prop.dtype.items is not None:
+        # Array items are not linked as properties, so their access and inline enums are linked here.
+        # Items inherit access from the array property, and enums inherit it from the items.
+        items = prop.dtype.items
+        link_access_param(
+            items,
+            [prop] + parents,
+            use_given=not property_is_private(prop),
+            default_access=config.default_access_level,
+        )
+        link_enums([items, prop] + parents, items.enums, default_access=config.default_access_level)
+    prop.enum = link_prop_enum(prop)
 
 
 def _detect_cooperating_reserved_properties_and_check_validity(model: Model) -> None:

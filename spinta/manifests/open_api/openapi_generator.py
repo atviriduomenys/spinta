@@ -58,7 +58,7 @@ from spinta.manifests.open_api.service import (
     service_schema_name,
 )
 from spinta.manifests.open_api.udts_config import DEFAULT_MAX_LIMIT, TOKEN_PATH, UdtsConfig
-from spinta.types.datatype import UUID, Base32, DataType, Object, PrimaryKey, String
+from spinta.types.datatype import UUID, Base32, DataType, Denorm, Object, PrimaryKey, String
 from spinta.types.text.components import Text
 from spinta.utils.encoding import encode_base32
 from spinta.utils.schema import NA
@@ -186,6 +186,24 @@ def _innermost_property(model_property):
         if dtype.items is None:
             return None
         model_property = dtype.items
+
+
+def _nested_properties(dtype) -> dict[str, Property]:
+    """Published properties declared under a reference or an object, `pavadinimas` of `miestai[].pavadinimas`."""
+    return {name: prop for name, prop in (getattr(dtype, "properties", None) or {}).items() if _published_nested(prop)}
+
+
+def _published_nested(prop: Property) -> bool:
+    if _published(prop):
+        return True
+    # `rajonas` of `miestas.rajonas.pavadinimas` or `adresas` of `salis.adresas.gatve` is created by Spinta,
+    # without a visibility of its own.
+    return _created_by_spinta(prop) and bool(_nested_properties(prop.dtype))
+
+
+def _created_by_spinta(prop: Property) -> bool:
+    # `None`, as in YAML or inline manifests, is explicit too, see `load` of a property.
+    return getattr(prop, "explicitly_given", True) is False
 
 
 def _reference_shape(model_property, dtype) -> tuple:
@@ -397,6 +415,7 @@ class SchemaNamer:
         self._names: dict[str, str] = {}
         self._ref_shapes: dict[str, dict[Any, str]] = {}
         self._object_names: dict[tuple[str, str], str] = {}
+        self._nested_ref_names: dict[tuple[str, str], str] = {}
         self._file_ref_names: dict[tuple[str, str], str] = {}
         self._taken = set(reserved or ())
 
@@ -450,6 +469,24 @@ class SchemaNamer:
             self._taken.update(_derived_schema_names(name))
             shapes[shape] = name
         return shapes[shape]
+
+    def nested_ref_name(self, model_property: Property) -> str:
+        """Name of the schema of a reference carrying properties declared under it.
+
+        What it carries is declared at this one place, so the schema is named after it.
+        """
+        key = (model_property.model.name, model_property.place)
+        if key not in self._nested_ref_names:
+            # Only the name is flattened, so `city.district` and `city_district` stay apart.
+            base = unnamable_re.sub("_", f"{self.name(model_property.model)}_{model_property.place}".replace(".", "_"))
+            name = base
+            number = 1
+            while any(derived in self._taken for derived in _derived_schema_names(name)):
+                number += 1
+                name = f"{base}_{number}"
+            self._taken.update(_derived_schema_names(name))
+            self._nested_ref_names[key] = name
+        return self._nested_ref_names[key]
 
     def file_ref_name(self, model: Model, prop_name: str) -> str:
         """Name of the schema of what is known about a file a property holds.
@@ -541,9 +578,11 @@ class DataTypeHandler:
         self.schema_registry = schema_registry
         self.namer = namer
 
-    def _ref_schema_name(self, model_property, dtype) -> str:
+    def ref_schema_name(self, model_property, dtype) -> str:
         if not _published(dtype.model):
             return UNPUBLISHED_REFERENCE
+        if _nested_properties(dtype):
+            return self.namer.nested_ref_name(model_property)
         return self.namer.ref_name(dtype.model, _reference_shape(model_property, dtype))
 
     def get_dtype_name(self, dtype) -> str:
@@ -620,8 +659,7 @@ class DataTypeHandler:
         """
         return {
             name: self.property_schema(model_property, schemas=schemas)
-            for name, model_property in (dtype.properties or {}).items()
-            if _published(model_property)
+            for name, model_property in _nested_properties(dtype).items()
         }
 
     def convert_to_openapi_schema(
@@ -632,6 +670,10 @@ class DataTypeHandler:
         """Convert a model property to OpenAPI schema"""
 
         dtype = model_property.dtype
+
+        # `salis.pavadinimas` without a type of its own is what `pavadinimas` of the referenced model is.
+        if isinstance(dtype, Denorm):
+            return self.convert_to_openapi_schema(dtype.rel_prop, schemas=schemas)
 
         if enum_values := self.get_enum_values(model_property):
             dtype_name = self.get_dtype_name(dtype)
@@ -660,7 +702,7 @@ class DataTypeHandler:
             return {"type": "array", "items": items_schema, "example": [example_item]}
 
         if self.is_reference_type(dtype):
-            ref_schema_name = self._ref_schema_name(model_property, dtype)
+            ref_schema_name = self.ref_schema_name(model_property, dtype)
             example = {"_id": _example_id(dtype.model)}
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 example = copy.deepcopy(ref_schema["example"])
@@ -687,6 +729,9 @@ class DataTypeHandler:
         """Generate example values for properties. When schemas is provided, use ref schema example for reference types."""
         dtype = model_property.dtype
 
+        if isinstance(dtype, Denorm):
+            return self.get_example_value(dtype.rel_prop, schemas=schemas)
+
         if enum_values := self.get_enum_values(model_property):
             return enum_values[0]
 
@@ -697,7 +742,7 @@ class DataTypeHandler:
             return [self.get_example_value(dtype.items, schemas=schemas)]
 
         if self.is_reference_type(dtype):
-            ref_schema_name = self._ref_schema_name(model_property, dtype)
+            ref_schema_name = self.ref_schema_name(model_property, dtype)
             if schemas and (ref_schema := schemas.get(ref_schema_name)) and "example" in ref_schema:
                 return copy.deepcopy(ref_schema["example"])
             return {"_id": _example_id(dtype.model)}
@@ -1608,55 +1653,49 @@ class SchemaGenerator:
 
             dtype = model_property.dtype
 
+            if isinstance(dtype, Denorm):
+                self._create_schemas_of_references_in(schemas, [dtype.rel_prop])
+                continue
+
             if isinstance(dtype, Object):
-                self._create_schemas_of_references_in(
-                    schemas, [prop for prop in (dtype.properties or {}).values() if _published(prop)]
-                )
+                self._create_schemas_of_references_in(schemas, _nested_properties(dtype).values())
                 continue
 
             if not self.dtype_handler.is_reference_type(dtype):
                 continue
 
-            ref_model = dtype.model
             # An unpublished model gets no schema of its own, not even one of a
             # reference, which would name it and its properties. The shared
             # schema such a reference points at is added with the other ones.
-            if not _published(ref_model):
+            if not _published(dtype.model):
                 continue
-            ref_schema_name = self.namer.ref_name(ref_model, _reference_shape(model_property, dtype))
+            ref_schema_name = self.dtype_handler.ref_schema_name(model_property, dtype)
             if ref_schema_name in schemas:
                 continue
 
-            ref_level = getattr(model_property, "level", None)
-            refprops = getattr(dtype, "refprops", None) or []
-
             # Placed before building, because a model can be reached from itself.
             schemas[ref_schema_name] = {}
-            schemas[ref_schema_name] = self._build_ref_model_schema(schemas, ref_model, refprops, ref_level)
-
-    def _resolve_nested_ref_schema_name(
-        self,
-        schemas: dict,
-        nested_ref_model: Model,
-        nested_refprops: list,
-        ref_level: Level | None = None,
-    ) -> str:
-        if not _published(nested_ref_model):
-            return UNPUBLISHED_REFERENCE
-        shape = _ref_shape(ref_level, nested_refprops)
-        schema_name = self.namer.ref_name(nested_ref_model, shape)
-
-        if schema_name not in schemas:
-            # Placed before building, because a model can be reached from itself.
-            schemas[schema_name] = {}
-            schemas[schema_name] = self._build_ref_model_schema(
+            schemas[ref_schema_name] = self._build_ref_model_schema(
                 schemas,
-                nested_ref_model,
-                nested_refprops,
-                ref_level,
+                dtype.model,
+                getattr(dtype, "refprops", None) or [],
+                getattr(model_property, "level", None),
+                _nested_properties(dtype),
+                # A link of a chain Spinta created carries only what is declared under it.
+                carries_id=not _created_by_spinta(model_property),
             )
 
-        return schema_name
+    def _add_nested_properties(
+        self, schemas: dict, nested: dict[str, Property], properties: dict, example: dict
+    ) -> None:
+        """Add what a reference carries beyond the referenced model, `pavadinimas` of `salis.pavadinimas`.
+
+        A reference among them points at a schema of its own, so nothing is unfolded in place.
+        """
+        self._create_schemas_of_references_in(schemas, nested.values())
+        for name, nested_property in nested.items():
+            properties[name] = self.dtype_handler.property_schema(nested_property, schemas=schemas)
+            example[name] = self.dtype_handler.get_example_value(nested_property, schemas=schemas)
 
     def _build_ref_model_schema(
         self,
@@ -1664,7 +1703,10 @@ class SchemaGenerator:
         model,
         refprops: list,
         ref_level: Level | int | None = None,
+        nested: dict[str, Property] | None = None,
+        carries_id: bool = True,
     ) -> dict[str, Any]:
+        nested = nested or {}
         level_value: int | None = None
         if ref_level is not None:
             level_value = ref_level.value if isinstance(ref_level, Level) else int(ref_level)
@@ -1676,16 +1718,24 @@ class SchemaGenerator:
         if is_global_ref:
             # A reference of this level is serialized as the identifier alone,
             # neither `_type` nor `_revision` is carried, so neither is listed.
-            identifier = self._identifier_schema(model)
-            return {
+            properties, example = {}, {}
+            if carries_id:
+                identifier = self._identifier_schema(model)
+                properties["_id"] = identifier
+                example["_id"] = identifier["example"]
+            self._add_nested_properties(schemas, nested, properties, example)
+            carried = "the properties declared under it" if nested else "its identifier"
+            schema = {
                 "type": "object",
-                "description": f"A reference to `{model.name}`, carrying its identifier.",
+                "description": f"A reference to `{model.name}`, carrying {carried}.",
+                "properties": properties,
+                "example": example,
+            }
+            if not nested:
                 # A reference that is there carries the identifier; one that is
                 # not is `null`, which the property says on its own side.
-                "required": ["_id"],
-                "properties": {"_id": identifier},
-                "example": {"_id": identifier["example"]},
-            }
+                schema["required"] = ["_id"]
+            return schema
 
         properties = {}
 
@@ -1697,19 +1747,9 @@ class SchemaGenerator:
 
             # A reference carries what its own level says, also when it is
             # reached through another reference, so the level of the one being
-            # built does not apply to it. Arrays hold it in their item.
-            inner_property = _innermost_property(model_property)
-            inner_dtype = inner_property.dtype if inner_property is not None else None
-
-            if inner_dtype is not None and self.dtype_handler.is_reference_type(inner_dtype):
-                # Building it here, because a schema of a model reached only
-                # from a reference is not built anywhere else.
-                self._resolve_nested_ref_schema_name(
-                    schemas,
-                    inner_dtype.model,
-                    getattr(inner_dtype, "refprops", None) or [],
-                    getattr(inner_property, "level", None),
-                )
+            # built does not apply to it. Building it here, because a schema of
+            # a model reached only from a reference is not built anywhere else.
+            self._create_schemas_of_references_in(schemas, [model_property])
 
             # Conversion names the same schema and keeps every array layer.
             prop_schema = self.dtype_handler.convert_to_openapi_schema(model_property, schemas=schemas)
@@ -1730,6 +1770,8 @@ class SchemaGenerator:
         if level_value is not None and level_value < GLOBAL_ID_LEVEL_THRESHOLD:
             properties.pop("_id", None)
             example.pop("_id", None)
+
+        self._add_nested_properties(schemas, nested, properties, example)
 
         for prop_name, value in example.items():
             if prop_name in properties and isinstance(properties[prop_name], dict):

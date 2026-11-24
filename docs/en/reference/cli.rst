@@ -92,13 +92,16 @@ Arguments
   One or more manifest files that will be loaded.
 
 - ``<path-to-output-file>``
-  OPTIONAL. Output file name. If specified, manifest will be written to this file. If file extension is `.mmd`, UML diagram will be generated in Mermaid syntax.
+  OPTIONAL. Output file name. If specified, manifest will be written to this file. If file extension is `.mmd`, UML diagram will be generated in Mermaid syntax. If file extension is `.ttl`, manifest will be written as RDF Turtle, see `RDF Turtle output`_.
 
 - ``<dataset-name>``
-  The name of the dataset. This is used only for Mermaid diagram. Specified dataset will not be wrapped in Mermaid class diagram `namespace <https://mermaid.js.org/syntax/classDiagram.html#define-namespace>`_
+  The name of the dataset. For Mermaid diagram, the specified dataset will not be wrapped in Mermaid class diagram `namespace <https://mermaid.js.org/syntax/classDiagram.html#define-namespace>`_. For RDF Turtle, only models of the specified dataset are written, see `Dataset selection`_. The dataset must exist in the manifest, otherwise the command fails.
+
+Mermaid.js output
+-----------------
 
 Example
--------
+~~~~~~~
 
 **Input Manifest file (`manifest.csv`)**:
 
@@ -158,6 +161,116 @@ Example
   `example/dataset/City` --> "[0..1]" `example/dataset/Country` : city<br/>«optional»
   classDef Concept stroke:#8FB58F,fill:#F0FDF0,color:#000000;
   classDef Entity stroke:#9D8787,fill:#F5E8DF,color:#000000;
+
+RDF Turtle output
+-----------------
+
+A manifest written to a ``.ttl`` file is described with SHACL shapes. Every
+model and property is described by a shape, which validates the values of the
+model. Classes, properties and concepts are also described with RDFS classes,
+RDFS properties and SKOS concepts, if they are described in the file, see
+`Which items are described`_. Enums are described as SKOS concept schemes.
+
+Which items are described
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+A class, property or concept is described in the file if:
+
+- it has no ``uri``, or
+- its ``uri`` is under ``uri_prefix``, either as a full IRI, such as
+  ``https://data.gov.lt/id/datasets/gov/example/Country``, or as a prefixed
+  name, such as ``ex:Country`` when ``ex`` is declared as
+  ``https://data.gov.lt/id/``, or
+- its ``uri`` is a relative path. A relative path is relative to ``uri_prefix``,
+  so ``uri: Country`` is ``{uri_prefix}Country``.
+
+Other items, for example ``uri: dct:title`` or ``uri: https://schema.org/Person``,
+are only referenced by their ``uri``. Their definitions are not written to the
+file. Enum concept schemes are always generated.
+
+Generated URIs
+~~~~~~~~~~~~~~
+
+Generated URIs are built from the ``uri_prefix`` configuration option, for
+example ``-o uri_prefix=https://data.gov.lt/id/`` or
+``SPINTA_URI_PREFIX=https://data.gov.lt/id/``. If it is not set, the default
+``https://example.com`` is used. A trailing slash in ``uri_prefix`` is
+optional:
+
+.. code-block:: bash
+
+   spinta -o uri_prefix=https://data.gov.lt/id/ copy manifest.csv -o manifest.ttl
+
+Generated URIs follow the persistent URI rules of the `Interoperable Europe
+SEMIC support centre
+<https://interoperable-europe.ec.europa.eu/collection/semic-support-centre/document/10-rules-persistent-uris>`_,
+``{uri_prefix}{type}/{dataset}/{concept}/{reference}``. The type is ``id`` for
+models and properties, and ``def`` for concept schemes and concepts. Generated
+URIs use these patterns:
+
+- classes: ``{uri_prefix}id/{dataset}/{model}``
+- properties: ``{uri_prefix}id/{dataset}/{model}/{property}``. A property has
+  its own URI in each model. A property with a ``uri`` keeps it, and is shared
+  by the models that give it.
+- concept schemes (enums): ``{uri_prefix}def/{dataset}/{enum}``. Inline enums
+  are named after their model and property, for example
+  ``DatasetEvent_type``.
+- concepts (enum items): ``{uri_prefix}def/{dataset}/{enum}/{code}``, where
+  ``{code}`` is percent-encoded, so ``CITY/TOWN`` is ``CITY%2FTOWN``. Concepts
+  of different enums with the same code get different URIs.
+- shapes: ``{uri_prefix}shape/{dataset}/{model}``. Each model has one SHACL
+  node shape with this IRI, so models that share a class get separate shapes.
+
+A model without a ``uri`` inherits the class IRI of its ``base``, so the
+``base`` chain shares one class. Only the model that owns the class describes
+it, with ``rdfs:Class``, its label and its comment. The base link is written as
+``sh:node`` between the shapes. ``rdfs:subClassOf`` is written only when the
+class IRI of the model differs from the class IRI of its base and the model's
+class is described in the file. For example, a model with its own ``uri`` under
+``uri_prefix`` whose base has ``uri: dct:Location`` gets ``rdfs:subClassOf``
+``dct:Location``.
+
+If there is no dataset, the ``{dataset}/`` part is left out.
+
+Dataset selection
+~~~~~~~~~~~~~~~~~
+
+By default all datasets of the manifest are written. With ``-d <dataset-name>``
+only the models of that dataset are written, together with their classes,
+shapes, properties and enums. Items of other datasets are not written, but
+references to them keep their IRIs, for example ``sh:class`` of a property that
+refers to a model of another dataset. An enum declared by a parent namespace
+keeps the IRI of its own dataset, and is written only by that dataset.
+
+.. code-block:: bash
+
+   spinta -o uri_prefix=https://data.gov.lt/id/ copy manifest.csv -d example/dataset -o manifest.ttl
+
+A base model of another dataset is not referenced by ``sh:node``, so the shape
+does not inherit its constraints. This is the same as for a base that is not
+exported because of ``access``.
+
+If a ``uri`` uses a prefix that is not declared in the manifest, the command
+fails with an error, instead of writing a wrong URI.
+
+The file is split into sections, each introduced by a comment: prefixes,
+classes, properties, concepts and SHACL shapes.
+
+RDF files can also be read as manifests. Web IRIs, such as ``owl:imports``,
+concept schemes and labels missing in the files, are dereferenced only when the
+``rdf_fetch_remote`` configuration option is ``true``. It is ``false`` by
+default, so web IRIs are not fetched and the result does not depend on the
+network.
+
+``rdf_fetch_remote`` affects only remote files. Files stored on the disk are
+always considered local, so ``file:`` IRIs of ``owl:imports`` are read even when
+``rdf_fetch_remote`` is ``false``. An RDF file can therefore make Spinta read
+any local RDF file it names in ``owl:imports``, so read only RDF files you
+trust:
+
+.. code-block:: bash
+
+   spinta -o rdf_fetch_remote=true copy shapes.ttl -o manifest.csv
 
 .. _cli_udts_oas:
 

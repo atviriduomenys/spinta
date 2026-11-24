@@ -1,7 +1,204 @@
 Changes
 #######
 
-1.4.0 (unreleased)
+2.3.0 (unreleased)
+=====================
+
+Improvements:
+
+- Added support for nested config source loading (`#1990`_).
+
+2.2.0 (2026-11-22)
+=====================
+
+Backwards incompatible:
+
+- Enforced `#1990`_ changes to existing configurations and scripts (`#2077`_).
+  Configurations like:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute: copy
+            properties:
+                code:
+                    type: sqlalchemy.types.BigInteger
+
+  Need to be replaced with:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+            properties:
+                code:
+                    type:
+                        name: sqlalchemy.types.BigInteger
+
+  Scripts that generate configuration files no longer return yml files which overwrite whole configuration:
+
+  .. code-block:: yaml
+
+    models:
+        datasets/gov/Model:
+            distribute:
+                type: copy
+        datasets/gov/AnotherModel:
+            distribute:
+                type: copy
+
+  Now is returned as:
+
+  .. code-block:: yaml
+
+    models.datasets/gov/Model.distribute:
+        type: copy
+    models.datasets/gov/AnotherModel.distribute:
+        type: copy
+
+New features:
+
+- ``spinta copy manifest.csv -o manifest.ttl`` writes a manifest as RDF Turtle
+  with SHACL shapes (`#2101`_). Classes, properties and concepts without an
+  explicit ``uri``, or with a ``uri`` under ``uri_prefix``, are also described
+  with RDFS classes, RDFS properties and SKOS concepts. Enums are described as
+  SKOS concept schemes. Generated URIs are built from the new ``uri_prefix``
+  configuration option, for example ``-o uri_prefix=https://data.gov.lt/id/``.
+  It defaults to ``https://example.com``.
+
+- Enum items accept a ``uri`` column, which is kept when the manifest is
+  written (`#2101`_).
+
+- New ``rdf_fetch_remote`` configuration option. RDF manifests dereference web
+  IRIs (``owl:imports``, concept schemes and missing titles or descriptions)
+  only when it is ``true``. It is ``false`` by default, so web IRIs are not
+  fetched. Local files, including ``file:`` imports, are always read, because
+  ``rdf_fetch_remote`` affects only remote files (`#2101`_).
+
+- RDF manifests are split into datasets by the prefix of their model URIs. For
+  example, ``dcat:Dataset`` is read into the ``dcat`` dataset, instead of the
+  main dataset. Prefixes that are not used by the models are no longer written
+  (`#2101`_).
+
+Bug fixes:
+
+- Array items with an enum, for example ``tags[]`` with ``ref`` to an enum,
+  no longer fail with ``AttributeError`` when the manifest is loaded. An
+  unknown enum name raises ``UndefinedEnum`` (`#2101`_).
+
+- A concept scheme (enum) and its concepts no longer share an IRI with a
+  property of the same name, for example ``status`` with ``enum: status``, which
+  was both an ``rdf:Property`` and a ``skos:ConceptScheme`` with mixed labels.
+  Generated URIs now follow ``{uri_prefix}{type}/{dataset}/{concept}/{reference}``:
+  classes are ``{uri_prefix}id/{dataset}/{model}``, properties are
+  ``{uri_prefix}id/{dataset}/{model}/{property}``, concept schemes are
+  ``{uri_prefix}def/{dataset}/{enum}`` and concepts are
+  ``{uri_prefix}def/{dataset}/{enum}/{code}`` (`#2101`_).
+
+- Each model has one SHACL node shape, ``{uri_prefix}shape/{dataset}/{model}``.
+  A model without a ``uri`` inherits the class IRI of its ``base``. The base is
+  written as ``sh:node`` between shapes, and as ``rdfs:subClassOf`` only when the
+  class IRIs differ and the model's class is described in the file (`#2101`_).
+  When an RDF file is read back, a base in another dataset keeps its dataset
+  name, so cross-dataset bases round-trip.
+
+- Models whose primary key (``ref``) contains ``date``, ``datetime`` or
+  ``time`` properties now work in more cases (`#1924`_):
+
+  - the ``redis`` keymap no longer fails with ``TypeError: Object of type
+    date is not JSON serializable``; ``date``/``datetime``/``time`` and
+    ``Decimal`` values are stored the same way as in the ``sqlalchemy``
+    keymap, and ``UUID`` values are stored hyphenated, as the API returns
+    them;
+  - a ``base32`` ``_id`` no longer fails when the primary key contains a
+    ``datetime`` without a time zone or a ``time``;
+  - for SQL data sources, getting an object by ``_id``, resolving a ``ref``
+    and filtering by ``date``/``datetime``/``time`` now also work on
+    databases that compare dates as text (e.g. SQLite).
+
+- The ``redis`` keymap now treats a value made only of empty values as
+  empty (as the ``sqlalchemy`` keymap does) and, when a synchronized value
+  changes, the old value no longer points to the object (previously this
+  could be reported as a duplicate by keymap validation) (`#1924`_).
+- For SQL data sources, getting an object by ``_id`` no longer fails when a
+  primary key property's name differs from its source column name
+  (`#1924`_).
+
+- Generated OpenAPI specifications describe an array declared only by its
+  ``x[]`` row, such as a one-to-many ``backref``, with the visibility of that
+  row. Previously the array was left out, and response validation rejected it
+  as an additional property (`#2085`_).
+
+- Generated OpenAPI specifications describe properties declared under a
+  reference, such as ``miestai[].pavadinimas`` of a ``backref`` or
+  ``salis.rajonas.pavadinimas`` of a ``ref``. Such a reference points at a
+  schema of its own, named after the property, instead of the shared one
+  carrying only ``_id`` (`#2085`_).
+
+- A property without a type declared under a ``backref``, such as
+  ``miestai[].pavadinimas``, or under an object of a referenced model, such as
+  ``salis.adresas.gatve``, is looked up in the referenced model and read from
+  it, also through a reference in such an object, such as
+  ``salis.adresas.rajonas.pavadinimas``. Previously the manifest failed to load
+  with ``ReferencedPropertyNotFound`` (`#2085`_).
+
+- A manifest given by a Windows path, such as ``C:\manifest.json``, is no
+  longer taken for an SQL database URL, which failed with ``ValueError``.
+
+.. _#1924: https://github.com/atviriduomenys/spinta/issues/1924
+.. _#2077: https://github.com/atviriduomenys/spinta/issues/2077
+.. _#2085: https://github.com/atviriduomenys/spinta/issues/2085
+.. _#2101: https://github.com/atviriduomenys/spinta/issues/2101
+
+2.1.0 (2026-11-11)
+=====================
+
+New features:
+
+- ``spinta inspect`` reads ``xs:key`` from XSD schemas and writes the key
+  fields to the model's ``ref`` column. Composite keys are supported
+  (`#1472`_).
+
+Improvements:
+
+- Query parameters given in a resource ``source`` URL are merged with
+  ``query()`` resource parameters into one query string. If the same parameter
+  is defined in both places, ``spinta check --check-query-conflicts`` reports
+  it (`#2066`_).
+
+Bug fixes:
+
+- Backwards incompatible: resource parameters defined with ``query()`` in
+  ``prepare`` are now sent to the data source with ``dask/csv``,
+  ``dask/json``, ``dask/xml`` and ``dask/soap`` resources. Previously they
+  were silently dropped from the request (`#2066`_):
+
+  - ``query('default')`` is always sent with the default value, unless a value
+    is given in the request URL for a property linked to it with ``param()``,
+    in which case the URL value is sent instead.
+  - ``query()`` without a default requires a value from the request URL through
+    a property linked with ``param()``. If it is missing, the request fails with
+    ``400`` before reaching the data source.
+  - A property linked with ``param()`` is not used as a row filter; its value is
+    sent to the data source instead. For example, ``/example/Street?client=ABC``
+    sends ``?CLIENT_NAME=ABC``.
+  - A request URL value for a resource parameter that is not linked to any
+    property with ``param()`` now fails with ``400`` instead of being ignored.
+
+- Backwards incompatible: a ``query()`` resource parameter without a default
+  that is not linked to any property with ``param()`` makes the manifest
+  invalid (`#2066`_).
+
+- Fixed ``spinta inspect`` failing with ``Invalid value for '-r' /
+  '--resource'`` when ``typer`` 0.29 or newer is installed.
+
+.. _#2066: https://github.com/atviriduomenys/spinta/issues/2066
+.. _#1472: https://github.com/atviriduomenys/spinta/issues/1472
+
+2.0.0 (2026-10-29)
 =====================
 
 Backwards incompatible:
@@ -30,7 +227,10 @@ Improvements:
   recommended ``{config_path}/config.yaml`` file, and the configuration syntax,
   including simple and complex values and merge and reset semantics. A new
   page describes keymap configuration (`#1990`_).
-- Added support for nested config source loading (`#1990`_).
+- Dataset names may contain a path segment that is a non-negative integer
+  without leading zeros, for example ``datasets/gov/vk/vis/udts/1/vis``, where
+  the integer is the UDTS data service version. Such names are no longer
+  rejected by name checks (`#2080`_).
 
 Bug fixes:
 
@@ -40,6 +240,7 @@ Bug fixes:
   settings, such as test backend DSNs (`#1990`_).
 
 .. _#1990: https://github.com/atviriduomenys/spinta/issues/1990
+.. _#2080: https://github.com/atviriduomenys/spinta/issues/2080
 
 1.3.1 (2026-10-22)
 =====================

@@ -1,5 +1,6 @@
 from string import Formatter
 from typing import Any, overload
+from urllib.parse import parse_qsl, urlparse
 
 from spinta import commands, spyna
 from spinta.components import Context, Model
@@ -101,7 +102,10 @@ def load(context: Context, resource: Resource, data: dict, manifest: Manifest):
     if resource.external:
         fieldnames = set([f_name for _, f_name, _, _ in Formatter().parse(resource.external) if f_name])
         resource.source_params.update(fieldnames)
-    resource.params = load_params(context, manifest, resource.params)
+        resource.url.source_query.update(
+            name for name, _ in parse_qsl(urlparse(resource.external).query, keep_blank_values=True)
+        )
+    resource.params = load_params(context, manifest, resource.params, resource)
     resource.manifest = manifest
     return resource
 

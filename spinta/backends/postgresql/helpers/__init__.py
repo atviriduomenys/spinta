@@ -2,6 +2,7 @@ import hashlib
 
 from spinta.backends.postgresql.constants import NAMEDATALEN
 from spinta.components import Property
+from spinta.types.datatype import Object
 
 
 def get_column_name(prop: Property, replace: bool = False) -> str:
@@ -12,12 +13,12 @@ def get_column_name(prop: Property, replace: bool = False) -> str:
             return prop.place[len(prop.list.place) + 1 :]
     else:
         parent = prop.parent
+        # `address.district` of `country.address.district` is the column in the referenced model.
+        while replace and isinstance(parent, Property) and isinstance(parent.dtype, Object):
+            parent = parent.parent
         if replace and parent and isinstance(parent, Property):
-            if prop.place.startswith(parent.place):
-                name = prop.place.replace(parent.place, "")
-                if name.startswith("."):
-                    name = name[1:]
-                return name
+            if prop.place.startswith(parent.place + "."):
+                return prop.place[len(parent.place) + 1 :]
         return prop.place
 
 

@@ -53,7 +53,9 @@ def test_migrate_custom_big_integer(migration_db: Engine, rc: RawConfig, cli: Sp
                 "migrate/example/Test": {
                     "properties": {
                         "id": {
-                            "type": "sqlalchemy.types.BigInteger",
+                            "type": {
+                                "name": "sqlalchemy.types.BigInteger",
+                            }
                         }
                     }
                 }

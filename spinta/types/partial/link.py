@@ -1,24 +1,38 @@
 from copy import copy
 
 from spinta import commands
-from spinta.components import Context, Property
+from spinta.components import Context, Model, Property
 from spinta.core.enums import Mode
 from spinta.exceptions import ParentNodeNotFound, PartialIncorrectProperty, PartialTypeNotFound
-from spinta.types.datatype import Partial, Ref
+from spinta.types.datatype import BackRef, Object, Partial, Ref
+
+
+def get_referenced_properties(context: Context, node: Property) -> tuple[Model, dict[str, Property]] | None:
+    """Model and properties a property declared under `node` is looked up in.
+
+    `node` is a reference, `salis` or `miestai[]`, or an object reached through one, `adresas` of
+    `salis.adresas.gatve`. Anything else is `None`.
+    """
+    dtype = node.dtype
+    if isinstance(dtype, Ref | BackRef):
+        if isinstance(dtype.model, str):
+            dtype.model = commands.get_model(context, node.model.manifest, dtype.model)
+        return dtype.model, dtype.model.properties
+    if isinstance(dtype, Object) and isinstance(node.parent, Property):
+        referenced = get_referenced_properties(context, node.parent)
+        target = referenced[1].get(node.name) if referenced else None
+        if target is not None and isinstance(target.dtype, Object):
+            return referenced[0], target.dtype.properties
+    return None
 
 
 def get_ref_value(context: Context, prop: Property) -> Property | None:
     parent = prop.parent
-    if not (isinstance(parent, Property) and isinstance(parent.dtype, Ref)):
-        return None
-    if isinstance(parent.dtype.model, str):
-        parent.dtype.model = commands.get_model(context, prop.model.manifest, parent.dtype.model)
-    model = parent.dtype.model
-
-    if prop.name not in model.properties:
+    referenced = get_referenced_properties(context, parent) if isinstance(parent, Property) else None
+    if referenced is None or prop.name not in referenced[1]:
         return None
 
-    model_property_value = model.properties[prop.name]
+    model_property_value = referenced[1][prop.name]
     model_dtype = model_property_value.dtype
     if hasattr(model_dtype, "model") and isinstance(model_dtype.model, str):
         model_property_value.dtype.model = commands.get_model(
@@ -32,7 +46,7 @@ def link(context: Context, dtype: Partial):
     prop = dtype.prop
     parent = prop.parent
     if parent and isinstance(parent, Property):
-        if isinstance(parent.dtype, Ref):
+        if get_referenced_properties(context, parent) is not None:
             props = dtype.properties
             result = get_ref_value(context, prop)
             if not result:
