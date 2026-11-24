@@ -323,7 +323,6 @@ CONFIG = {
                 "default": {
                     "type": "yaml",
                     "path": pathlib.Path() / "tests/manifest",
-                    "sync": None,
                     "keymap": "default",
                     "mode": "internal",
                     "backend": "default",
@@ -355,7 +354,6 @@ CONFIG = {
                 "default": {
                     "type": "yaml",
                     "path": pathlib.Path() / "tests/manifest",
-                    "sync": None,
                     "backend": "default",
                     "keymap": "default",
                     "mode": "internal",
