@@ -289,12 +289,34 @@ def _is_link(prop: XSDProperty) -> bool:
     return prop.type.name in ("ref", "backref") and prop.ref_model is not None and bool(prop.source)
 
 
+def _base_models(model: XSDModel) -> list[XSDModel]:
+    """`xs:extension` bases of a model, nearest first."""
+    bases = []
+    visited = {id(model)}
+    # cyclic `xs:extension` is invalid XSD, but must not hang the conversion
+    while (model := model.extends_model) is not None and id(model) not in visited:
+        visited.add(id(model))
+        bases.append(model)
+    return bases
+
+
 def _linked_models(model: XSDModel) -> Iterator[XSDModel]:
-    if model.extends_model is not None:
-        yield model.extends_model
-    for prop in model.properties.values():
-        if _is_link(prop):
-            yield prop.ref_model
+    for owner in [model, *_base_models(model)]:
+        for prop in owner.properties.values():
+            if _is_link(prop):
+                yield prop.ref_model
+
+
+def _model_data(model: XSDModel) -> dict[str, Any]:
+    # backends do not support `extends()`, so inherited properties are copied to the model
+    data = model.get_data()
+    data["external"].pop("prepare", None)
+    properties = {}
+    for base in reversed(_base_models(model)):
+        properties.update(base.get_data()["properties"])
+    properties.update(data["properties"])
+    data["properties"] = properties
+    return data
 
 
 def _input_fields(
@@ -329,18 +351,14 @@ def _child_elements(model: XSDModel) -> tuple[list[XSDProperty], bool]:
     """Child elements of a model and its bases, and whether it also has attributes or text."""
     elements = []
     has_other = False
-    visited = set()
-    # cyclic `xs:extension` is invalid XSD, but must not hang the conversion
-    while model is not None and id(model) not in visited:
-        visited.add(id(model))
-        for prop in model.properties.values():
+    for owner in [model, *_base_models(model)]:
+        for prop in owner.properties.values():
             if not prop.source:
                 continue
             if prop.source.startswith(("@", "text()")):
                 has_other = True
             else:
                 elements.append(prop)
-        model = model.extends_model
     return elements, has_other
 
 
@@ -521,7 +539,7 @@ def read_schema(path: str, dataset_name: str | None = None) -> Iterator[tuple[No
     names = set(emitted)
     models = list(extra_models)
     for model, resource in emitted.values():
-        data = model.get_data()
+        data = _model_data(model)
         data["external"]["resource"] = resource
         data["properties"] = _fix_property_sources(data["properties"], names)
         if model.name in params_by_model:

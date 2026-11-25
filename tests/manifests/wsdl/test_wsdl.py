@@ -232,13 +232,12 @@ def test_wsdl_edge_cases(rc: RawConfig, caplog: pytest.LogCaptureFixture):
       |   |   |   | item        | ref required     | Item   | item                                            | expand()             |
       | last_query              | soap             |        | EdgeService.EdgePort.EdgePortType.LastQuery     | wsdl(wsdl)           | LastQuery
                                 |                  |        |                                                 |                      |
-      |   |   | BaseQuery/:part |                  |        |                                                 |                      |
+      |   |   | Find            |                  |        | /                                               |                      |
       |   |   |   | lang        | string required  |        | lang                                            |                      |
-                                |                  |        |                                                 |                      |
-      |   |   | Find            |                  |        | /                                               | extends('BaseQuery') |
       |   |   |   | id          | integer required |        | id                                              |                      |
                                 |                  |        |                                                 |                      |
-      |   |   | Find1           |                  |        | /                                               | extends('BaseQuery') |
+      |   |   | Find1           |                  |        | /                                               |                      |
+      |   |   |   | lang        | string required  |        | lang                                            |                      |
       |   |   |   | title       | string required  |        | title                                           |                      |
       | get_rate                | soap             |        | EdgeService.EdgePort.EdgePortType.GetRate       | wsdl(wsdl)           | GetRate
                                 | param            | code   | code                                            | input()              |
@@ -329,8 +328,8 @@ def test_wsdl_cyclic_extension_does_not_hang(tmp_path: Path):
             messages='<wsdl:message name="Out"><wsdl:part name="body" element="tns:OpResponse"/></wsdl:message>',
         )
     )
-    models = [data["name"] for _, data in read_schema(str(path)) if data["type"] == "model"]
-    assert models == ["service/B", "service/OpResponse"]
+    models = {data["name"]: list(data["properties"]) for _, data in read_schema(str(path)) if data["type"] == "model"}
+    assert models == {"service/OpResponse": ["b", "a"]}
 
 
 WSDL_TEMPLATE = """
@@ -486,4 +485,60 @@ def test_copied_wsdl_reads_soap_response(rc: RawConfig, cli: SpintaCliRunner, tm
     app.authmodel("wsdl/CityOutput", ["getall"])
 
     response = app.get("/wsdl/CityOutput")
+    assert listdata(response, "id", "name", sort=False) == [(100, "Vilnius"), (101, "Kaunas")]
+
+
+def test_copied_wsdl_reads_extended_soap_response(
+    rc: RawConfig, cli: SpintaCliRunner, tmp_path: Path, responses: RequestsMock
+):
+    # backends do not support `extends()`, so inherited `id` must be a property of the response model
+    wsdl = Path("tests/datasets/backends/wsdl/data/wsdl.xml").read_text()
+    wsdl = wsdl.replace(
+        """<xs:complexType name="CityOutput">
+                <xs:sequence>
+                    <xs:element name="id" type="xs:int"/>
+                    <xs:element name="name" type="xs:string"/>
+                </xs:sequence>
+            </xs:complexType>""",
+        """<xs:complexType name="Place">
+                <xs:sequence>
+                    <xs:element name="id" type="xs:int"/>
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="CityOutput">
+                <xs:complexContent>
+                    <xs:extension base="tns:Place">
+                        <xs:sequence>
+                            <xs:element name="name" type="xs:string"/>
+                        </xs:sequence>
+                    </xs:extension>
+                </xs:complexContent>
+            </xs:complexType>""",
+    )
+    assert "tns:Place" in wsdl
+    path = tmp_path / "service.wsdl"
+    path.write_text(wsdl)
+    responses.add(
+        POST,
+        "http://example.com/city",
+        status=200,
+        content_type="text/xml; charset=utf-8",
+        body="""
+            <ns0:Envelope xmlns:ns0="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="city_app">
+                <ns0:Body>
+                    <ns1:CityOutputResponse>
+                        <ns1:CityOutput><ns1:id>100</ns1:id><ns1:name>Vilnius</ns1:name></ns1:CityOutput>
+                        <ns1:CityOutput><ns1:id>101</ns1:id><ns1:name>Kaunas</ns1:name></ns1:CityOutput>
+                    </ns1:CityOutputResponse>
+                </ns0:Body>
+            </ns0:Envelope>
+        """,
+    )
+    cli.invoke(rc, ["copy", "-o", tmp_path / "result.csv", path])
+    context, _ = prepare_manifest(rc, tmp_path / "result.csv", mode=Mode.external)
+    context.loaded = True
+    app = create_test_client(context)
+    app.authmodel("service/CityOutput", ["getall"])
+
+    response = app.get("/service/CityOutput")
     assert listdata(response, "id", "name", sort=False) == [(100, "Vilnius"), (101, "Kaunas")]
