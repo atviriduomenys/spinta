@@ -8,6 +8,7 @@ import json
 import logging
 import os
 import pathlib
+import re
 import time
 import uuid
 import warnings
@@ -574,7 +575,8 @@ class Token(rfc6749.TokenMixin):
             if single_scope.endswith(action):
                 single_scope = single_scope.removesuffix(action)
 
-        return single_scope
+        # A custom or property scope, `Model/@{name}`, belongs to its model.
+        return re.sub(r"/@[^/]+/?$", "", single_scope)
 
     def _get_namespace_scope_map(self, scope_prefixes: list[str]) -> dict[str, set[str]]:
         """
@@ -1039,7 +1041,9 @@ def authorized(
         scope_formatter(context, scope, act, is_udts) for act in action for scope in scopes for is_udts in [False, True]
     ]
     # Check if client has at least one of required scopes.
-    if throw:
+    if granted_by_custom_scope(context, node, action):
+        is_token_valid = True
+    elif throw:
         is_token_valid = token.check_scope(scopes)
     else:
         is_token_valid = token.valid_scope(scopes)
@@ -1049,6 +1053,45 @@ def authorized(
         token.check_contract_scopes(context)
 
     return is_token_valid
+
+
+# Request context key: models this request reads through a custom scope (`Model/@scope`) the token grants,
+# mapped to the property names the scope selects, or None when it selects all of them.
+CUSTOM_SCOPES = "auth.custom_scopes"
+CUSTOM_SCOPE_ACTIONS = (Action.GETALL, Action.SEARCH, Action.GETONE)
+
+
+def custom_scope_name(context: Context, model: Model, scope: str, action: Action) -> str:
+    config: Config = context.get("config")
+    return f"{config.scope_prefix_udts}{model.model_type()}/@{scope}/:{action.value}"
+
+
+def granted_custom_scopes(context: Context, model: Model, action: Action) -> list[str]:
+    """Names of the model's custom scopes the token grants for a read action."""
+    if action not in CUSTOM_SCOPE_ACTIONS:
+        return []
+    token = context.get("auth.token")
+    return [name for name in model.scopes if token.valid_scope(custom_scope_name(context, model, name, action))]
+
+
+def granted_by_custom_scope(context: Context, node: Namespace | Model | Property, action: Action) -> bool:
+    """Whether the custom scope this request reads through grants `node`, for reading only."""
+    if not context.has(CUSTOM_SCOPES):
+        return False
+    actions = action if isinstance(action, list | tuple) else [action]
+    if any(act not in CUSTOM_SCOPE_ACTIONS for act in actions):
+        return False
+    model = node.model if isinstance(node, Property) else node
+    if not isinstance(model, Model) or model.model_type() not in (custom_scopes := context.get(CUSTOM_SCOPES)):
+        return False
+    selected = custom_scopes[model.model_type()]
+    if isinstance(node, Property) and selected is not None:
+        # A nested property is allowed with its parent, and a parent with any of its selected children.
+        return any(
+            name == node.place or name.startswith(f"{node.place}.") or node.place.startswith(f"{name}.")
+            for name in selected
+        )
+    return True
 
 
 def auth_server_keys_exists(path: pathlib.Path):

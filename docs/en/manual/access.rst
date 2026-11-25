@@ -104,6 +104,37 @@ Or to a property::
     uapi:/geo/Country/@code/:getall
     uapi:/geo/Country/@code/:search
 
+
+Custom scopes
+-------------
+
+A model can define custom scopes in its manifest, with a ``prepare`` formula
+that limits the rows (a filter, e.g. ``code='lt'``) or the columns
+(``select(...)``) a client gets::
+
+    m       | property | type  | ref | prepare
+    Country |          |       |     |
+            |          | scope | ltu | code='lt'
+
+A client can be given access to a model only through such a scope::
+
+    uapi:/geo/Country/@ltu/:getone
+    uapi:/geo/Country/@ltu/:getall
+    uapi:/geo/Country/@ltu/:search
+
+Then every request to the model is limited by the scope, even if the URL does
+not name it. Client filters can only narrow the result further, and
+``getone`` returns 404 for an object outside the scope. If the client has
+several scopes of the model, the URL must name one, e.g.
+``/geo/Country/@ltu``. A scope the client does not have is refused with 403.
+``changes`` and writes are not available through custom scopes.
+
+A custom scope can't have the name of a property of its model, because
+``Model/@name`` already names that property's scope.
+
+A client that has access to the model itself can still name a scope in the URL
+to narrow the result.
+
 Old format scopes (Deprecated and will be removed)
 ==================================================
 
