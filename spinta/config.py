@@ -249,6 +249,10 @@ CONFIG = {
     # example `spinta copy manifest.csv -o manifest.ttl`. Example:
     # `https://data.gov.lt/id/`.
     "uri_prefix": "https://example.com",
+    # Base URI of the URIs that `simple` output derives for models, properties and enums without an
+    # explicit `uri`, for example `https://data.gov.lt`. Classes are `{uri}/def/{dataset}/{model}`,
+    # objects `{uri}/id/{dataset}/{model}`. Empty by default, so that they are `/def/...` and `/id/...`.
+    "uri": "",
     # Allow RDF manifests to dereference web IRIs when they are read, to get
     # titles and descriptions of classes, properties and concepts, and to
     # follow `owl:imports` and concept schemes. Off by default, so that the

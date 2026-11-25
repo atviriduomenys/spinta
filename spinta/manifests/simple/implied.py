@@ -26,8 +26,8 @@ from lark import ParseError
 
 from spinta import commands, spyna
 from spinta.core.enums import Access
-from spinta.manifests.inherit import expand_uri
 from spinta.manifests.simple.types import MANIFEST_TYPE, SPINTA_KEY, SimpleManifest
+from spinta.manifests.simple.uri import UriContext
 from spinta.manifests.tabular.elements import escape
 from spinta.manifests.tabular.helpers import _parse_dtype_string, combine_source_prepare
 from spinta.types.datatype import Array, ArrayBackRef, BackRef, Denorm, Inherit, Object, Ref
@@ -43,10 +43,15 @@ _GIVEN_ONLY = frozenset({"append", "comment", "unique", "lang"})
 
 @dataclass
 class _Found:
-    """A node of the loaded document, and the model a property or its array item belongs to."""
+    """A node of the loaded document, and the model a property or its array item belongs to.
+
+    An enum item of a property has the property (`prop`), and the place of the property in the document (`place`).
+    """
 
     node: Any
     model: Any = None
+    prop: Any = None
+    place: str | None = None
 
 
 def _name(value: Any) -> str:
@@ -67,8 +72,8 @@ def _index(context, manifest) -> dict[Key, _Found]:
     """Every node of the document, by `(type, path)`, with the paths of 4.4."""
     found: dict[Key, _Found] = {}
 
-    def put(type_: str, path: str, node: Any, model: Any = None) -> None:
-        found.setdefault((type_, path), _Found(node, model))
+    def put(type_: str, path: str, node: Any, model: Any = None, prop: Any = None, place: str | None = None) -> None:
+        found.setdefault((type_, path), _Found(node, model, prop, place))
 
     for name, backend in manifest.backends.items():
         put("backend", name, backend)
@@ -129,7 +134,7 @@ def _index_property(put, model, place: str, prop) -> None:
     _index_children(put, model, place, prop)
     for enum_name, items in (prop.enums or {}).items():
         for source, item in items.items():
-            put("enum", _enum_path(path, enum_name, source), item)
+            put("enum", _enum_path(path, enum_name, source), item, model, prop, place)
 
 
 def _index_children(put, model, place: str, prop) -> None:
@@ -193,9 +198,10 @@ def _parse(text: str | None) -> Any:
 class _Env:
     """What the builders need: the manifest, the document, its nodes and the access of each element."""
 
-    def __init__(self, manifest: Any, doc: SimpleManifest, found: dict[Key, _Found]) -> None:
+    def __init__(self, manifest: Any, doc: SimpleManifest, found: dict[Key, _Found], uris: UriContext) -> None:
         self.manifest = manifest
         self.found = found
+        self.uris = uris
         self.elements: dict[Key, dict[str, Any]] = {
             (type_, path): element
             for type_, elements in doc.items()
@@ -323,7 +329,7 @@ def _model(key, element, found, env):
         "status": _name_of(model.status),
         "visibility": _name_of(model.visibility),
         "count": _int_value(model.count),
-        "uri": expand_uri(model.uri, dataset, env.manifest),
+        "uri": env.uris.model_uri(model),
         "title": _text(model.title),
         "description": _text(model.description),
         "eli": _text(model.eli),
@@ -388,7 +394,6 @@ def _property(key, element, found, env):
     name = path[len(model.name) + 1 :]
     given_type = _parse_dtype_string((element.get("given") or {}).get("type", "")) if element.get("given") else {}
     base = _name(model.base.parent) if model.base is not None else None
-    dataset = model.external.dataset if model.external else None
 
     ref_model, ref = _references(prop)
     enum = None
@@ -408,7 +413,7 @@ def _property(key, element, found, env):
         "access": env.access(key),
         "status": _name_of(prop.status),
         "visibility": _name_of(prop.visibility),
-        "uri": expand_uri(prop.uri, dataset, env.manifest),
+        "uri": env.uris.property_uri(prop, model, name),
         "title": _text(prop.title),
         "description": _text(prop.description),
         "eli": _text(prop.eli),
@@ -432,6 +437,7 @@ def _enum(key, element, found, env):
         "access": env.access(key),
         "status": _name_of(item.status),
         "visibility": _name_of(item.visibility),
+        "uri": env.uris.enum_uri(item, found.prop, found.model, found.place),
         "count": _int_value(item.count),
     }
 
@@ -518,7 +524,9 @@ def implied_of_document(context, manifest, doc: SimpleManifest) -> dict[Key, dic
     from `given` on read (4.7 step 2).
     """
     found = _index(context, manifest)
-    env = _Env(manifest, doc, found)
+    config = context.get("config")
+    uris = UriContext(manifest, datasets=commands.get_datasets(context, manifest), uri=config.uri)
+    env = _Env(manifest, doc, found, uris)
     out: dict[Key, dict[str, Any] | None] = {}
     for key, element in env.elements.items():
         type_ = key[0]

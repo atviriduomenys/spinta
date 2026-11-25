@@ -116,6 +116,7 @@ def load(context: Context, config: Config) -> Config:
     config.check_ref_filters = rc.get("check_ref_filters", default=True, cast=asbool)
     config.root = rc.get("root", default=None)
     config.uri_prefix = rc.get("uri_prefix", default="https://example.com")
+    config.uri = rc.get("uri", default="")
     config.rdf_fetch_remote = rc.get("rdf_fetch_remote", default=False, cast=asbool)
     config.uml_max_enum_items = rc.get("uml_max_enum_items", default=50, cast=int)
     if config.uml_max_enum_items < 1:

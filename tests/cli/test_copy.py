@@ -1990,7 +1990,7 @@ def test_copy_inherits_the_values_of_the_base_to_simple_json(context: Context, r
     # `given` is as written, and `implied` has the inherited values.
     assert "title" not in country["given"]
     assert country["implied"]["title"] == "Country"
-    assert country["implied"]["uri"] == "http://www.w3.org/ns/locn#Country"
+    assert country["implied"]["uri"]["concept"] == "http://www.w3.org/ns/locn#Country"
 
 
 def test_copy_inherits_the_values_of_the_base_to_turtle(context: Context, rc, cli, tmp_path):

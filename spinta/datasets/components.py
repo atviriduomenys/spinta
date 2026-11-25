@@ -36,6 +36,8 @@ class Dataset(MetaData):
     title: str
     description: str
     count: int | None = None
+    # The kind of a dataset: `dataset` (default), `vocabulary` or `registry`, see `DatasetReader`.
+    dataset_type: str = "dataset"
     given: DatasetGiven
     lang: LangData = None
     ns: Namespace = None
@@ -76,6 +78,8 @@ class Dataset(MetaData):
         "source": {"type": "string"},
         "given_name": {"type": "string", "default": None},
         "count": {"type": "integer", "default": None},
+        # The `type` cell of a dataset row: `dataset`, `vocabulary` or `registry`.
+        "dataset_type": {"type": "string", "default": "dataset"},
     }
 
     def __init__(self):

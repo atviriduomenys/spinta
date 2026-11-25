@@ -1167,6 +1167,8 @@ class Config:
     root: str = None
     # Base URI for generated RDF URIs, see `spinta.config.CONFIG`.
     uri_prefix: str | None = None
+    # Base URI for the URIs that `simple` output derives, see `spinta.config.CONFIG`.
+    uri: str = ""
     # Dereference web IRIs when reading RDF manifests, see `spinta.config.CONFIG`.
     rdf_fetch_remote: bool = False
     # Maximum number of enum items drawn for one enum in a UML diagram.

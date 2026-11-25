@@ -340,7 +340,7 @@ class DatasetReader(TabularReader):
         if self.name == "/":
             self.data = {}
         else:
-            if dataset_type not in {None, "", "dataset", "ns"}:
+            if dataset_type not in {None, "", "dataset", "ns", "vocabulary", "registry"}:
                 dataset_type = self._unknown_type(dataset_type)
 
             if row["dataset"] in self.state.manifest.datasets:
@@ -349,8 +349,12 @@ class DatasetReader(TabularReader):
             if dataset_type == "ns":
                 self.data = get_namespace_data(row, dataset_type, self.name)
             else:
+                # `vocabulary` and `registry` are kinds of a dataset, not components, so the component
+                # type stays `dataset` and the kind goes to `dataset_type`.
+                kind = dataset_type if dataset_type in {"vocabulary", "registry"} else "dataset"
                 self.data = {
-                    "type": dataset_type or "dataset",
+                    "type": "dataset",
+                    "dataset_type": kind,
                     "id": row["id"],
                     "name": row["dataset"],
                     "source": row["source"],
@@ -2554,6 +2558,7 @@ def _dataset_to_tabular(
         {
             "id": dataset.id,
             "dataset": dataset.name,
+            "type": "" if dataset.dataset_type in (None, "", "dataset") else dataset.dataset_type,
             "level": dataset.level,
             "access": dataset.given.access,
             "title": dataset.title,

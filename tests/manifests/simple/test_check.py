@@ -175,11 +175,11 @@ def test_read_error_is_reproduced_by_the_check_and_stays_on_its_element(spinta):
 
 def test_unknown_dataset_type_is_a_read_error_and_the_dataset_is_read_as_default(spinta):
     # The dataset is read as a plain dataset, so its models are not lost and name no missing dataset.
-    text = HEADER + ("datasets/gov/locn,,,,,vocabulary,,,,,\n,,,City,,,id,,,,\n,,,,id,integer,,,,,\n")
+    text = HEADER + ("datasets/gov/locn,,,,,catalog,,,,,\n,,,City,,,id,,,,\n,,,,id,integer,,,,,\n")
     doc = _doc(spinta, text)
     dataset = _element(doc, "dataset", "datasets/gov/locn")
     assert [(e["code"], e["message"], e["context"]) for e in dataset["errors"]] == [
-        ("TabularManifestError", "line 2: Unknown dataset.type `vocabulary`.", {"dataset": "datasets/gov/locn"}),
+        ("TabularManifestError", "line 2: Unknown dataset.type `catalog`.", {"dataset": "datasets/gov/locn"}),
     ]
     assert dataset["errors"][0]["index"] == 1
     assert "datasets/gov/locn/City" in doc["model"]

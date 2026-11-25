@@ -155,7 +155,7 @@ def test_simple_output_keeps_given_and_fills_in_implied(spinta):
     assert country["given"].get("title") is None
     assert country["given"].get("uri") is None
     assert country["implied"]["title"] == "Country"
-    assert country["implied"]["uri"] == "http://www.w3.org/ns/locn#Country"
+    assert country["implied"]["uri"]["concept"] == "http://www.w3.org/ns/locn#Country"
     assert _implied(doc, "property", f"{COUNTRY}/id")["uri"] == "http://purl.org/dc/terms/identifier"
     validate_document(doc)
 
@@ -170,7 +170,7 @@ def test_given_value_is_not_replaced_by_the_base(spinta):
     doc = spinta.copy([_simple(spinta, dsa), _simple(spinta, LOCN)], "simple")
 
     assert _implied(doc, "model", COUNTRY)["title"] == "Land"
-    assert _implied(doc, "model", COUNTRY)["uri"] == "http://www.w3.org/ns/locn#Country"
+    assert _implied(doc, "model", COUNTRY)["uri"]["concept"] == "http://www.w3.org/ns/locn#Country"
     assert _implied(doc, "property", f"{COUNTRY}/id")["uri"] == "http://purl.org/dc/terms/identifier"
 
 
@@ -191,9 +191,9 @@ def test_nearest_base_that_sets_the_value_wins(spinta):
     doc = _simple(spinta, text)
 
     assert _implied(doc, "model", "ds/B")["title"] == "B"
-    assert _implied(doc, "model", "ds/B")["uri"] == "https://example.com/c"
+    assert _implied(doc, "model", "ds/B")["uri"]["concept"] == "https://example.com/c"
     assert _implied(doc, "model", "ds/A")["title"] == "B"
-    assert _implied(doc, "model", "ds/A")["uri"] == "https://example.com/c"
+    assert _implied(doc, "model", "ds/A")["uri"]["concept"] == "https://example.com/c"
 
 
 def test_base_access_is_taken_before_the_access_of_the_owner(spinta):
@@ -306,14 +306,14 @@ def test_base_uri_with_an_undeclared_prefix_is_not_inherited(spinta):
 
     country = _implied(doc, "model", COUNTRY)
     assert country["title"] == "Country"
-    assert country["uri"] is None
+    assert country["uri"]["concept"] == "/def/locn/Country"
 
 
 def test_default_base_values_are_inherited_and_written(spinta):
     doc = spinta.copy(_simple(spinta, DSA_NO_BASE), "simple", base=[_simple(spinta, LOCN)])
 
     assert _implied(doc, "model", COUNTRY)["title"] == "Country"
-    assert _implied(doc, "model", COUNTRY)["uri"] == "http://www.w3.org/ns/locn#Country"
+    assert _implied(doc, "model", COUNTRY)["uri"]["concept"] == "http://www.w3.org/ns/locn#Country"
 
     data = spinta.copy(_simple(spinta, DSA_NO_BASE), "csv", base=[_simple(spinta, LOCN)])
     rows = list(csv.DictReader(io.StringIO(data.decode("utf-8"))))
