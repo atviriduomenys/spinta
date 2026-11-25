@@ -7,7 +7,7 @@ from responses import GET, POST, RequestsMock
 from spinta.core.config import RawConfig
 from spinta.core.enums import Mode
 from spinta.exceptions import WsdlReadError
-from spinta.manifests.wsdl.helpers import is_wsdl_path
+from spinta.manifests.wsdl.helpers import is_wsdl_path, read_schema
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.client import create_test_client
 from spinta.testing.data import listdata
@@ -301,6 +301,36 @@ def test_wsdl_invalid_xsd(rc: RawConfig, tmp_path: Path):
     )
     with pytest.raises(WsdlReadError, match="unsupported XSD in WSDL types"):
         load_manifest(rc, path)
+
+
+def test_wsdl_cyclic_extension_does_not_hang(tmp_path: Path):
+    path = tmp_path / "service.wsdl"
+    path.write_text(
+        WSDL_TEMPLATE.format(
+            types="""
+                <xs:schema>
+                    <xs:complexType name="A">
+                        <xs:complexContent>
+                            <xs:extension base="tns:B">
+                                <xs:sequence><xs:element name="a" type="xs:string"/></xs:sequence>
+                            </xs:extension>
+                        </xs:complexContent>
+                    </xs:complexType>
+                    <xs:complexType name="B">
+                        <xs:complexContent>
+                            <xs:extension base="tns:A">
+                                <xs:sequence><xs:element name="b" type="xs:string"/></xs:sequence>
+                            </xs:extension>
+                        </xs:complexContent>
+                    </xs:complexType>
+                    <xs:element name="OpResponse" type="tns:A"/>
+                </xs:schema>
+            """,
+            messages='<wsdl:message name="Out"><wsdl:part name="body" element="tns:OpResponse"/></wsdl:message>',
+        )
+    )
+    models = [data["name"] for _, data in read_schema(str(path)) if data["type"] == "model"]
+    assert models == ["service/B", "service/OpResponse"]
 
 
 WSDL_TEMPLATE = """

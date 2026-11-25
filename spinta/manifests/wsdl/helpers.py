@@ -329,7 +329,10 @@ def _child_elements(model: XSDModel) -> tuple[list[XSDProperty], bool]:
     """Child elements of a model and its bases, and whether it also has attributes or text."""
     elements = []
     has_other = False
-    while model is not None:
+    visited = set()
+    # cyclic `xs:extension` is invalid XSD, but must not hang the conversion
+    while model is not None and id(model) not in visited:
+        visited.add(id(model))
         for prop in model.properties.values():
             if not prop.source:
                 continue
