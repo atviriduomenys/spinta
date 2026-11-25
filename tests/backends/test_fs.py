@@ -498,6 +498,12 @@ def test_file_get_headers(model, app):
     assert resp.content == b"BINARYDATA"
     assert "revision" in resp.headers
     assert resp.headers["revision"] == revision
+    assert resp.headers["etag"] == revision
+
+    resp = app.get(f"/{model}/{id_}/image", headers={"Range": "bytes=0-2", "If-Range": revision})
+    assert resp.status_code == 206
+    assert resp.content == b"BIN"
+    assert resp.headers["etag"] == revision
 
 
 @pytest.mark.models(
