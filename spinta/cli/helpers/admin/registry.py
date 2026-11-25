@@ -19,6 +19,7 @@ admin_script_registry = script_registry.view(ADMIN_SCRIPT_TYPE)
 script_registry.register(
     AdminScript(
         name=Script.DEDUPLICATE.value,
+        requires_store=True,
         run=migrate_duplicates,
         check=cli_requires_deduplicate_migrations,
         required=[(UPGRADE_SCRIPT_TYPE, UpgradeScript.REDIRECT.value)],
@@ -29,6 +30,7 @@ script_registry.register(
 script_registry.register(
     AdminScript(
         name=Script.CHANGELOG.value,
+        requires_store=True,
         run=migrate_changelog_duplicates,
         check=cli_requires_changelog_migrations,
         required=[Script.DEDUPLICATE.value],
@@ -36,11 +38,17 @@ script_registry.register(
     )
 )
 script_registry.register(
-    AdminScript(name=Script.ENUM_LIST.value, run=gather_invalid_enum_values, targets={ScriptTarget.BACKEND.value})
+    AdminScript(
+        name=Script.ENUM_LIST.value,
+        run=gather_invalid_enum_values,
+        targets={ScriptTarget.BACKEND.value},
+        requires_store=True,
+    )
 )
 script_registry.register(
     AdminScript(
         name=Script.CITUS_DISTRIBUTION.value,
+        requires_store=True,
         run=migrate_citus_distributions,
         check=cli_requires_citus_distribution,
         required=[(UPGRADE_SCRIPT_TYPE, UpgradeScript.POSTGRESQL_SCHEMAS.value)],
