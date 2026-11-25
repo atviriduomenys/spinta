@@ -402,7 +402,7 @@ def _read_types(
             path=path,
             error=f"type or element {e.args[0]!r} is not defined in WSDL types, external schemas are not read",
         ) from None
-    except RuntimeError as e:
+    except (RuntimeError, ValueError) as e:
         raise WsdlReadError(path=path, error=f"unsupported XSD in WSDL types: {e}") from None
     return reader.models, reader.custom_types, reader.deduplicate_model_name
 

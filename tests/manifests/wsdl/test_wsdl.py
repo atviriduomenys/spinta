@@ -281,6 +281,28 @@ def test_wsdl_type_from_external_schema(rc: RawConfig, tmp_path: Path):
         load_manifest(rc, path)
 
 
+def test_wsdl_invalid_xsd(rc: RawConfig, tmp_path: Path):
+    path = tmp_path / "service.wsdl"
+    path.write_text(
+        WSDL_TEMPLATE.format(
+            types="""
+                <xs:schema>
+                    <xs:element name="OpResponse">
+                        <xs:complexType>
+                            <xs:sequence>
+                                <xs:element name="code" type="xs:string" maxOccurs="invalid"/>
+                            </xs:sequence>
+                        </xs:complexType>
+                    </xs:element>
+                </xs:schema>
+            """,
+            messages='<wsdl:message name="Out"><wsdl:part name="body" element="tns:OpResponse"/></wsdl:message>',
+        )
+    )
+    with pytest.raises(WsdlReadError, match="unsupported XSD in WSDL types"):
+        load_manifest(rc, path)
+
+
 WSDL_TEMPLATE = """
 <wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
                   xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://example.com/"
