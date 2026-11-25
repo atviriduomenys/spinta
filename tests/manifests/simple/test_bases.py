@@ -301,3 +301,76 @@ dataset,resource,base,model,property,type,ref,uri,visibility
 
     assert doc["model"]["Country"]["implied"]["base"] == "locn/Country"
     assert doc["model"]["Country"]["errors"] == []
+
+
+def test_simple_output_writes_the_matched_base_as_an_element(spinta, locn):
+    # The match is an element of the output, with no `index`, and the model points to it, as a model row does.
+    doc = spinta.copy(_doc(spinta, AR), "simple", base=[locn])
+
+    key = "datasets/gov/rc/ar/uapi/addr//locn/Country"
+    assert doc["base"][key] == {
+        "index": None,
+        "parent": {"type": "dataset", "path": "datasets/gov/rc/ar/uapi/addr"},
+        "given": {"ref": "id"},
+        "implied": doc["base"][key]["implied"],
+        "errors": [],
+    }
+    assert doc["base"][key]["implied"]["model"] == "locn/Country"
+    assert doc["model"]["datasets/gov/rc/ar/uapi/addr/Country"]["base"] == key
+
+
+def test_matched_base_survives_include_of_the_base_manifest(spinta, locn):
+    # The two-step copy of a linked document: the matched base is kept by `include`, so `check` finds it.
+    doc = spinta.copy(_doc(spinta, AR), "simple", base=[locn])
+    included = spinta.copy(doc, "simple", include=[spinta.copy(locn, "csv")])
+
+    assert "datasets/gov/rc/ar/uapi/addr//locn/Country" in included["base"]
+    assert included["model"]["locn/Country"]
+    assert spinta.check(included) == []
+
+
+def test_matched_base_without_include_is_not_a_base_of_a_loaded_model(spinta, locn):
+    # Without `include` the base model is not in the document, so the base is dropped on read, as any other.
+    doc = spinta.copy(_doc(spinta, AR), "simple", base=[locn])
+
+    assert spinta.check(doc) == []
+
+
+def test_one_call_with_include_and_base_gives_the_two_calls(spinta, locn):
+    # `include` and `base` in one copy give what the two copies give: the match is made before `include` looks
+    # for the targets of the references, so the matched base is kept.
+    locn_doc = spinta.copy(locn, "csv")
+    main = _doc(spinta, AR)
+
+    one = spinta.copy(main, "simple", include=[locn_doc], base=[locn])
+    two = spinta.copy(spinta.copy(main, "simple", base=[locn]), "simple", include=[locn_doc])
+
+    assert one == two
+    assert "locn/Country" in one["model"]
+    assert "datasets/gov/rc/ar/uapi/addr//locn/Country" in one["base"]
+    assert spinta.check(one) == []
+
+
+def test_included_elements_get_no_default_base(spinta, locn):
+    # `locn/Country` comes from `include`. It is not a model of the document, so it is not matched to a base.
+    one = spinta.copy(_doc(spinta, AR), "simple", include=[spinta.copy(locn, "csv")], base=[locn])
+
+    assert [key for key in one["base"] if key.startswith("locn")] == []
+    assert one["model"]["locn/Country"]["implied"]["base"] is None
+
+
+def test_one_call_keeps_the_no_match_error_of_a_model(spinta, locn):
+    # A model that the bases do not match gets its `DefaultBaseNotFound` error, also when `include` is given.
+    reported = []
+    doc = spinta.copy(
+        _doc(spinta, AR + STANDALONE),
+        "simple",
+        include=[spinta.copy(locn, "csv")],
+        base=[locn],
+        on_error=lambda error, raised: reported.append((error["code"], error["context"]["model"], raised)),
+    )
+
+    assert reported == [("DefaultBaseNotFound", "datasets/gov/rc/ar/uapi/addr/Standalone", False)]
+    assert _codes(doc["model"]["datasets/gov/rc/ar/uapi/addr/Standalone"]) == ["DefaultBaseNotFound"]
+    assert _codes(doc["model"]["datasets/gov/rc/ar/uapi/addr/Country"]) == []
+    assert "locn/Country" in doc["model"]

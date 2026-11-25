@@ -26,10 +26,10 @@ from typing import IO, Any, Literal, get_args
 from spinta.core.config import Path as ConfigPath
 from spinta.core.config import RawConfig
 from spinta.core.enums import Access
-from spinta.exceptions import BaseError
+from spinta.exceptions import BaseError, DefaultBaseNotFound
 from spinta.manifests.mermaid.helpers import write_mermaid_manifest
 from spinta.manifests.rdf.writer import render_rdf_manifest
-from spinta.manifests.simple.bases import DefaultBases, default_models, visibility_scope
+from spinta.manifests.simple.bases import DefaultBases, default_models, visibility_scope, with_default_base_elements
 from spinta.manifests.simple.check import LoadedDocument, _with_errors, check_document, load_document, with_implied
 from spinta.manifests.simple.errors import element_in_context, index_of_line, manifest_error, read_error
 from spinta.manifests.simple.from_tabular import tabular_to_simple
@@ -316,6 +316,12 @@ class Spinta:
         """Write `docs` as one document (3.1), in `fmt`. `options` are checked by `_refuse_output_options`."""
         _check_output_format(fmt)
         _refuse_output_options(fmt, options)
+        if fmt == "simple" and include and bases is not None:
+            # The default bases match the models of `docs` (3.1) before `include` adds the targets of their
+            # references. So the base element of a match is in the document that `include` keeps from, and
+            # the included elements get no default base of their own. One call then gives what two calls give.
+            matched = self._simple_run(self._combined(docs, ()), stop, bases)
+            return self._simple_run(self._combined([matched.output], include), stop, None, matched=matched.output)
         doc = self._combined(docs, include)
         if fmt == "simple":
             return self._simple_run(doc, stop, bases)
@@ -368,8 +374,13 @@ class Spinta:
         doc: SimpleManifest,
         stop: Exception | None,
         bases: DefaultBases | None = None,
+        *,
+        matched: SimpleManifest | None = None,
     ) -> _CopyRun:
         """A `simple` result: `doc` with the link errors of this run stored on its elements (3.4, 4.10).
+
+        `matched` is the result of a run that matched the default bases before `doc` was built (see `_write_docs`).
+        Its `DefaultBaseNotFound` errors are kept, as this run does not match the bases again.
 
         The document is loaded as `check` loads it, without `strict_references`. So a reference that is not in
         the document is downgraded, and its element gets an `UnresolvedReference` warning, as the table outputs
@@ -384,7 +395,10 @@ class Spinta:
             strict_references=False,
             default_bases=bases,
         )
-        out = with_implied(_with_errors(doc, loaded.log, loaded.collector.errors), loaded)
+        out = _with_errors(doc, loaded.log, loaded.collector.errors)
+        out = with_implied(with_default_base_elements(out, loaded.context, loaded.manifest), loaded)
+        if matched is not None:
+            _carry_default_base_errors(out, matched)
         return _CopyRun(out, _simple_reports(out, stop), stop)
 
     def _render(
@@ -648,6 +662,21 @@ def _checked_documents(manifest: Any) -> list[SimpleManifest]:
         validate_document(doc)
         check_format(doc)
     return docs
+
+
+def _carry_default_base_errors(doc: SimpleManifest, matched: SimpleManifest) -> None:
+    """Add to the elements of `doc` the `DefaultBaseNotFound` errors that `matched` stores on the same elements (3.1).
+
+    Changes `doc` in place. Only the default-base match makes this error, and it runs on `matched` alone.
+    """
+    code = DefaultBaseNotFound.__name__
+    for type_, elements in matched.items():
+        if type_ == SPINTA_KEY or type_ not in doc:
+            continue
+        for path, element in elements.items():
+            found = [error for error in element["errors"] if error["code"] == code]
+            if found and path in doc[type_]:
+                doc[type_][path]["errors"].extend(found)
 
 
 def _stored_errors(doc: SimpleManifest) -> list[ManifestError]:

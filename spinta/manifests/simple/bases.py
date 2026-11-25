@@ -32,6 +32,7 @@ from spinta import commands
 from spinta.components import Base, Model, StubProperty
 from spinta.exceptions import DefaultBaseNotFound
 from spinta.manifests.inherit import ModelSource, source_of_model
+from spinta.manifests.simple.types import SimpleManifest
 from spinta.nodes import get_node, load_node
 
 # The visibilities that `--base-visibility` takes, as Visibility names. `absent` is the visibility of a model
@@ -175,3 +176,37 @@ def _matched_base(context, manifest, model: Model, match: DefaultModel) -> Base:
     commands.load(context, base, data, manifest)
     base.pk = [StubProperty(key) for key in match.keys]
     return base
+
+
+def with_default_base_elements(doc: SimpleManifest, context, manifest) -> SimpleManifest:
+    """`doc` with a `base` element for each model that a default base matched (3.1, 4.2).
+
+    The matched base is not a row of the input, so its element has no `index`. Its `given` holds the key of
+    the model as `ref`, as a base row has it. The model points to the element with `base`, as a model row
+    with a base does, so the output reads back with the same base. A base element that is already there
+    keeps its place: a repeated path gets a `#n` suffix (4.3). Changes `doc` in place and returns it.
+    """
+    for model in commands.get_models(context, manifest).values():
+        base = model.base
+        if base is None or not getattr(base, "default", False):
+            continue
+        element = doc.get("model", {}).get(model.name)
+        if element is None:
+            continue
+        parent = element["parent"]
+        prefix = parent["path"] if parent["type"] == "dataset" else None
+        path = "/".join(p for p in (prefix, base.name) if p)
+        bases = doc.setdefault("base", {})
+        candidate, n = path, 1
+        while candidate in bases:
+            n += 1
+            candidate = f"{path}#{n}"
+        bases[candidate] = {
+            "index": None,
+            "parent": dict(parent),
+            "given": {"ref": ",".join(p.name for p in base.pk)} if base.pk else {},
+            "implied": None,
+            "errors": [],
+        }
+        element["base"] = candidate
+    return doc
