@@ -14,7 +14,7 @@ from lxml.etree import QName, _Element
 
 from spinta.core.ufuncs import Expr
 from spinta.exceptions import WsdlReadError
-from spinta.manifests.xsd.helpers import DATATYPES_MAPPING, XSDModel, XSDProperty, XSDReader
+from spinta.manifests.xsd.helpers import DATATYPES_MAPPING, XSDModel, XSDProperty, XSDReader, XSDType
 from spinta.utils.naming import Deduplicator, to_code_name, to_dataset_name, to_model_name
 
 log = logging.getLogger(__name__)
@@ -119,12 +119,36 @@ class _Operation:
         return f"{self.service}.{self.port}.{self.port_type}.{self.name}"
 
 
+def _soap_children(element: _Element | None, localname: str) -> list[_Element]:
+    if element is None:
+        return []
+    return [
+        child
+        for child in element
+        if QName(child).localname == localname and QName(child).namespace in (SOAP_11_NS, SOAP_12_NS)
+    ]
+
+
 def _is_soap_11_binding(binding: _Element) -> bool:
-    for child in binding:
-        name = QName(child)
-        if name.localname == "binding" and name.namespace in (SOAP_11_NS, SOAP_12_NS):
-            return True
-    return False
+    return bool(_soap_children(binding, "binding"))
+
+
+def _body_parts(operation: str, message: str | None, parts: list[_Part], binding_input: _Element | None) -> list[_Part]:
+    """Input parts sent in the SOAP body, SOAP header parts are left out."""
+    headers = set()
+    for header in _soap_children(binding_input, "header"):
+        headers.add((_local_name(header.get("message")), header.get("part")))
+        log.warning(
+            f"SOAP header {header.get('part')!r} of WSDL operation {operation!r} is not generated, "
+            f"because the soap backend does not send SOAP headers."
+        )
+    body = _soap_children(binding_input, "body")
+    body_part_names = body[0].get("parts") if body else None
+    return [
+        part
+        for part in parts
+        if (message, part.name) not in headers and (body_part_names is None or part.name in body_part_names.split())
+    ]
 
 
 def _wsdl_11_operations(root: _Element) -> Iterator[_Operation]:
@@ -142,11 +166,9 @@ def _wsdl_11_operations(root: _Element) -> Iterator[_Operation]:
     }
     bindings = {binding.get("name"): binding for binding in root.findall("w:binding", ns)}
 
-    def message_parts(operation: _Element, direction: str) -> list[_Part]:
+    def message_name(operation: _Element, direction: str) -> str | None:
         message = operation.find(f"w:{direction}", ns)
-        if message is None:
-            return []
-        return messages.get(_local_name(message.get("message")), [])
+        return None if message is None else _local_name(message.get("message"))
 
     for service in root.findall("w:service", ns):
         for port in service.findall("w:port", ns):
@@ -160,13 +182,19 @@ def _wsdl_11_operations(root: _Element) -> Iterator[_Operation]:
                 operation = operations.get(binding_operation.get("name"))
                 if operation is None:
                     continue
+                input_message = message_name(operation, "input")
                 yield _Operation(
                     service=service.get("name"),
                     port=port.get("name"),
                     port_type=port_type,
                     name=operation.get("name"),
-                    input=message_parts(operation, "input"),
-                    output=message_parts(operation, "output"),
+                    input=_body_parts(
+                        operation.get("name"),
+                        input_message,
+                        messages.get(input_message, []),
+                        binding_operation.find("w:input", ns),
+                    ),
+                    output=messages.get(message_name(operation, "output"), []),
                 )
 
 
@@ -228,6 +256,8 @@ def _merge_schemas(root: _Element) -> _Element | None:
     merged = etree.Element(f"{{{XSD_NS}}}schema", nsmap=nsmap)
     for schema in schemas:
         for child in schema:
+            if QName(child).localname == "annotation":
+                continue
             if QName(child).localname in ("import", "include"):
                 if child.get("schemaLocation"):
                     log.warning(f"External schema {child.get('schemaLocation')!r} is not supported, skipping it.")
@@ -260,6 +290,8 @@ def _is_link(prop: XSDProperty) -> bool:
 
 
 def _linked_models(model: XSDModel) -> Iterator[XSDModel]:
+    if model.extends_model is not None:
+        yield model.extends_model
     for prop in model.properties.values():
         if _is_link(prop):
             yield prop.ref_model
@@ -269,15 +301,59 @@ def _input_fields(
     model: XSDModel, prefix: str = "", visited: frozenset = frozenset()
 ) -> Iterator[tuple[str, XSDProperty]]:
     """Leaf fields of a request element, with their paths in the SOAP request body."""
+    visited = visited | {id(model)}
+    if model.extends_model is not None and id(model.extends_model) not in visited:
+        yield from _input_fields(model.extends_model, prefix, visited)
     for prop in model.properties.values():
         if not prop.source:
             continue
         source = f"{prefix}{_soap_source(prop.source)}"
         if _is_link(prop):
-            if prop.ref_model not in visited:
-                yield from _input_fields(prop.ref_model, f"{source}/", visited | {model})
+            if id(prop.ref_model) not in visited:
+                yield from _input_fields(prop.ref_model, f"{source}/", visited)
         else:
             yield source, prop
+
+
+def _element_input_fields(models: list[XSDModel]) -> Iterator[tuple[str, XSDProperty]]:
+    # XSD reader creates a model for each `xs:choice` alternative, fields of all of them are request parameters
+    seen = set()
+    for model in models:
+        for source, prop in _input_fields(model):
+            if source not in seen:
+                seen.add(source)
+                yield source, prop
+
+
+def _child_elements(model: XSDModel) -> tuple[list[XSDProperty], bool]:
+    """Child elements of a model and its bases, and whether it also has attributes or text."""
+    elements = []
+    has_other = False
+    while model is not None:
+        for prop in model.properties.values():
+            if not prop.source:
+                continue
+            if prop.source.startswith(("@", "text()")):
+                has_other = True
+            else:
+                elements.append(prop)
+        model = model.extends_model
+    return elements, has_other
+
+
+def _response_model(model: XSDModel, operation: str) -> XSDModel:
+    # zeep returns the only child element of a response element instead of the response element itself
+    elements, has_other = _child_elements(model)
+    if has_other or len(elements) != 1:
+        return model
+    if _is_link(elements[0]):
+        return elements[0].ref_model
+    _warn_single_value(operation)
+    return model
+
+
+def _warn_single_value(operation: str) -> None:
+    log.warning(f"Response of WSDL operation {operation!r} is a single value, which the soap backend can not read.")
 
 
 def _fix_property_sources(properties: dict[str, dict[str, Any]], model_names: set[str]) -> dict[str, dict[str, Any]]:
@@ -302,54 +378,90 @@ def _dataset_name(root: _Element, path: str, given_name: str | None) -> str:
     return to_dataset_name(name) or "wsdl"
 
 
-def _part_type(part: _Part) -> str | None:
-    if part.type and part.type in DATATYPES_MAPPING:
+def _part_type(part: _Part, custom_types: dict[str, XSDType]) -> str | None:
+    if not part.type:
+        return None
+    if part.type in DATATYPES_MAPPING:
         return DATATYPES_MAPPING[part.type].split(";")[0]
+    if part.type in custom_types:
+        return custom_types[part.type].name
     return None
+
+
+def _read_types(
+    root: _Element, path: str, dataset_name: str
+) -> tuple[list[XSDModel], dict[str, XSDType], Deduplicator]:
+    schema = _merge_schemas(root)
+    if schema is None:
+        return [], {}, Deduplicator()
+    reader = _WsdlSchemaReader(schema, dataset_name)
+    try:
+        reader.start()
+    except KeyError as e:
+        raise WsdlReadError(
+            path=path,
+            error=f"type or element {e.args[0]!r} is not defined in WSDL types, external schemas are not read",
+        ) from None
+    except RuntimeError as e:
+        raise WsdlReadError(path=path, error=f"unsupported XSD in WSDL types: {e}") from None
+    return reader.models, reader.custom_types, reader.deduplicate_model_name
 
 
 def read_schema(path: str, dataset_name: str | None = None) -> Iterator[tuple[None, dict[str, Any]]]:
     root = _read_wsdl_root(path)
+    if QName(root).namespace == WSDL_20_NS:
+        log.warning("WSDL 2.0 is converted, but the soap backend reads only WSDL 1.1, so its data can not be read yet.")
     dataset_name = _dataset_name(root, path, dataset_name)
 
-    reader = None
-    if (schema := _merge_schemas(root)) is not None:
-        reader = _WsdlSchemaReader(schema, dataset_name)
-        reader.start()
+    xsd_models, custom_types, model_names = _read_types(root, path, dataset_name)
+    # copies of a model made by the XSD reader have the same name, so models are identified by name
+    models_by_name = {model.name: model for model in xsd_models}
     element_models: dict[str, list[XSDModel]] = {}
-    for model in reader.models if reader else []:
+    for model in xsd_models:
         if model.source.startswith("/"):
             element_models.setdefault(model.source[1:], []).append(model)
-    model_names = reader.deduplicate_model_name if reader else Deduplicator()
+
+    def canonical(model: XSDModel) -> XSDModel:
+        return models_by_name.get(model.name, model)
+
+    def copy_model(model: XSDModel, name: str) -> XSDModel:
+        # linked models are shared with the original
+        memo = {id(other): other for other in xsd_models if other is not model}
+        memo[id(model.dataset_resource)] = model.dataset_resource
+        copy = deepcopy(model, memo)
+        copy.set_name(model_names(name))
+        return copy
 
     resource_names = Deduplicator()
     wsdl_resource = resource_names("wsdl")
     resources: dict[str, dict[str, Any]] = {wsdl_resource: {"type": "wsdl", "external": path}}
-    # id(model) -> (model, resource name of the first operation which uses it)
-    emitted: dict[int, tuple[XSDModel, str]] = {}
+    # model name -> (model, resource name of the first operation which uses it)
+    emitted: dict[str, tuple[XSDModel, str]] = {}
+    params_by_model: dict[str, list[tuple[str, str]]] = {}
     extra_models: list[dict[str, Any]] = []
-    params_by_model: dict[int, list[tuple[str, XSDProperty | _Part]]] = {}
 
     for operation in _iter_operations(root):
         resource = resource_names(to_code_name(operation.name))
 
         params: dict[str, dict[str, Any]] = {}
-        param_fields: list[tuple[str, XSDProperty | _Part]] = []
+        # (param name, property type)
+        param_fields: list[tuple[str, str]] = []
         param_names = Deduplicator()
         for part in operation.input:
             if part.element:
                 fields = [
-                    field_ for model in element_models.get(part.element, [])[:1] for field_ in _input_fields(model)
+                    (source, prop.type.name)
+                    for source, prop in _element_input_fields(element_models.get(part.element, []))
                 ]
-            elif _part_type(part):
-                fields = [(part.name, part)]
+            elif type_ := _part_type(part, custom_types):
+                fields = [(part.name, type_)]
             else:
                 log.warning(f"Skipping input part {part.name!r} of WSDL operation {operation.name!r}.")
                 fields = []
-            for source, field_ in fields:
+            for source, type_ in fields:
                 name = param_names(to_code_name(source.split("/")[-1]))
                 params[name] = {"name": name, "source": [source], "prepare": [Expr("input")], "type": "param"}
-                param_fields.append((name, field_))
+                param_fields.append((name, type_))
 
         resources[resource] = {
             "type": "soap",
@@ -359,29 +471,39 @@ def read_schema(path: str, dataset_name: str | None = None) -> Iterator[tuple[No
             "params": params,
         }
 
-        response_models = [model for part in operation.output for model in element_models.get(part.element, [])]
+        response_models = [
+            _response_model(canonical(model), operation.name)
+            for part in operation.output
+            if part.element
+            for model in element_models.get(part.element, [])
+        ]
         if not response_models:
-            # no schema for the response, so the model only has request parameters
+            properties = _output_properties(operation, custom_types)
+            properties.update(_param_properties(param_fields, set(properties)))
             extra_models.append(
                 {
                     "type": "model",
                     "name": f"{dataset_name}/{model_names(to_model_name(operation.name))}",
                     "external": {"dataset": dataset_name, "resource": resource, "name": "/"},
-                    "properties": _param_properties(param_fields, set()),
+                    "properties": properties,
                 }
             )
             continue
 
-        stack = list(response_models)
-        while stack:
-            model = stack.pop()
-            if id(model) in emitted:
-                continue
-            emitted[id(model)] = (model, resource)
-            stack.extend(_linked_models(model))
         for model in response_models:
+            model = canonical(model)
+            if model.name in emitted:
+                # each operation needs its own response model, because its params differ
+                model = copy_model(model, to_model_name(operation.name))
             model.source = "/"
-            params_by_model[id(model)] = param_fields
+            model.is_partial = False
+            params_by_model[model.name] = param_fields
+            stack = [model]
+            while stack:
+                linked = canonical(stack.pop())
+                if linked.name not in emitted:
+                    emitted[linked.name] = (linked, resource)
+                    stack.extend(_linked_models(linked))
 
     yield (
         None,
@@ -393,14 +515,14 @@ def read_schema(path: str, dataset_name: str | None = None) -> Iterator[tuple[No
         },
     )
 
-    names = {model.name for model, _ in emitted.values()}
+    names = set(emitted)
     models = list(extra_models)
     for model, resource in emitted.values():
         data = model.get_data()
         data["external"]["resource"] = resource
         data["properties"] = _fix_property_sources(data["properties"], names)
-        if id(model) in params_by_model:
-            data["properties"].update(_param_properties(params_by_model[id(model)], set(data["properties"])))
+        if model.name in params_by_model:
+            data["properties"].update(_param_properties(params_by_model[model.name], set(data["properties"])))
         models.append(data)
 
     resource_order = {name: i for i, name in enumerate(resources)}
@@ -409,19 +531,24 @@ def read_schema(path: str, dataset_name: str | None = None) -> Iterator[tuple[No
         yield None, data
 
 
-def _param_properties(param_fields: list[tuple[str, XSDProperty | _Part]], existing: set[str]) -> dict[str, Any]:
+def _output_properties(operation: _Operation, custom_types: dict[str, XSDType]) -> dict[str, Any]:
+    """Properties for simple `type` parts of a response, zeep returns them as a dict by part name."""
+    parts = [(part, _part_type(part, custom_types)) for part in operation.output if not part.element]
+    parts = [(part, type_) for part, type_ in parts if type_]
+    if len(parts) == 1 and len(operation.output) == 1:
+        # zeep returns the value of a single part without its name
+        _warn_single_value(operation.name)
+        return {}
+    names = Deduplicator()
+    return {names(to_code_name(part.name)): {"type": type_, "external": {"name": part.name}} for part, type_ in parts}
+
+
+def _param_properties(param_fields: list[tuple[str, str]], existing: set[str]) -> dict[str, Any]:
     """Request parameters are also added to the model, so that they are visible in the returned data."""
     names = Deduplicator()
     for name in existing:
         names(name)
-    properties = {}
-    for param, field_ in param_fields:
-        if isinstance(field_, _Part):
-            type_ = _part_type(field_)
-        else:
-            type_ = field_.type.name
-        properties[names(param)] = {
-            "type": type_,
-            "external": {"name": "", "prepare": Expr("param", Expr("bind", param))},
-        }
-    return properties
+    return {
+        names(param): {"type": type_, "external": {"name": "", "prepare": Expr("param", Expr("bind", param))}}
+        for param, type_ in param_fields
+    }

@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions name="EdgeCases"
+                  targetNamespace="http://example.com/edge"
+                  xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+                  xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+                  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                  xmlns:tns="http://example.com/edge">
+    <wsdl:types>
+        <xs:schema targetNamespace="http://example.com/edge" elementFormDefault="qualified">
+            <xs:annotation>
+                <xs:documentation>Schema level documentation</xs:documentation>
+            </xs:annotation>
+            <xs:simpleType name="Code">
+                <xs:restriction base="xs:string">
+                    <xs:maxLength value="10"/>
+                </xs:restriction>
+            </xs:simpleType>
+            <xs:complexType name="BaseQuery">
+                <xs:sequence>
+                    <xs:element name="lang" type="xs:string"/>
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="FindQuery">
+                <xs:complexContent>
+                    <xs:extension base="tns:BaseQuery">
+                        <xs:choice>
+                            <xs:element name="id" type="xs:integer"/>
+                            <xs:element name="title" type="xs:string"/>
+                        </xs:choice>
+                    </xs:extension>
+                </xs:complexContent>
+            </xs:complexType>
+            <xs:element name="Find" type="tns:FindQuery"/>
+            <xs:complexType name="Detail">
+                <xs:sequence>
+                    <xs:element name="note" type="xs:string"/>
+                </xs:sequence>
+            </xs:complexType>
+            <xs:complexType name="Item">
+                <xs:sequence>
+                    <xs:element name="code" type="xs:string"/>
+                    <xs:element name="detail" type="tns:Detail"/>
+                </xs:sequence>
+            </xs:complexType>
+            <xs:element name="item" type="tns:Item"/>
+            <xs:element name="ItemsResponse">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="count" type="xs:integer"/>
+                        <xs:element name="item" type="tns:Item"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="Auth">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="token" type="xs:string"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema>
+    </wsdl:types>
+
+    <wsdl:message name="FindRequest">
+        <wsdl:part name="body" element="tns:Find"/>
+        <wsdl:part name="auth" element="tns:Auth"/>
+    </wsdl:message>
+    <wsdl:message name="FindMessage">
+        <wsdl:part name="body" element="tns:Find"/>
+    </wsdl:message>
+    <wsdl:message name="ItemMessage">
+        <wsdl:part name="body" element="tns:item"/>
+    </wsdl:message>
+    <wsdl:message name="ItemsMessage">
+        <wsdl:part name="body" element="tns:ItemsResponse"/>
+    </wsdl:message>
+    <wsdl:message name="RateRequest">
+        <wsdl:part name="code" type="tns:Code"/>
+    </wsdl:message>
+    <wsdl:message name="RateResponse">
+        <wsdl:part name="rate" type="xs:decimal"/>
+        <wsdl:part name="date" type="xs:date"/>
+    </wsdl:message>
+
+    <wsdl:portType name="EdgePortType">
+        <wsdl:operation name="FindItem">
+            <wsdl:input message="tns:FindRequest"/>
+            <wsdl:output message="tns:ItemMessage"/>
+        </wsdl:operation>
+        <wsdl:operation name="FindOtherItem">
+            <wsdl:input message="tns:FindRequest"/>
+            <wsdl:output message="tns:ItemMessage"/>
+        </wsdl:operation>
+        <wsdl:operation name="ListItems">
+            <wsdl:output message="tns:ItemsMessage"/>
+        </wsdl:operation>
+        <wsdl:operation name="LastQuery">
+            <wsdl:output message="tns:FindMessage"/>
+        </wsdl:operation>
+        <wsdl:operation name="GetRate">
+            <wsdl:input message="tns:RateRequest"/>
+            <wsdl:output message="tns:RateResponse"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <wsdl:binding name="EdgeBinding" type="tns:EdgePortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="FindItem">
+            <wsdl:input>
+                <soap:body use="literal" parts="body"/>
+                <soap:header message="tns:FindRequest" part="auth" use="literal"/>
+            </wsdl:input>
+            <wsdl:output><soap:body use="literal"/></wsdl:output>
+        </wsdl:operation>
+        <wsdl:operation name="FindOtherItem">
+            <wsdl:input>
+                <soap:body use="literal" parts="body"/>
+                <soap:header message="tns:FindRequest" part="auth" use="literal"/>
+            </wsdl:input>
+            <wsdl:output><soap:body use="literal"/></wsdl:output>
+        </wsdl:operation>
+        <wsdl:operation name="ListItems">
+            <wsdl:output><soap:body use="literal"/></wsdl:output>
+        </wsdl:operation>
+        <wsdl:operation name="LastQuery">
+            <wsdl:output><soap:body use="literal"/></wsdl:output>
+        </wsdl:operation>
+        <wsdl:operation name="GetRate">
+            <soap:operation style="rpc"/>
+            <wsdl:input><soap:body use="literal"/></wsdl:input>
+            <wsdl:output><soap:body use="literal"/></wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <wsdl:service name="EdgeService">
+        <wsdl:port name="EdgePort" binding="tns:EdgeBinding">
+            <soap:address location="http://example.com/edge"/>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>

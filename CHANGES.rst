@@ -12,6 +12,9 @@ New features:
   for each SOAP operation are created. Request fields become ``input()``
   resource parameters, the response element becomes a model, and XSD schemas
   from WSDL ``types`` are converted with the existing XSD reader (`#1824`_).
+  SOAP headers are not generated, and WSDL 2.0 documents are converted, but
+  their data can not be read yet, because the ``soap`` backend reads only
+  WSDL 1.1.
 
 Bug fixes:
 
