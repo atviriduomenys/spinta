@@ -1279,6 +1279,26 @@ class InlineEnumWithName(UserError):
     )
 
 
+class UndeclaredUriPrefix(BaseError):
+    """The prefix of a CURIE in a `uri` is not declared in the dataset or the manifest, nor known (see `KNOWN_PREFIXES`).
+
+    `owner` names the node that has the `uri`, for example `model`, `property`, `scope 'x'`.
+    """
+
+    template = "Prefix {prefix!r} of {owner} uri {value!r} is not declared in the dataset or the manifest."
+    context = {"prefix": None, "value": None, "owner": None}
+
+
+class UndeclaredEliPrefix(BaseError):
+    """The prefix of a CURIE in an `eli` is not declared in the dataset or the manifest, nor known (see `KNOWN_PREFIXES`).
+
+    `owner` names the node that has the `eli`, the same way as for `UndeclaredUriPrefix`.
+    """
+
+    template = "Prefix {prefix!r} of {owner} eli {value!r} is not declared in the dataset or the manifest."
+    context = {"prefix": None, "value": None, "owner": None}
+
+
 class SourceOrPrepareNotAllowed(UserError):
     template = """
         The source {source} was not expected. Delete it from the manifest or update the prepare function to allow it.    

@@ -893,6 +893,53 @@ def test_check_enum_named_under_property(context: Context, rc, cli: SpintaCliRun
     assert "Total: 1 error." in result.stdout
 
 
+def test_check_uri_prefixes_declared(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | m | property             | type    | ref  | uri
+    datasets/gov/rc/ar/uapi/addr |         |      |
+      |   |                      | prefix  | dct  | http://purl.org/dc/terms/
+      |   |                      |         | rdfs | http://www.w3.org/2000/01/rdf-schema#
+      |   |                      |         | skos | http://www.w3.org/2004/02/skos/core#
+      |   |                      |         | locn | http://www.w3.org/ns/locn#
+      |   |                      |         |      |
+      | City                     |         | id   | locn:Location
+      |   | id                   | integer |      | dct:identifier
+      |   | code                 | string  |      | skos:notation
+      |   | name@lt              | string  |      | rdfs:label
+    """),
+    )
+
+    cli.invoke(rc, ["check", tmp_path / "manifest.csv"])
+
+
+def test_check_uri_prefixes_undeclared_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | m | property             | type    | ref  | uri
+    datasets/gov/rc/ar/uapi/addr |         |      |
+      |   |                      |         |      |
+      | City                     |         | id   | locn:Location
+      |   | id                   | integer |      | dct:identifier
+      |   | code                 | string  |      | skos:notation
+      |   | name@lt              | string  |      | rdfs:label
+    """),
+    )
+
+    result = cli.invoke(rc, ["check", tmp_path / "manifest.csv"], fail=False)
+
+    assert result.exit_code == 1
+    assert "Prefix 'locn' of model uri 'locn:Location' is not declared" in result.stdout
+    assert "Prefix 'dct' of property uri 'dct:identifier' is not declared" in result.stdout
+    assert "Prefix 'skos' of property uri 'skos:notation' is not declared" in result.stdout
+    assert "Prefix 'rdfs' of property uri 'rdfs:label' is not declared" in result.stdout
+    assert "UndeclaredUriPrefix: 4 errors." in result.stdout
+
+
 def test_check_undeclared_base_does_not_fail(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
     create_tabular_manifest(
         context,

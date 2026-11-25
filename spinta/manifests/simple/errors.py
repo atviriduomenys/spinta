@@ -21,6 +21,8 @@ ERROR_KEYS: dict[str, str] = {
     "UnresolvedReference": "ref",
     "MissingRefModel": "ref",
     "InvalidLevel": "level",
+    "UndeclaredUriPrefix": "uri",
+    "UndeclaredEliPrefix": "eli",
 }
 
 # Keys of an error's `context` that describe Spinta's objects, not the element

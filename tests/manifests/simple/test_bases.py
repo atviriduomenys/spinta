@@ -21,6 +21,7 @@ from spinta.manifests.simple.types import SimpleManifestError
 LOCN = """\
 dataset,resource,base,model,property,type,ref,uri
 locn,,,,,,,
+,,,,,prefix,locn,http://www.w3.org/ns/locn#
 ,,,Country,,,id,locn:Country
 ,,,,id,integer,,
 ,,,,code,string,,
@@ -109,8 +110,9 @@ def test_base_manifest_is_not_written(spinta, locn):
 
     rows = _csv(data)
     assert not any(row["dataset"] == "locn" for row in rows)
-    assert not any(row["model"] == "Country" and row["uri"] for row in rows)
-    assert "locn:Country" not in data.decode("utf-8")
+    # The `uri` of the base is inherited as a CURIE, so its prefix is added to the dataset, where the CURIE is valid.
+    assert any(row["type"] == "prefix" and row["ref"] == "locn" for row in rows)
+    assert "locn:Country" in data.decode("utf-8")
 
 
 def test_every_base_is_searched_for_a_match(spinta, locn):

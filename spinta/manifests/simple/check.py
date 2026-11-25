@@ -187,13 +187,14 @@ def _with_errors(doc: SimpleManifest, log: TabularReadLog, errors: list[BaseErro
     for errs in read.values():
         doc_errors.extend(errs)
 
+    # An element that could not be read has no full row to link. Its read errors are the ones to report, so the
+    # link and check errors of such an element are left out. Every other error is kept, on its element.
+    unreadable = {key for key, element in elements.items() if element["errors"]}
     for error in errors:
         key = element_of(error)
         if key is not None and key in elements:
-            element = elements[key]
-            # An element that could not be read has no full row to link. Its read error is the one to report.
-            if not element["errors"]:
-                element["errors"].append(manifest_error(error, element["index"]))
+            if key not in unreadable:
+                elements[key]["errors"].append(manifest_error(error, elements[key]["index"]))
         else:
             doc_errors.append(manifest_error(error))
 

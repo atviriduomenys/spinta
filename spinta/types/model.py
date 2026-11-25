@@ -19,6 +19,7 @@ from spinta.dimensions.comments.helpers import load_comments
 from spinta.dimensions.enum.helpers import link_enums, link_prop_enum, load_enums
 from spinta.dimensions.lang.helpers import load_lang_data
 from spinta.dimensions.param.helpers import load_params
+from spinta.dimensions.prefix.checks import check_uri_eli_prefixes
 from spinta.dimensions.scope.components import Scope
 from spinta.dimensions.scope.helpers import load_scopes
 from spinta.exceptions import (
@@ -626,8 +627,13 @@ def check(context: Context, model: Model):
     check_model_name(context, model)
     if "_id" not in model.properties:
         raise exceptions.MissingRequiredProperty(model, prop="_id")
+    dataset = _model_dataset(model)
+    check_uri_eli_prefixes(context, model, model, owner="model", dataset=dataset, manifest=model.manifest)
     for scope in model.scopes.values():
         commands.check(context, scope)
+        check_uri_eli_prefixes(
+            context, model, scope, owner=f"scope {scope.name!r}", dataset=dataset, manifest=model.manifest
+        )
     manager = context.get("error_manager")
     for prop in model.properties.values():
         with manager.guard(prop):
@@ -664,9 +670,22 @@ def check(context: Context, scope: Scope) -> None:
     check_scope_name(context, scope)
 
 
+def _model_dataset(model: Model) -> Any:
+    """The dataset of a model, which is where the prefixes of its `uri` and `eli` are declared."""
+    external = model.external
+    return external.dataset if external is not None else None
+
+
 @check.register(Context, Property)
 def check(context: Context, prop: Property):
     check_property_name(context, prop)
+    if prop.model is not None:
+        dataset = _model_dataset(prop.model)
+        manifest = prop.model.manifest
+        check_uri_eli_prefixes(context, prop, prop, owner="property", dataset=dataset, manifest=manifest)
+        for item in (prop.enum or {}).values():
+            owner = f"enum item {item.source!r}"
+            check_uri_eli_prefixes(context, prop, item, owner=owner, dataset=dataset, manifest=manifest)
     if prop.enums:
         for enum_name in prop.enums:
             if enum_name:
