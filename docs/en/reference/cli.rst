@@ -149,6 +149,21 @@ For example, with ``locn.txt`` that has ``Country`` with ``uri`` ``locn:Country`
 
 A ``simple`` output keeps ``given`` as it was written, and fills in the inherited values in ``implied``. Other outputs write the inherited values as if they were given.
 
+Implied values
+--------------
+
+The ``--implied`` option writes the ``implied`` value of a cell that has no given value, in a table output (``csv``, ``xlsx`` and ``ascii``). A ``.simple.json`` file keeps ``implied``, so a table written from it shows the values that the file has, such as a title that a base gave:
+
+.. code-block:: bash
+
+   spinta copy own.simple.json -o manifest.csv --implied
+
+- It fills the ``title``, ``description``, ``eli``, ``status``, ``visibility`` and ``access`` of datasets, models and properties. A given value is never replaced. ``uri`` is not filled: ``implied`` has a URI for every element, the one Spinta derives when none is given.
+- Without the option, a table has the given values only, so it can be read back with them as given. A table written with ``--implied`` shows the effective values, for reading.
+- A CSV, XLSX or ASCII input has no ``implied`` stored with it, so it gets the ``implied`` that ``copy`` to ``simple`` gives it. The table is then the same as the one from its ``simple`` document.
+- The option does not take ``--base``. The ``implied`` of a document is the one it was written with, and a base of the copy would change it. Write the document with its base first, then copy it to the table.
+- A ``simple``, ``mermaid`` or ``rdf`` output does not take the option.
+
 Mermaid.js output
 -----------------
 

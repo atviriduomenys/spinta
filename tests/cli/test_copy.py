@@ -2038,3 +2038,83 @@ def test_copy_inherits_the_values_of_the_base_to_internal_sql(context: Context, 
         rows = conn.execute(sa.text("select path, title, uri from _manifest where dim = 'model'")).fetchall()
     models = {row.path: (row.title, row.uri) for row in rows}
     assert models["datasets/gov/rc/ar/uapi/addr/Country"] == ("Country", "locn:Country")
+
+
+def _implied_files(context, tmp_path) -> tuple[Path, Path]:
+    """The own manifest and its base, as CSV files. `-b` writes the stored `simple` document of the own manifest."""
+    from tests.manifests.simple.test_lib import IMPLIED_IS_TABLE, IMPLIED_OWN_TABLE
+
+    create_tabular_manifest(context, tmp_path / "is.csv", IMPLIED_IS_TABLE)
+    create_tabular_manifest(context, tmp_path / "own.csv", IMPLIED_OWN_TABLE)
+    return tmp_path / "own.csv", tmp_path / "is.csv"
+
+
+def test_copy_implied_writes_the_implied_values_to_csv(context: Context, rc, cli, tmp_path):
+    own, base = _implied_files(context, tmp_path)
+    stored = tmp_path / "own.simple.json"
+    assert cli.invoke(rc, ["copy", "-b", base, "-o", stored, own], fail=False).exit_code == 0
+
+    result = cli.invoke(rc, ["copy", "--implied", "-o", tmp_path / "out.csv", stored], fail=False)
+
+    assert result.exit_code == 0
+    assert "City title" in (tmp_path / "out.csv").read_text(encoding="utf-8")
+    # The CLI writes what the library returns for the same arguments (D14).
+    spinta = Spinta._from_context(context)
+    expected = spinta.copy(json.loads(stored.read_text(encoding="utf-8")), "csv", implied=True)
+    assert (tmp_path / "out.csv").read_bytes() == expected
+
+
+def test_copy_without_implied_writes_the_given_values(context: Context, rc, cli, tmp_path):
+    own, base = _implied_files(context, tmp_path)
+    stored = tmp_path / "own.simple.json"
+    cli.invoke(rc, ["copy", "-b", base, "-o", stored, own], fail=False)
+
+    result = cli.invoke(rc, ["copy", "-o", tmp_path / "out.csv", stored], fail=False)
+
+    assert result.exit_code == 0
+    assert "City title" not in (tmp_path / "out.csv").read_text(encoding="utf-8")
+
+
+def test_copy_implied_is_refused_for_a_simple_output(context: Context, rc, cli, tmp_path):
+    own, base = _implied_files(context, tmp_path)
+    stored = tmp_path / "own.simple.json"
+    cli.invoke(rc, ["copy", "-b", base, "-o", stored, own], fail=False)
+
+    result = cli.invoke(rc, ["copy", "--implied", "-o", tmp_path / "out.simple.json", stored], fail=False)
+
+    assert isinstance(result.exception, ValueError)
+    assert "does not apply to a `simple` result" in str(result.exception)
+    assert not (tmp_path / "out.simple.json").exists()
+
+
+def test_copy_implied_is_refused_with_a_base(context: Context, rc, cli, tmp_path):
+    own, base = _implied_files(context, tmp_path)
+
+    result = cli.invoke(rc, ["copy", "--implied", "-b", base, "-o", tmp_path / "out.csv", own], fail=False)
+
+    assert isinstance(result.exception, ValueError)
+    assert "does not take `base`" in str(result.exception)
+    assert not (tmp_path / "out.csv").exists()
+
+
+def test_copy_implied_refuses_an_input_it_does_not_read_yet(context: Context, rc, cli, tmp_path):
+    (tmp_path / "model.xsd").write_text("<xs:schema/>", encoding="utf-8")
+
+    result = cli.invoke(rc, ["copy", "--implied", "-o", tmp_path / "out.csv", tmp_path / "model.xsd"], fail=False)
+
+    assert isinstance(result.exception, NotImplementedError)
+    assert not (tmp_path / "out.csv").exists()
+
+
+def test_copy_implied_of_a_raw_input_is_the_one_of_its_simple_document(context: Context, rc, cli, tmp_path):
+    # A raw input has no stored `implied`, so `--implied` gives the table of its `simple` document.
+    own, _ = _implied_files(context, tmp_path)
+    stored = tmp_path / "own.simple.json"
+    cli.invoke(rc, ["copy", "-o", stored, own], fail=False)
+
+    cli.invoke(rc, ["copy", "--implied", "-o", tmp_path / "raw.csv", own], fail=False)
+    cli.invoke(rc, ["copy", "--implied", "-o", tmp_path / "stored.csv", stored], fail=False)
+    cli.invoke(rc, ["copy", "-o", tmp_path / "plain.csv", own], fail=False)
+
+    assert (tmp_path / "raw.csv").read_bytes() == (tmp_path / "stored.csv").read_bytes()
+    assert (tmp_path / "raw.csv").read_bytes() != (tmp_path / "plain.csv").read_bytes()

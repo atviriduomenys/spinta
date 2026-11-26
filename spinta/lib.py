@@ -34,6 +34,7 @@ from spinta.manifests.simple.check import LoadedDocument, _with_errors, check_do
 from spinta.manifests.simple.errors import element_in_context, index_of_line, manifest_error, read_error
 from spinta.manifests.simple.from_tabular import tabular_to_simple
 from spinta.manifests.simple.helpers import check_format
+from spinta.manifests.simple.implied import with_implied_cells
 from spinta.manifests.simple.include import include_documents
 from spinta.manifests.simple.merge import merge_documents
 from spinta.manifests.simple.schema import validate_document
@@ -85,9 +86,9 @@ _IMPLEMENTED_READ = frozenset({"csv", "ascii", "xlsx", "simple"})
 
 # The options of 3.1 that each output takes. Any other value of an option raises.
 _OUTPUT_OPTIONS: dict[str, frozenset[str]] = {
-    "ascii": frozenset({"source", "access", "columns", "order_by", "format_names", "rename_duplicates"}),
-    "csv": frozenset({"source", "access", "order_by", "format_names", "rename_duplicates"}),
-    "xlsx": frozenset({"source", "access", "order_by", "format_names", "rename_duplicates"}),
+    "ascii": frozenset({"source", "access", "columns", "order_by", "format_names", "rename_duplicates", "implied"}),
+    "csv": frozenset({"source", "access", "order_by", "format_names", "rename_duplicates", "implied"}),
+    "xlsx": frozenset({"source", "access", "order_by", "format_names", "rename_duplicates", "implied"}),
     "mermaid": frozenset({"dataset", "format_names", "rename_duplicates"}),
     "rdf": frozenset({"access", "dataset", "format_names", "rename_duplicates"}),
     "simple": frozenset(),
@@ -101,6 +102,7 @@ _DEFAULTS: dict[str, Any] = {
     "order_by": None,
     "format_names": False,
     "rename_duplicates": False,
+    "implied": False,
 }
 
 
@@ -182,6 +184,7 @@ class Spinta:
         base_visibility: Sequence[str] | None = None,
         format_names: bool = False,
         rename_duplicates: bool = False,
+        implied: bool = False,
         on_error: Callable[[ManifestError, bool], None] | None = None,
     ) -> SimpleManifest | str | bytes | None:
         """Read a raw source to `simple`, or write a `simple` document (3.1).
@@ -213,6 +216,11 @@ class Spinta:
         `given` and fills in `implied`; a table, RDF or Mermaid result writes the
         inherited values as if they were given.
 
+        `implied` (a table result only: `csv`, `xlsx`, `ascii`) writes the `implied` value of a `title`,
+        `description`, `eli`, `status`, `visibility` or `access` cell that has no given value. A given value is
+        kept. `uri` is not filled. A table without it has the given values only, so it reads back as given.
+        It is refused with `base`: the `implied` of a document is the one it was written with.
+
         Errors do not raise. Each error of the run is passed to `on_error(error,
         raised)`, in order: the errors stored in a `simple` result, or the errors
         found while writing a table. `raised` is true for the error that stopped
@@ -233,6 +241,7 @@ class Spinta:
             base_visibility=base_visibility,
             format_names=format_names,
             rename_duplicates=rename_duplicates,
+            implied=implied,
         )
         return _report(run, on_error)
 
@@ -251,13 +260,17 @@ class Spinta:
         base_visibility: Sequence[str] | None,
         format_names: bool,
         rename_duplicates: bool,
+        implied: bool,
     ) -> _CopyRun:
         """`copy`, with its errors and the error that stopped it (see `_CopyRun`)."""
         with self._lock:
-            options = _copy_options(source, access, dataset, columns, order_by, format_names, rename_duplicates)
+            options = _copy_options(
+                source, access, dataset, columns, order_by, format_names, rename_duplicates, implied
+            )
             if not _is_document(manifest):
                 # A raw source is read to `simple`. Renaming happens in the read, so it is allowed (3.1).
                 _refuse_output_options("simple", {**options, "rename_duplicates": False})
+                _refuse_implied_with_base(options, base)
                 bases = self._default_bases(base, base_visibility)
                 doc, stop = self._read_with_stop(manifest, format, rename_duplicates=rename_duplicates)
                 return self._simple_run(self._combined([doc], include), stop, bases)
@@ -265,6 +278,7 @@ class Spinta:
             # The output is checked before any base is read, so a refused option raises before anything is loaded.
             _check_output_format(fmt)
             _refuse_output_options(fmt, options)
+            _refuse_implied_with_base(options, base)
             docs = _checked_documents(manifest)
             bases = self._default_bases(base, base_visibility)
             return self._write_docs(docs, fmt, options, stop=None, bases=bases, include=include)
@@ -281,6 +295,7 @@ class Spinta:
         order_by: str | None = None,
         format_names: bool = False,
         rename_duplicates: bool = False,
+        implied: bool = False,
         base: Sequence[SimpleManifest | str | os.PathLike] = (),
         base_visibility: Sequence[str] | None = None,
         include: Sequence[SimpleManifest] = (),
@@ -303,13 +318,22 @@ class Spinta:
                 order_by=order_by,
                 format_names=format_names,
                 rename_duplicates=rename_duplicates,
+                implied=implied,
             )
+            _refuse_implied_with_base(options, base)
             bases = self._default_bases(base, base_visibility)
             reads = [self._read_with_stop(path, fmt, rename_duplicates=rename_duplicates) for path, fmt in files]
             stop = next((error for _, error in reads if error is not None), None)
             if stop is not None and format != "simple":
                 return _report(_CopyRun(None, [(_as_error(stop), True)], stop), on_error)
             docs = [doc for doc, _ in reads]
+            if options["implied"]:
+                # A raw input has no `implied` stored with it. It gets the one that `copy` to `simple` gives it (4.6),
+                # so `--implied` gives the same table from the input and from its `simple` document.
+                docs = [
+                    doc if (fmt or _detect_format(path)) == "simple" else self._simple_run(doc, None).output
+                    for doc, (path, fmt) in zip(docs, files)
+                ]
             return _report(self._write_docs(docs, format, options, stop, bases=bases, include=include), on_error)
 
     def _write_docs(
@@ -422,12 +446,15 @@ class Spinta:
         order_by: str | None,
         format_names: bool,
         rename_duplicates: bool,
+        implied: bool = False,
     ) -> _CopyRun:
         """Render `doc` from its nodes, with the writers that `spinta copy` uses (D14).
 
         The document is loaded as `check` loads it, with downgraded references
         (3.4). Names are not checked when they are renamed, as the CLI does.
         """
+        if implied:
+            doc = with_implied_cells(doc)
         loaded = load_document(
             self._rc,
             doc,
@@ -817,7 +844,16 @@ def _located(error: ManifestError, source: str | None) -> ManifestError:
     return {**error, "context": ordered}
 
 
-_RENDER_OPTIONS = ("source", "access", "dataset", "columns", "order_by", "format_names", "rename_duplicates")
+_RENDER_OPTIONS = (
+    "source",
+    "access",
+    "dataset",
+    "columns",
+    "order_by",
+    "format_names",
+    "rename_duplicates",
+    "implied",
+)
 
 
 def _copy_options(
@@ -828,6 +864,7 @@ def _copy_options(
     order_by: str | None,
     format_names: bool,
     rename_duplicates: bool,
+    implied: bool = False,
 ) -> dict[str, Any]:
     """The options of `copy`, by name. An `Access` is given by its name."""
     if isinstance(access, Access):
@@ -840,6 +877,7 @@ def _copy_options(
         "order_by": order_by,
         "format_names": format_names,
         "rename_duplicates": rename_duplicates,
+        "implied": implied,
     }
 
 
@@ -849,6 +887,17 @@ def _copy_checked(format: str, **options: Any) -> dict[str, Any]:
     checked = _copy_options(**options)
     _refuse_output_options(format, checked)
     return checked
+
+
+def _refuse_implied_with_base(options: dict[str, Any], base: Sequence[Any] | None) -> None:
+    """`implied` does not take `base` (3.1). The `implied` of a document is the one it was written with. A base of this
+    run changes what `implied` derives (the access of a property, for one), so the values would be stale."""
+    if options.get("implied") and base:
+        raise ValueError(
+            "`implied` does not take `base` (3.1): the `implied` of a document is the one it was written with. "
+            "Write the document with its base first (`copy -b ... -o x.simple.json`), then copy that to the table "
+            "with `implied`."
+        )
 
 
 def _refuse_output_options(format: str, options: dict[str, Any]) -> None:

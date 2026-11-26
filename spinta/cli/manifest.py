@@ -9,7 +9,7 @@ from spinta.cli.helpers.store import load_manifest, load_store, manifest_banner
 from spinta.components import Context
 from spinta.core.context import configure_context
 from spinta.core.enums import Access
-from spinta.lib import ManifestError, Spinta, _copy_checked
+from spinta.lib import ManifestError, Spinta, _copy_checked, _refuse_implied_with_base
 from spinta.manifests.components import ManifestPath
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import write_internal_sql_manifest
@@ -52,6 +52,15 @@ def copy(
         None, help=("Order by a specified column (currently only access column is supported)")
     ),
     rename_duplicates: bool = Option(False, help=("Rename duplicate model names by adding number suffix")),
+    implied: bool = Option(
+        False,
+        "--implied",
+        help=(
+            "Table outputs (csv, xlsx, ascii) write the implied value of a title, description, eli, status, visibility "
+            "or access cell that has no given value. Without it, a table has the given values only, so it reads back "
+            "with them as given. Not for simple, mermaid or rdf outputs."
+        ),
+    ),
     base: list[str] = Option(
         None,
         "-b",
@@ -98,6 +107,7 @@ def copy(
         base=base,
         base_visibility=_split_visibility(base_visibility),
         include=include,
+        implied=implied,
         on_error=errors,
     )
     # The table is printed whenever it was written: an error that was collected is printed on stderr, and the
@@ -124,6 +134,7 @@ def copy_manifest(
     base: list[str] | None = None,
     base_visibility: list[str] | None = None,
     include: list[str] | None = None,
+    implied: bool = False,
     on_error: Callable[[ManifestError, bool], None] | None = None,
 ) -> str | None:
     """Copy models from CSV manifest files into another CSV manifest file
@@ -152,8 +163,12 @@ def copy_manifest(
             base=base or [],
             base_visibility=base_visibility,
             include=include or [],
+            implied=implied,
             on_error=on_error,
         )
+    if implied:
+        # The option is written by `Spinta.copy` only, as the table of its output (3.5, rule 5).
+        raise NotImplementedError("`--implied` is not implemented yet for this input or output.")
     if base or base_visibility is not None or include:
         # The default bases and the includes are `Spinta.copy` options, so only its inputs and outputs take them.
         raise NotImplementedError("`--base` and `--include` are not implemented yet for this input or output.")
@@ -283,6 +298,7 @@ def _copy_with_lib(
     base: list[str],
     base_visibility: list[str] | None,
     include: list[str],
+    implied: bool,
     on_error: Callable[[ManifestError, bool], None] | None,
 ) -> str | None:
     """`spinta copy` through `Spinta.copy` (3.5). The CLI parses the options and writes the result.
@@ -299,7 +315,9 @@ def _copy_with_lib(
         order_by=order_by,
         format_names=format_names,
         rename_duplicates=rename_duplicates,
+        implied=implied,
     )
+    _refuse_implied_with_base(options, base)
     # The config and the store are loaded as before, and with `-o` the manifest is named (verbose).
     store = load_store(context, verbose=bool(output))
     if output:

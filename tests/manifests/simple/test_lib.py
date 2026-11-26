@@ -5,6 +5,7 @@ with `read_simple_rows`, so a test checks what a user reads back, not the
 writer's own output.
 """
 
+import copy
 import csv
 import io
 import json
@@ -16,7 +17,7 @@ import pytest
 import spinta.lib as lib
 from spinta.lib import Spinta
 from spinta.manifests.simple.helpers import read_simple_rows
-from spinta.manifests.simple.types import SimpleManifestError
+from spinta.manifests.simple.types import SimpleManifest, SimpleManifestError
 from spinta.manifests.tabular.helpers import DATASET, TabularManifestError, striptable
 from tests.manifests.simple.test_read import CSV_TABLE, golden
 
@@ -442,3 +443,117 @@ def test_lib_exports_the_documented_names():
 def test_raw_source_to_simple_refuses_output_only_options(spinta):
     with pytest.raises(ValueError, match="does not apply to a `simple` result"):
         spinta.copy(CSV_TABLE.encode("utf-8"), "csv", columns=["id"])
+
+
+# `--implied` (5.9): a table written from a stored document shows the `implied` of a cell with no given value. The
+# base is not in the stored document, so the values are only in its `implied`.
+IMPLIED_IS_TABLE = striptable("""
+    d                  | r | b | m    | property | type    | ref | title      | access
+    datasets/gov/is/ds |   |   |      |          |         |     |            |
+         |   |   | City |          |         | id  | City title | public
+         |   |   |      | id       | integer |     |            |
+""")
+
+IMPLIED_OWN_TABLE = striptable("""
+    d                  | r | b | m    | property | type    | ref
+    datasets/gov/is/ds |   |   |      |          |         |
+         |   |   | City |          |         | id
+         |   |   |      | id       | integer |
+""")
+
+_CITY = "datasets/gov/is/ds/City"
+
+
+def _csv_dicts(data: bytes) -> list[dict[str, str]]:
+    return list(csv.DictReader(io.StringIO(data.decode("utf-8"))))
+
+
+def _city_row(data: bytes) -> dict[str, str]:
+    [city] = [row for row in _csv_dicts(data) if row["model"] == "City"]
+    return city
+
+
+def _stored_with_base(spinta, own: str = IMPLIED_OWN_TABLE) -> SimpleManifest:
+    """The own table, written with its base as a `simple` document (`copy -b`)."""
+    base = spinta.copy(IMPLIED_IS_TABLE.encode("utf-8"), "ascii")
+    return spinta.copy(spinta.copy(own.encode("utf-8"), "ascii"), base=[base])
+
+
+def test_implied_fills_the_cells_that_have_no_given_value(spinta):
+    city = _city_row(spinta.copy(_stored_with_base(spinta), "csv", implied=True))
+
+    assert (city["title"], city["access"]) == ("City title", "public")
+
+
+def test_without_implied_a_table_has_the_given_values_only(spinta):
+    city = _city_row(spinta.copy(_stored_with_base(spinta), "csv"))
+
+    assert (city["title"], city["access"]) == ("", "")
+
+
+def test_implied_table_has_the_values_of_the_same_call(spinta):
+    # The same call matches the base, so its City row has the inherited values. The stored document, copied with
+    # `implied`, gives the same values for the model.
+    base = spinta.copy(IMPLIED_IS_TABLE.encode("utf-8"), "ascii")
+    own = spinta.copy(IMPLIED_OWN_TABLE.encode("utf-8"), "ascii")
+    same = _city_row(spinta.copy(own, "csv", base=[base]))
+
+    from_stored = _city_row(spinta.copy(spinta.copy(own, base=[base]), "csv", implied=True))
+
+    assert (from_stored["title"], from_stored["access"]) == (same["title"], same["access"])
+
+
+def test_a_given_value_is_not_replaced_by_implied(spinta):
+    own = striptable("""
+    d                  | r | b | m    | property | type    | ref | title
+    datasets/gov/is/ds |   |   |      |          |         |     |
+         |   |   | City |          |         | id  | Given title
+         |   |   |      | id       | integer |     |
+    """)
+    stored = _stored_with_base(spinta, own=own)
+    stored["model"][_CITY]["implied"]["title"] = "Other title"
+
+    city = _city_row(spinta.copy(stored, "csv", implied=True))
+
+    assert city["title"] == "Given title"
+
+
+def test_an_implied_null_leaves_the_cell_empty(spinta):
+    # Without a base, the model has no title in its `implied`, so the cell stays empty.
+    stored = spinta.copy(spinta.copy(IMPLIED_OWN_TABLE.encode("utf-8"), "ascii"))
+
+    assert stored["model"][_CITY]["implied"]["title"] is None
+    assert _city_row(spinta.copy(stored, "csv", implied=True))["title"] == ""
+
+
+def test_implied_does_not_change_the_document(spinta):
+    stored = _stored_with_base(spinta)
+    before = copy.deepcopy(stored)
+
+    spinta.copy(stored, "csv", implied=True)
+
+    assert stored == before
+
+
+def test_implied_takes_ascii_and_xlsx(spinta):
+    stored = _stored_with_base(spinta)
+
+    assert "City title" in spinta.copy(stored, "ascii", implied=True)
+    workbook = openpyxl.load_workbook(io.BytesIO(spinta.copy(stored, "xlsx", implied=True)))
+    assert "City title" in {cell.value for row in workbook.active.iter_rows() for cell in row}
+
+
+@pytest.mark.parametrize("fmt", ["simple", "rdf", "mermaid"])
+def test_implied_is_refused_for_an_output_that_does_not_take_it(spinta, fmt):
+    with pytest.raises(ValueError, match="does not apply"):
+        spinta.copy(_stored_with_base(spinta), fmt, implied=True)
+
+
+def test_implied_is_refused_with_a_base(spinta):
+    # The `implied` of a document is the one it was written with. A base of this run would change it, so the values
+    # would be stale (the access of a property comes from its model).
+    base = spinta.copy(IMPLIED_IS_TABLE.encode("utf-8"), "ascii")
+    own = spinta.copy(IMPLIED_OWN_TABLE.encode("utf-8"), "ascii")
+
+    with pytest.raises(ValueError, match="does not take `base`"):
+        spinta.copy(own, "csv", base=[base], implied=True)

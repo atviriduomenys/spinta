@@ -19,6 +19,7 @@ sets, given or inherited, so an inherited value is in `implied` and not in `give
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -546,4 +547,45 @@ def implied_of_document(context, manifest, doc: SimpleManifest) -> dict[Key, dic
             out[key] = None
             continue
         out[key] = builder(key, element, node, env)
+    return out
+
+
+# The cells of a table that `copy --implied` fills from `implied` (see `with_implied_cells`). `uri` is not one: `implied`
+# has a `uri` for every element, the URI that Spinta derives when none is given (4.6). A cell would show a URI that
+# nobody gave, so `uri` is left as it is.
+IMPLIED_CELLS = ("title", "description", "eli", "status", "visibility", "access")
+
+# The elements whose cells are filled. Resources, enums and prefixes are not inherited (see `spinta.manifests.inherit`).
+_IMPLIED_CELL_TYPES = ("dataset", "model", "property")
+
+
+def with_implied_cells(doc: SimpleManifest) -> SimpleManifest:
+    """A copy of `doc` where each cell of `IMPLIED_CELLS` with no given value takes the element's `implied` value.
+
+    For a table output with `copy --implied` (`Spinta.copy(implied=True)`). A given value is never replaced (5.9). An
+    element with no `implied`, or with `null` for a cell, keeps the cell empty. `doc` is not changed.
+
+    The `implied` of `doc` is the one it was written with, so it is only right without the bases of the run that
+    writes it: a base of the run changes the values that `implied` derives, such as the access of a property. The
+    caller refuses `base` with this option.
+    """
+    out = deepcopy(doc)
+    filled: set[str] = set()
+    for type_ in _IMPLIED_CELL_TYPES:
+        for element in (out.get(type_) or {}).values():
+            given, implied = element.get("given"), element.get("implied")
+            if not given or not implied:
+                continue
+            for name in IMPLIED_CELLS:
+                if given.get(name) in (None, "") and implied.get(name) not in (None, ""):
+                    given[name] = implied[name]
+                    filled.add(name)
+
+    # A given key must be a column of the document (4.3). A cell that the input has no column for is added to the
+    # first manifest, as the output has the same header whatever the input had.
+    manifests = list(out[MANIFEST_TYPE].values())
+    columns = {column for manifest in manifests for column in manifest["columns"]}
+    missing = [name for name in IMPLIED_CELLS if name in filled and name not in columns]
+    if missing:
+        manifests[0]["columns"].extend(missing)
     return out
