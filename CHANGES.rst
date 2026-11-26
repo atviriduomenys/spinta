@@ -17,8 +17,13 @@ Bug fixes:
   the manifest loader the same way as ``name[]`` rows from tabular manifests
   (`#2099`_).
 
+- HTTP responses default to ``Cache-Control: no-store`` unless an explicit
+  cache policy applies. This prevents shared caches from reusing namespace
+  responses across formats or authorization scopes (`#2108`_).
+
 .. _#1469: https://github.com/atviriduomenys/spinta/issues/1469
 .. _#2099: https://github.com/atviriduomenys/spinta/issues/2099
+.. _#2108: https://github.com/atviriduomenys/spinta/issues/2108
 
 2.2.0 (2026-11-22)
 =====================

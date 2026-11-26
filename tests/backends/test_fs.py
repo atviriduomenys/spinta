@@ -492,12 +492,22 @@ def test_file_get_headers(model, app):
         },
     )
     assert resp.status_code == 200, resp.text
+    assert resp.headers["Cache-Control"] == "no-store"
     revision = resp.json()["_revision"]
 
     resp = app.get(f"/{model}/{id_}/image")
+    assert resp.status_code == 200
     assert resp.content == b"BINARYDATA"
     assert "revision" in resp.headers
     assert resp.headers["revision"] == revision
+    assert resp.headers["etag"] == revision
+    assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
+
+    partial = app.get(f"/{model}/{id_}/image", headers={"Range": "bytes=0-2", "If-Range": revision})
+    assert partial.status_code == 206
+    assert partial.content == b"BIN"
+    for header in ("Cache-Control", "Vary", "ETag", "Last-Modified"):
+        assert partial.headers[header] == resp.headers[header]
 
 
 @pytest.mark.models(

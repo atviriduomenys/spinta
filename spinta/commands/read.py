@@ -102,8 +102,7 @@ async def getall(
 
     rows = log_response(context, rows)
 
-    cache_control = context.get("cache-control")
-    return render(context, request, model, params, rows, action=action, headers=cache_control)
+    return render(context, request, model, params, rows, action=action)
 
 
 @commands.getall.register(Context, Model, Page)
@@ -367,7 +366,6 @@ async def getone(
     params: UrlParams,
 ) -> Response:
     commands.authorize(context, action, model)
-    cache_control = context.get("cache-control")
 
     accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
@@ -381,7 +379,7 @@ async def getone(
     try:
         data = commands.getone(context, model, backend, id_=params.pk)
         data = next(prepare_data_for_response(context, model, action, params, data, reserved=[]))
-        return render(context, request, model, params, data, action=action, headers=cache_control)
+        return render(context, request, model, params, data, action=action)
     except ItemDoesNotExist as e:
         try:
             if redirect_id := commands.redirect(context, backend, model, params.pk):
@@ -395,7 +393,7 @@ async def getone(
                     }
                 )
                 result = "/" + build_url_path(ptree)
-                return RedirectResponse(result, status_code=301, headers=cache_control)
+                return RedirectResponse(result, status_code=301)
         except RedirectFeatureMissing as r_e:
             raise MultipleErrors([r_e, e])
         raise e
@@ -441,8 +439,7 @@ async def getone(
         data,
         action=action,
     )
-    cache_control = context.get("cache-control")
-    return render(context, request, prop, params, data, action=action, headers=cache_control)
+    return render(context, request, prop, params, data, action=action)
 
 
 @overload
@@ -458,7 +455,6 @@ async def getone(
     params: UrlParams,
 ) -> Response:
     commands.authorize(context, action, prop)
-    cache_control = context.get("cache-control")
 
     accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
@@ -489,7 +485,7 @@ async def getone(
             data,
             action=Action.GETONE,
         )
-        return render(context, request, prop, params, data, action=action, headers=cache_control)
+        return render(context, request, prop, params, data, action=action)
 
     # Return file content from property backend
     else:
@@ -507,22 +503,28 @@ async def getone(
             raise ItemDoesNotExist(dtype, id=params.pk)
 
         filename = value["_id"]
+        headers = {
+            "Revision": data["_revision"],
+            "Content-Disposition": f'attachment; filename="{filename}"' if filename else "attachment",
+        }
 
         if isinstance(file, bytes):
             ResponseClass = Response
         elif isinstance(file, Path):
             ResponseClass = FileResponse
+            if "if-range" in request.headers:
+                # FileResponse compares validators before it sends the response headers.
+                cache_headers = context.get("cache-control")
+                headers.update(
+                    {name: cache_headers[name] for name in ("ETag", "Last-Modified") if name in cache_headers}
+                )
         else:
             raise ValueError(f"Unknown file type {type(file)}.")
 
         return ResponseClass(
             file,
             media_type=value.get("_content_type"),
-            headers={
-                "Revision": data["_revision"],
-                "Content-Disposition": (f'attachment; filename="{filename}"' if filename else "attachment"),
-                **(cache_control or {}),
-            },
+            headers=headers,
         )
 
 
@@ -536,7 +538,6 @@ async def changes(
     params: UrlParams,
 ):
     commands.authorize(context, action, model)
-    cache_control = context.get("cache-control")
 
     if params.head:
         rows = []
@@ -568,7 +569,7 @@ async def changes(
         reserved=["_cid", "_created", "_op", "_id", "_txn", "_revision", "_same_as"],
     )
 
-    return render(context, request, model, params, rows, action=action, headers=cache_control)
+    return render(context, request, model, params, rows, action=action)
 
 
 @commands.summary.register(Context, Request, Model)
@@ -582,7 +583,6 @@ async def summary(
 ) -> Response:
     commands.authorize(context, action, model)
     backend = model.backend
-    cache_control = context.get("cache-control")
 
     accesslog: AccessLog = context.get("accesslog")
     accesslog.request(
@@ -598,4 +598,4 @@ async def summary(
         expr = urlparams_to_expr(params)
         rows = commands.summary(context, model, backend, expr)
     rows = log_response(context, rows)
-    return render(context, request, model, params, rows, action=action, headers=cache_control)
+    return render(context, request, model, params, rows, action=action)

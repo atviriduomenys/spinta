@@ -1,5 +1,6 @@
 import posixpath
 
+from starlette.datastructures import MutableHeaders
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -111,3 +112,31 @@ class ContextMiddleware:
                 await self.app(scope, receive, send)
         else:
             await self.app(scope, receive, send)
+
+
+class CacheControlMiddleware:
+    """Emit cache headers from the request context, defaulting to no-store."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_cache_control(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = MutableHeaders(scope=message)
+                if "Cache-Control" not in headers:
+                    context: Context | None = scope.get("state", {}).get("context")
+                    if message["status"] < 400 and context is not None and context.has("cache-control"):
+                        for name, value in context.get("cache-control").items():
+                            if name == "Vary":
+                                headers.add_vary_header(value)
+                            else:
+                                headers[name] = value
+                    headers.setdefault("Cache-Control", "no-store")
+            await send(message)
+
+        await self.app(scope, receive, send_with_cache_control)

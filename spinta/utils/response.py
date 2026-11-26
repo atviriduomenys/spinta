@@ -497,10 +497,10 @@ def validate_cache_control_request(context: Context, request: Request) -> object
 
     if if_none_match:
         if if_none_match == cache_control["ETag"]:
-            return Response(status_code=304, headers=cache_control)
+            return Response(status_code=304)
     elif if_modified_since:
         last_modified_dt = parsedate_to_datetime(cache_control["Last-Modified"])
         since_dt = parsedate_to_datetime(if_modified_since)
         if last_modified_dt <= since_dt:
-            return Response(status_code=304, headers=cache_control)
+            return Response(status_code=304)
     return None
