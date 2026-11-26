@@ -3,6 +3,7 @@
 - `jsonld_enabled`: whether a response is enriched, from its negotiated format.
 - `context_value`: the `@context` of an object of a model, a URL or the inline context (10.16).
 - `protocol_context_value`: the `@context` of a collection, `:all` or batch response.
+- `enrich_object`: the JSON-LD keys of one model object (rule 3), added to its data.
 """
 
 from __future__ import annotations
@@ -79,6 +80,25 @@ def protocol_context_value(context: Context) -> str | dict[str, Any]:
     if base:
         return f"{base}/_uapi.json"
     return {"_data": "@graph"}
+
+
+def enrich_object(context: Context, model: Model, data: dict[str, Any]) -> dict[str, Any]:
+    """Add `@context`, `@id` and `@type` to one object of `model` (rules 3 and 7, 3.2).
+
+    The three keys come first. The keys of `data` keep their order and values. A `protected` or `private` model is not
+    enriched (10.2), so `data` is returned as it is. `@id` is skipped, and logged, when `data` has no `_id` (task 9).
+    """
+    if not in_scope(model):
+        return data
+    uris = uri_context(context, model.manifest)
+    keys: dict[str, Any] = {"@context": context_value(context, model)}
+    _id = data.get("_id")
+    if _id is None:
+        log.warning("No `_id` in the response of %r, so `@id` is not added.", model.name)
+    else:
+        keys["@id"] = uris.instance_id(model, _id)
+    keys["@type"] = uris.class_iri(model)
+    return {**keys, **data}
 
 
 def _inline_context(context: Context, model: Model) -> dict[str, Any]:

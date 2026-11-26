@@ -4,9 +4,10 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from spinta import commands
-from spinta.components import Context, Node, UrlParams
+from spinta.components import Context, Model, Node, UrlParams
 from spinta.core.enums import Action
 from spinta.formats.json.components import Json
+from spinta.formats.jsonld.helpers import enrich_object, jsonld_enabled
 from spinta.types.text.components import Text
 from spinta.utils.response import async_response_iterator, peek_and_stream
 
@@ -33,6 +34,7 @@ def render(
         data,
         status_code,
         headers,
+        node,
     )
 
 
@@ -45,6 +47,7 @@ def _render(
     data,
     status_code: int,
     headers: dict,
+    node: Node = None,
 ):
     if action in (Action.GETALL, Action.SEARCH, Action.CHANGES):
         # In python dict is also an iterable, but here we want a true iterable,
@@ -59,6 +62,9 @@ def _render(
     elif action == Action.DELETE:
         return Response(None, status_code=status_code, headers=headers)
     else:
+        if action == Action.GETONE and isinstance(node, Model) and jsonld_enabled(context, fmt):
+            # A single object of a model (rule 3). Sub-resources have no model as `node`, so they are not enriched.
+            data = enrich_object(context, node, data)
         return JSONResponse(fmt.data(data), status_code=status_code, headers=headers, media_type=fmt.content_type)
 
 
