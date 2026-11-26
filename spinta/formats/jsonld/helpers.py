@@ -4,6 +4,7 @@
 - `context_value`: the `@context` of an object of a model, a URL or the inline context (10.16).
 - `protocol_context_value`: the `@context` of a collection, `:all` or batch response.
 - `enrich_object`: the JSON-LD keys of one model object (rule 3), added to its data.
+- `enrich_refs`: the keys of every `ref` value in an object, at any depth (rule 7, 3.2).
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from spinta.formats.json.components import Json
 from spinta.formats.jsonld.components import JsonLd
 from spinta.manifests.jsonld.context import ModelContext, in_scope
 from spinta.manifests.simple.implied import uri_context
+from spinta.types.datatype import Array, Object, Ref
 
 log = logging.getLogger(__name__)
 
@@ -90,6 +92,7 @@ def enrich_object(context: Context, model: Model, data: dict[str, Any]) -> dict[
     """
     if not in_scope(model):
         return data
+    data = enrich_refs(context, model, data)
     uris = uri_context(context, model.manifest)
     keys: dict[str, Any] = {"@context": context_value(context, model)}
     _id = data.get("_id")
@@ -99,6 +102,58 @@ def enrich_object(context: Context, model: Model, data: dict[str, Any]) -> dict[
         keys["@id"] = uris.instance_id(model, _id)
     keys["@type"] = uris.class_iri(model)
     return {**keys, **data}
+
+
+def enrich_refs(context: Context, model: Model, data: dict[str, Any]) -> dict[str, Any]:
+    """Enrich every `ref` value of an object of `model`, at any depth (rule 7, 3.2).
+
+    A `ref` value is a model object of its target model, so it gets the same keys as a top-level object. The walk goes
+    through nested objects and arrays, because a `ref` can be there too. `data` is not changed: a new dict is returned.
+    """
+    return _enrich_properties(context, model.properties, data)
+
+
+def _enrich_properties(context: Context, properties: dict[str, Any] | None, data: dict[str, Any]) -> dict[str, Any]:
+    result = dict(data)
+    for key, prop in (properties or {}).items():
+        if key in result:
+            result[key] = _enrich_value(context, prop.dtype, result[key])
+    return result
+
+
+def _enrich_value(context: Context, dtype: Any, value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(dtype, Ref):
+        return _enrich_ref(context, dtype.model, value)
+    if isinstance(dtype, Array) and dtype.items is not None and isinstance(value, list):
+        return [_enrich_value(context, dtype.items.dtype, item) for item in value]
+    if isinstance(dtype, Object) and isinstance(value, dict):
+        return _enrich_properties(context, dtype.properties, value)
+    return value
+
+
+def _enrich_ref(context: Context, target: Any, value: Any) -> Any:
+    """The keys of one `ref` value, a model object of `target` (rule 7, 3.2).
+
+    Left as it is when the value is not an object, when `target` is `protected` or `private` (10.2), or when the value
+    has no target (`_id` is null, so no `@id` can be built, task 8).
+    """
+    if not isinstance(value, dict) or not isinstance(target, Model) or not in_scope(target):
+        return value
+    if "_id" in value and value["_id"] is None:
+        return value
+    if "_id" not in value:
+        # The selection left `_id` out, so it cannot be built here (task 9 adds it to the selection).
+        log.warning("No `_id` in the `ref` value of %r, so its `@id` is not added.", target.name)
+        return value
+    uris = uri_context(context, target.manifest)
+    keys: dict[str, Any] = {
+        "@context": context_value(context, target),
+        "@id": uris.instance_id(target, value["_id"]),
+        "@type": uris.class_iri(target),
+    }
+    return {**keys, "_type": target.name, **value}
 
 
 def _inline_context(context: Context, model: Model) -> dict[str, Any]:
