@@ -184,7 +184,12 @@ def with_default_base_elements(doc: SimpleManifest, context, manifest) -> Simple
     The matched base is not a row of the input, so its element has no `index`. Its `given` holds the key of
     the model as `ref`, as a base row has it. The model points to the element with `base`, as a model row
     with a base does, so the output reads back with the same base. A base element that is already there
-    keeps its place: a repeated path gets a `#n` suffix (4.3). Changes `doc` in place and returns it.
+    keeps its place: a repeated path gets a `#n` suffix (4.3).
+
+    A model that already points to a default base element of the same path keeps it: a second copy of a
+    document that has its default base does not add another one. That element has no `index` and its key is
+    the path, with an optional `#n`, so it is told apart from a row of the input. Changes `doc` in place and
+    returns it.
     """
     for model in commands.get_models(context, manifest).values():
         base = model.base
@@ -196,7 +201,14 @@ def with_default_base_elements(doc: SimpleManifest, context, manifest) -> Simple
         parent = element["parent"]
         prefix = parent["path"] if parent["type"] == "dataset" else None
         path = "/".join(p for p in (prefix, base.name) if p)
+        given = {"ref": ",".join(p.name for p in base.pk)} if base.pk else {}
         bases = doc.setdefault("base", {})
+        kept = element.get("base")
+        if kept in bases and bases[kept].get("index") is None and kept.split("#", 1)[0] == path:
+            bases[kept]["parent"] = dict(parent)
+            bases[kept]["given"] = given
+            element["base"] = kept
+            continue
         candidate, n = path, 1
         while candidate in bases:
             n += 1
@@ -204,7 +216,7 @@ def with_default_base_elements(doc: SimpleManifest, context, manifest) -> Simple
         bases[candidate] = {
             "index": None,
             "parent": dict(parent),
-            "given": {"ref": ",".join(p.name for p in base.pk)} if base.pk else {},
+            "given": given,
             "implied": None,
             "errors": [],
         }

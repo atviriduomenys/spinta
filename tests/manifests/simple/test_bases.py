@@ -376,3 +376,11 @@ def test_one_call_keeps_the_no_match_error_of_a_model(spinta, locn):
     assert _codes(doc["model"]["datasets/gov/rc/ar/uapi/addr/Standalone"]) == ["DefaultBaseNotFound"]
     assert _codes(doc["model"]["datasets/gov/rc/ar/uapi/addr/Country"]) == []
     assert "locn/Country" in doc["model"]
+
+
+def test_second_copy_with_base_keeps_one_base_element(spinta, locn):
+    first = spinta.copy(_doc(spinta, AR), "simple", base=[locn])
+    again = spinta.copy(first, "simple", base=[locn])
+
+    assert list(again["base"]) == list(first["base"])
+    assert spinta.check(again) == []
