@@ -4,12 +4,13 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from spinta import commands
-from spinta.components import Context, Node, UrlParams
+from spinta.components import Context, Model, Node, UrlParams
 from spinta.core.enums import Action
 from spinta.formats.json.components import Json
 from spinta.formats.jsonld.helpers import (
     enrich_object,
     enrich_objects,
+    jsonld_collection_enabled,
     jsonld_objects_enabled,
     protocol_context_value,
 )
@@ -60,9 +61,11 @@ def _render(
         assert not isinstance(data, dict), data
         context_value = None
         # `CHANGES` (LDES) is not covered by JSON-LD (spec section 7), so it keeps its body.
-        if action != Action.CHANGES and jsonld_objects_enabled(context, node, params):
-            # Each item is enriched (4.2), and the top-level `@context` makes `_data` a graph (10.4).
-            data = enrich_objects(context, node, data)
+        if action != Action.CHANGES and jsonld_collection_enabled(context, node, params):
+            if isinstance(node, Model):
+                # Each item is enriched (4.2). The items of `:all` were enriched by their own model (5.1).
+                data = enrich_objects(context, node, data)
+            # The top-level `@context` makes `_data` a graph (10.4).
             context_value = protocol_context_value(context)
         return StreamingResponse(
             async_response_iterator(peek_and_stream(fmt(data, context_value=context_value))),

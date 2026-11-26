@@ -3,10 +3,17 @@ from starlette.responses import Response
 
 from spinta import commands
 from spinta.accesslog import log_response
-from spinta.backends.helpers import get_select_prop_names, get_select_tree
+from spinta.backends.helpers import (
+    get_model_reserved_props,
+    get_select_prop_names,
+    get_select_tree,
+    select_with_type,
+)
+from spinta.commands.read import prepare_all_rows
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Namespace, UrlParams
 from spinta.core.enums import Action
+from spinta.formats.jsonld.helpers import jsonld_objects_enabled
 from spinta.manifests.internal_sql.commands.manifest import get_model_name_list
 from spinta.manifests.internal_sql.components import InternalSQLManifest
 from spinta.manifests.internal_sql.helpers import get_namespace_partial_data
@@ -53,31 +60,26 @@ def getall(
         prepare_data_for_response_kwargs = {}
         for model in commands.traverse_ns_models(context, ns, manifest, action, internal=True):
             commands.authorize(context, action, model)
-            select_tree = get_select_tree(context, action, params.select)
+            # Each item is enriched by its own model (5.1), so its `_type` is selected too (rule 7).
+            jsonld = jsonld_objects_enabled(context, model, params)
+            select = select_with_type(context, action, params.select) if jsonld else params.select
+            select_tree = get_select_tree(context, action, select)
             prop_names = get_select_prop_names(
                 context,
                 model,
                 model.properties,
                 action,
                 select_tree,
+                reserved=get_model_reserved_props(action, False) if jsonld else None,
             )
             prepare_data_for_response_kwargs[model.model_type()] = {
                 "select": select_tree,
                 "prop_names": prop_names,
+                "jsonld": jsonld,
             }
         expr = urlparams_to_expr(params)
         rows = commands.getall(context, ns, action=action, query=expr)
-        rows = (
-            commands.prepare_data_for_response(
-                context,
-                commands.get_model(context, manifest, row["_type"]),
-                params.fmt,
-                row,
-                action=action,
-                **prepare_data_for_response_kwargs[row["_type"]],
-            )
-            for row in rows
-        )
+        rows = prepare_all_rows(context, manifest, params, action, rows, prepare_data_for_response_kwargs)
         rows = log_response(context, rows)
         return render(context, request, ns, params, rows, action=action)
     else:

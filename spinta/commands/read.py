@@ -1,5 +1,5 @@
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import overload
@@ -26,7 +26,8 @@ from spinta.exceptions import (
     TooShortPageSizeKeyRepetition,
     UnavailableSubresource,
 )
-from spinta.formats.jsonld.helpers import jsonld_objects_enabled
+from spinta.formats.jsonld.helpers import enrich_object, jsonld_objects_enabled
+from spinta.manifests.components import Manifest
 from spinta.renderer import render
 from spinta.types.datatype import DataType, File, Object
 from spinta.ufuncs.querybuilder.components import QueryParams
@@ -205,6 +206,34 @@ def prepare_data_for_response(
                     select=func_select_tree,
                 )
         yield result
+
+
+def prepare_all_rows(
+    context: Context,
+    manifest: Manifest,
+    params: UrlParams,
+    action: Action,
+    rows: Iterable[dict],
+    kwargs_by_type: dict[str, dict],
+) -> Iterator[dict]:
+    """Prepare the rows of `:all`, where each row is of its own model (`_type`).
+
+    A row of a model that is enriched (`jsonld`) gets its JSON-LD keys from that model (rule 7, 5.1). Other rows are
+    returned as they are.
+    """
+    for row in rows:
+        model = commands.get_model(context, manifest, row["_type"])
+        kwargs = kwargs_by_type[row["_type"]]
+        data = commands.prepare_data_for_response(
+            context,
+            model,
+            params.fmt,
+            row,
+            action=action,
+            select=kwargs["select"],
+            prop_names=kwargs["prop_names"],
+        )
+        yield enrich_object(context, model, data) if kwargs["jsonld"] else data
 
 
 def _is_iter_last_real_value(it: int, total: int, added_size: int = 1):

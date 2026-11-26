@@ -100,6 +100,22 @@ def _apply_always_show_id(
     return select
 
 
+def select_with_type(
+    context: Context,
+    action: Action,
+    select: list[str] | None,
+) -> list[str] | None:
+    """The selection of a JSON-LD response, with `_type` added when it is missing (rule 7, 4.3, 10.17).
+
+    `always_show_id` is applied first, as `get_select_tree` does. `None` (every key) is kept as it is, because every
+    object already has `_type`. `_id` is never added (10.17).
+    """
+    select = _apply_always_show_id(context, action, select)
+    if select is None or "_type" in select:
+        return select
+    return [*select, "_type"]
+
+
 def get_select_prop_names(
     context: Context,
     node: Model | Property | DataType,

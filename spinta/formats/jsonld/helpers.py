@@ -6,6 +6,7 @@
 - `enrich_object`: the JSON-LD keys of one model object (rule 3), added to its data.
 - `enrich_refs`: the keys of every `ref` value in an object, at any depth (rule 7, 3.2).
 - `jsonld_objects_enabled`: whether the objects of a model response are enriched (format, switch, scope, 4.4).
+- `jsonld_collection_enabled`: whether a collection response gets the top-level `@context` (4.2, 5.1, 10.4).
 - `enrich_objects`: `enrich_object` for every item of a collection, streamed (4.2).
 """
 
@@ -15,7 +16,7 @@ import logging
 from collections.abc import Iterable, Iterator
 from typing import Any
 
-from spinta.components import Context, Model, Node, UrlParams
+from spinta.components import Context, Model, Namespace, Node, UrlParams
 from spinta.formats.components import Format
 from spinta.formats.json.components import Json
 from spinta.formats.jsonld.components import JsonLd
@@ -60,7 +61,27 @@ def jsonld_objects_enabled(context: Context, model: Node, params: UrlParams) -> 
     """
     if not isinstance(model, Model) or not jsonld_enabled(context, params.fmt) or not in_scope(model):
         return False
-    return not (params.select_props is not None and not params.select_props)
+    return not _selects_only_functions(params)
+
+
+def jsonld_collection_enabled(context: Context, node: Node, params: UrlParams) -> bool:
+    """Tell whether a collection response of `node` gets the top-level `@context` (4.2, 5.1, 10.4).
+
+    A model collection (`GET {model}`, search, `select(...)`) follows `jsonld_objects_enabled`. `GET {ns}/:all` (5.1) is
+    a mix of models, so it follows the format only: each item is enriched by its own model (`prepare_all_rows`), and an
+    item of a `protected` or `private` model stays as it is (10.2). `:ns` entries are not enriched (10.11), so
+    `params.ns` is left out.
+    """
+    if isinstance(node, Model):
+        return jsonld_objects_enabled(context, node, params)
+    if isinstance(node, Namespace) and params.all and not params.ns:
+        return jsonld_enabled(context, params.fmt)
+    return False
+
+
+def _selects_only_functions(params: UrlParams) -> bool:
+    # `select(count())` has no property, so `select_props` is `{}`. Its result is not an object (4.4).
+    return params.select_props is not None and not params.select_props
 
 
 def jsonld_context_url(context: Context) -> str:
