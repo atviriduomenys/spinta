@@ -436,7 +436,8 @@ async def error(request, exc):
     headers["Cache-Control"] = "no-store"
 
     fmt = get_response_type(request.state.context, request)
-    if fmt == "json" or fmt is None:
+    # Errors are never JSON-LD, even when `Accept: application/ld+json` is sent.
+    if fmt in ("json", "jsonld") or fmt is None:
         return JSONResponse(
             response,
             status_code=status_code,

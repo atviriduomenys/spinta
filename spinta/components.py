@@ -1171,6 +1171,8 @@ class Config:
     uri: str = ""
     # Dereference web IRIs when reading RDF manifests, see `spinta.config.CONFIG`.
     rdf_fetch_remote: bool = False
+    # Enrich plain JSON responses with JSON-LD, see `spinta.config.CONFIG`.
+    jsonld: bool = False
     # Maximum number of enum items drawn for one enum in a UML diagram.
     uml_max_enum_items: int = 50
     credentials_file: pathlib.Path

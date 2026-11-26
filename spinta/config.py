@@ -176,6 +176,7 @@ CONFIG = {
         "csv": "spinta.formats.csv.components:Csv",
         "json": "spinta.formats.json.components:Json",
         "jsonl": "spinta.formats.jsonlines.components:JsonLines",
+        "jsonld": "spinta.formats.jsonld.components:JsonLd",
         "html": "spinta.formats.html.components:Html",
         "rdf": "spinta.formats.rdf.components:Rdf",
         "xlsx": "spinta.formats.xlsx.components:Xlsx",
@@ -258,6 +259,11 @@ CONFIG = {
     # follow `owl:imports` and concept schemes. Off by default, so that the
     # result does not depend on the network.
     "rdf_fetch_remote": False,
+    # Enrich plain JSON responses (`Accept: application/json`, `/:format/json`)
+    # with JSON-LD `@context`, `@id` and `@type`. Off by default, so that
+    # current responses do not change. `Accept: application/ld+json` and
+    # `/:format/jsonld` are always enriched, whatever this option says.
+    "jsonld": False,
     # Maximum number of enum items drawn for one enum in a UML diagram,
     # for example `spinta copy manifest.csv -o manifest.mmd`. Remaining items
     # are replaced by a `(N more...)` item.

@@ -118,6 +118,7 @@ def load(context: Context, config: Config) -> Config:
     config.uri_prefix = rc.get("uri_prefix", default="https://example.com")
     config.uri = rc.get("uri", default="")
     config.rdf_fetch_remote = rc.get("rdf_fetch_remote", default=False, cast=asbool)
+    config.jsonld = rc.get("jsonld", default=False, cast=asbool)
     config.uml_max_enum_items = rc.get("uml_max_enum_items", default=50, cast=int)
     if config.uml_max_enum_items < 1:
         raise ValueError("Configuration option `uml_max_enum_items` must be a positive integer.")

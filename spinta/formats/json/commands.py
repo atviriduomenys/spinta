@@ -59,7 +59,7 @@ def _render(
     elif action == Action.DELETE:
         return Response(None, status_code=status_code, headers=headers)
     else:
-        return JSONResponse(fmt.data(data), status_code=status_code, headers=headers)
+        return JSONResponse(fmt.data(data), status_code=status_code, headers=headers, media_type=fmt.content_type)
 
 
 @commands.prepare_dtype_for_response.register(Context, Json, Text, dict)
