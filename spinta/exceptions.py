@@ -702,6 +702,10 @@ class UnknownManifestTypeFromPath(BaseError):
     template = "Can't find manifest type matching given path {path!r}."
 
 
+class WsdlReadError(BaseError):
+    template = "Can't read WSDL from {path!r}: {error}"
+
+
 class InvalidPageParameterCount(UserError):
     template = "Parameter 'page' only accepts one of page key, size, or disable attributes."
 

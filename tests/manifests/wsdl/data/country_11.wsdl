@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="urn:country"
+    targetNamespace="urn:country"
+    name="CountryService">
+    <wsdl:types>
+        <xs:schema targetNamespace="urn:country">
+            <xs:element name="GetCountryRequest">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="code" type="xs:string"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+            <xs:element name="GetCountryResponse">
+                <xs:complexType>
+                    <xs:sequence>
+                        <xs:element name="name" type="xs:string"/>
+                        <xs:element name="population" type="xs:int" minOccurs="0"/>
+                    </xs:sequence>
+                </xs:complexType>
+            </xs:element>
+        </xs:schema>
+    </wsdl:types>
+    <wsdl:message name="GetCountryInput">
+        <wsdl:part name="parameters" element="tns:GetCountryRequest"/>
+    </wsdl:message>
+    <wsdl:message name="GetCountryOutput">
+        <wsdl:part name="parameters" element="tns:GetCountryResponse"/>
+    </wsdl:message>
+    <wsdl:message name="PingInput">
+        <wsdl:part name="host" type="xs:string"/>
+    </wsdl:message>
+    <wsdl:message name="PingOutput"/>
+    <wsdl:portType name="CountryPortType">
+        <wsdl:operation name="GetCountry">
+            <wsdl:input message="tns:GetCountryInput"/>
+            <wsdl:output message="tns:GetCountryOutput"/>
+        </wsdl:operation>
+        <wsdl:operation name="Ping">
+            <wsdl:input message="tns:PingInput"/>
+            <wsdl:output message="tns:PingOutput"/>
+        </wsdl:operation>
+    </wsdl:portType>
+    <wsdl:binding name="CountryBinding" type="tns:CountryPortType">
+        <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="GetCountry">
+            <soap:operation soapAction="urn:country#GetCountry"/>
+        </wsdl:operation>
+        <wsdl:operation name="Ping"/>
+    </wsdl:binding>
+    <wsdl:binding name="CountryBinding12" type="tns:CountryPortType">
+        <soap12:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="GetCountry"/>
+        <wsdl:operation name="Ping"/>
+    </wsdl:binding>
+    <wsdl:service name="CountryService">
+        <wsdl:port name="CountryPort" binding="tns:CountryBinding">
+            <soap:address location="https://example.com/country"/>
+        </wsdl:port>
+        <wsdl:port name="CountryPort12" binding="tns:CountryBinding12">
+            <soap12:address location="https://example.com/country"/>
+        </wsdl:port>
+    </wsdl:service>
+</wsdl:definitions>

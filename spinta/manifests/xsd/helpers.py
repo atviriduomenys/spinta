@@ -610,13 +610,15 @@ class XSDReader:
         for model in self.models:
             model.properties = dict(sorted(model.properties.items()))
 
+    def _get_dataset_name(self) -> str:
+        return to_dataset_name(os.path.splitext(os.path.basename(self._path))[0])
+
     def start(self):
         # general part
         state = State()
         self._extract_root()
         self.namespaces = self.root.nsmap
-        dataset_name = to_dataset_name(os.path.splitext(os.path.basename(self._path))[0])
-        self.dataset_resource.dataset_name = dataset_name
+        self.dataset_resource.dataset_name = self._get_dataset_name()
 
         # registering custom simpleType
 
