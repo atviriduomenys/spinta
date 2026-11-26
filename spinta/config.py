@@ -265,6 +265,11 @@ CONFIG = {
     # current responses do not change. `Accept: application/ld+json` and
     # `/:format/jsonld` are always enriched, whatever this option says.
     "jsonld": False,
+    # Base URL of the JSON-LD context documents, for example `https://data.gov.lt/context`. Empty or `None` (the
+    # default) writes `@context` inline. Given, `@context` is `{jsonld_context_url}/{model path}.json`, and the
+    # protocol context is `{jsonld_context_url}/_uapi.json`. Spinta serves none of them: they are hosted outside it,
+    # for example from the output of `spinta copy`. `uri` is not used for these URLs.
+    "jsonld_context_url": None,
     # Maximum number of enum items drawn for one enum in a UML diagram,
     # for example `spinta copy manifest.csv -o manifest.mmd`. Remaining items
     # are replaced by a `(N more...)` item.

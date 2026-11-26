@@ -1,4 +1,5 @@
 import json
+import logging
 import pathlib
 
 from ruamel.yaml import YAML
@@ -14,11 +15,14 @@ from spinta.core.config import DEFAULT_CONFIG_PATH, DEFAULT_DATA_PATH
 from spinta.core.enums import Access
 from spinta.core.ufuncs import ufunc
 from spinta.formats.components import Format
+from spinta.formats.jsonld.helpers import EMPTY_URI_WARNING
 from spinta.logging_config import setup_logging
 from spinta.utils.config import asbool, get_config_path
 from spinta.utils.enums import get_enum_by_name, get_enum_by_value
 from spinta.utils.imports import importstr
 from spinta.utils.units import tobytes
+
+log = logging.getLogger(__name__)
 
 yaml = YAML(typ="safe")
 
@@ -119,6 +123,7 @@ def load(context: Context, config: Config) -> Config:
     config.uri = rc.get("uri", default="")
     config.rdf_fetch_remote = rc.get("rdf_fetch_remote", default=False, cast=asbool)
     config.jsonld = rc.get("jsonld", default=False, cast=asbool)
+    config.jsonld_context_url = rc.get("jsonld_context_url", default=None)
     config.uml_max_enum_items = rc.get("uml_max_enum_items", default=50, cast=int)
     if config.uml_max_enum_items < 1:
         raise ValueError("Configuration option `uml_max_enum_items` must be a positive integer.")
@@ -183,3 +188,8 @@ def check(context: Context, config: components.Config):
     if config.default_auth_client and not client_name_exists(path, config.default_auth_client):
         clients_dir = path
         raise Exception(f"default_auth_client {config.default_auth_client!r} does not exist in {clients_dir}.")
+    # With the `jsonld` switch on, plain JSON responses are JSON-LD, so an empty `uri` is warned about at startup. The
+    # warning does not stop the start (10.14). Without the switch it is logged at request time, see
+    # `spinta.formats.jsonld.helpers`.
+    if config.jsonld and not (config.uri or "").rstrip("/"):
+        log.warning(EMPTY_URI_WARNING)

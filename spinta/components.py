@@ -1173,6 +1173,8 @@ class Config:
     rdf_fetch_remote: bool = False
     # Enrich plain JSON responses with JSON-LD, see `spinta.config.CONFIG`.
     jsonld: bool = False
+    # Base URL of the JSON-LD context documents, see `spinta.config.CONFIG`. `None` writes the contexts inline.
+    jsonld_context_url: str | None = None
     # Maximum number of enum items drawn for one enum in a UML diagram.
     uml_max_enum_items: int = 50
     credentials_file: pathlib.Path
