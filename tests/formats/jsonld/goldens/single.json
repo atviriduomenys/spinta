@@ -1,0 +1,24 @@
+{
+  "@context": "https://data.gov.lt/context/datasets/gov/vssa/demo/Country.json",
+  "@id": "https://data.gov.lt/id/datasets/gov/vssa/demo/Country/38caeff5-a43a-4e6c-82d0-3c3046777dcf",
+  "@type": "https://schema.org/Country",
+  "_type": "datasets/gov/vssa/demo/Country",
+  "_id": "38caeff5-a43a-4e6c-82d0-3c3046777dcf",
+  "_revision": "84578ebb-1280-42f4-87eb-f6c66a296b69",
+  "code": "lt",
+  "name": {"en": "Lithuania", "lt": "Lietuva"},
+  "population": 2900000,
+  "founded": "1253-07-06",
+  "updated": "2024-01-01T10:00:00",
+  "location": "POINT (23.9 55.1)",
+  "continent": {
+    "@context": "https://data.gov.lt/context/datasets/gov/vssa/demo/Continent.json",
+    "@type": "https://schema.org/Continent",
+    "@id": "https://data.gov.lt/id/datasets/gov/vssa/demo/Continent/25ed8eba-38e1-473d-987e-ea7c031fee30",
+    "_type": "datasets/gov/vssa/demo/Continent",
+    "_id": "25ed8eba-38e1-473d-987e-ea7c031fee30"
+  },
+  "flag": {"_id": null, "_content_type": null},
+  "address": {"city": "Vilnius"},
+  "tags": ["baltic", "eu"]
+}

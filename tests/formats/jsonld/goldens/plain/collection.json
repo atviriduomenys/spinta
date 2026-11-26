@@ -1,0 +1,27 @@
+{
+  "_data": [
+    {
+      "_type": "datasets/gov/vssa/demo/Country",
+      "_id": "38caeff5-a43a-4e6c-82d0-3c3046777dcf",
+      "_revision": "84578ebb-1280-42f4-87eb-f6c66a296b69",
+      "code": "lt",
+      "name": "Lietuva",
+      "population": 2900000,
+      "continent": {"_id": "25ed8eba-38e1-473d-987e-ea7c031fee30"},
+      "address": {"city": "Vilnius"},
+      "tags": []
+    },
+    {
+      "_type": "datasets/gov/vssa/demo/Country",
+      "_id": "4240ea57-4057-4d14-8013-20511a4e89e0",
+      "_revision": "fdb22661-6344-4628-b357-c9c1f2f06154",
+      "code": "lv",
+      "name": "Latvija",
+      "population": null,
+      "continent": {"_id": "25ed8eba-38e1-473d-987e-ea7c031fee30"},
+      "address": {"city": null},
+      "tags": []
+    }
+  ],
+  "_page": {"next": "WyJsdiIsICI0MjQwZWE1Ny00MDU3LTRkMTQtODAxMy0yMDUxMWE0ZTg5ZTAiXQ=="}
+}
