@@ -4,6 +4,14 @@ Changes
 2.3.0 (unreleased)
 =====================
 
+Bug fixes:
+
+- HTTP responses default to ``Cache-Control: no-store`` unless an explicit
+  cache policy applies. This prevents shared caches from reusing namespace
+  responses across formats or authorization scopes (`#2108`_).
+
+.. _#2108: https://github.com/atviriduomenys/spinta/issues/2108
+
 2.2.0 (2026-11-22)
 =====================
 
