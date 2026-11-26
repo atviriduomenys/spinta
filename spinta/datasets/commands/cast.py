@@ -3,6 +3,7 @@ from __future__ import annotations
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.helpers import check_if_model_primary_key_is_composite, is_custom_id_prop
+from spinta.backends.nobackend.components import NoBackend
 from spinta.components import Context, Model
 from spinta.core.enums import Mode
 from spinta.datasets.backends.helpers import flatten_keymap_encoding_values, generate_ref_id_using_select
@@ -15,7 +16,7 @@ from spinta.datasets.helpers import (
     process_data_for_pkey,
 )
 from spinta.datasets.keymaps.components import KeyMap
-from spinta.exceptions import GivenValueCountMissmatch, KeymapValueNotFound, PropertyNotFound
+from spinta.exceptions import GivenValueCountMissmatch, KeymapValueNotFound, PropertyNotFound, RefIdNotResolvable
 from spinta.types.datatype import Base32, ExternalRef, PrimaryKey, Ref
 from spinta.types.namespace import check_if_model_has_backend_and_source
 
@@ -36,7 +37,19 @@ def _cast_custom_ref_id(
     # those primary keys, rebuild the id the same way the referenced model would
     # (mirrors `build_row_result`) instead of requiring the row to be selectable
     # -- but only when the refprops are exactly those primary keys.
-    if ref_filters_disabled and dtype.refprops == ref_model.external.pkeys:
+    #
+    # If the referenced model has no backend, there is nothing to select from, so
+    # its id can only be rebuilt from the refprops and never looked up.
+    ref_has_no_backend = isinstance(ref_model.backend, NoBackend)
+    can_rebuild_id = dtype.refprops == ref_model.external.pkeys
+    if ref_has_no_backend and not can_rebuild_id:
+        raise RefIdNotResolvable(
+            dtype.prop,
+            model_name=ref_model.name,
+            refprops=[prop.name for prop in dtype.refprops],
+            pkeys=[prop.name for prop in ref_model.external.pkeys],
+        )
+    if can_rebuild_id and (ref_filters_disabled or ref_has_no_backend):
         pk_values = list(values.values())
         is_composite = check_if_model_primary_key_is_composite(ref_model)
         if is_composite and not isinstance(ref_id_prop.dtype, Base32):

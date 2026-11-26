@@ -391,6 +391,11 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
             #      example would be able to decide to not check permissions on
             #      properties.
             #      tag:resolving_private_properties_in_prepare_context
+            if type(prop.dtype) is Ref and isinstance(result, LiteralProperty):
+                # A scalar literal is the value of the ref's only refprop. Wrap it in a
+                # list, so the `Ref` resolver below builds the ref object (`_id` and
+                # sub-properties) instead of returning the bare literal.
+                result = [result]
             result = env.call("select", prop.dtype, result)
         elif prop.external and prop.external.name:
             # If prepare is not given, then take value from `source`.
@@ -413,6 +418,10 @@ def select(env: SqlQueryBuilder, prop: Property) -> Selected:
             result = env.call("select", prop.dtype)
             if not isinstance(result, Selected):
                 result = Selected(prop=prop, prep=None)
+        elif type(prop.dtype) is Ref and prop.dtype.properties:
+            # A ref without its own source (and without `prepare`) is built from its
+            # sub-properties only, so they must be selected instead of returning `None`.
+            result = env.call("select", prop.dtype)
         else:
             # If `source` is not given, return None.
             result = Selected(prop=prop, prep=None)
@@ -444,7 +453,10 @@ def select(env: SqlQueryBuilder, dtype: Object) -> Selected:
 @ufunc.resolver(SqlQueryBuilder, Ref)
 def select(env: SqlQueryBuilder, dtype: Ref) -> Selected:
     prep = {}
-    if not dtype.inherited:
+    # `_id` is taken from the ref's own source column, so a ref without a source
+    # (`get_column` would raise `NoExternalName`) only gets its sub-properties.
+    has_source = bool(dtype.prop.external and dtype.prop.external.name)
+    if not dtype.inherited and has_source:
         prep[ExternalIdPattern.ID_KEY.value] = Selected(
             prop=dtype.prop, prep=select_ref_foreign_key_properties(env, dtype)
         )

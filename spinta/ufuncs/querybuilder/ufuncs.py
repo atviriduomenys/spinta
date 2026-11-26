@@ -369,7 +369,9 @@ def validate_dtype_for_select(env, dtype: DataType, selected_props: list[Propert
 @ufunc.resolver(QueryBuilder, Text, list)
 def validate_dtype_for_select(env, dtype: Text, selected_props: list[Property]):
     for prop in selected_props:
-        if dtype.prop.name == prop.name or prop.parent == dtype.prop:
+        # Compare places, not names: `name` of a model and `name` of a ref's sub-property
+        # (`admin_unit.name`) are different properties with the same name.
+        if dtype.prop.place == prop.place or prop.parent == dtype.prop:
             raise CannotSelectTextAndSpecifiedLang(dtype)
 
 

@@ -1146,6 +1146,13 @@ class KeymapValueNotFound(UserError):
     """
 
 
+class RefIdNotResolvable(UserError):
+    template = """
+    Unable to resolve `_id` of ref {prop!r}: referenced model {model_name!r} has no backend to look the row up in, and
+    ref properties ({refprops}) are not its primary keys ({pkeys}), so its `_id` cannot be built from them.
+    """
+
+
 class UnableToCastColumnTypes(UserError):
     template = """
     Unable to cast {column!r} column of type {old_type!r} to type {new_type!r}.
