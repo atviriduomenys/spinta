@@ -1,0 +1,14 @@
+{
+  "@context": "https://data.gov.lt/context/_uapi.json",
+  "_data": [
+    {
+      "@context": "https://data.gov.lt/context/datasets/gov/vssa/demo/Country.json",
+      "@id": "https://data.gov.lt/id/datasets/gov/vssa/demo/Country/38caeff5-a43a-4e6c-82d0-3c3046777dcf",
+      "@type": "https://schema.org/Country",
+      "_type": "datasets/gov/vssa/demo/Country",
+      "_id": "38caeff5-a43a-4e6c-82d0-3c3046777dcf",
+      "code": "lt",
+      "population": 2900000
+    }
+  ]
+}

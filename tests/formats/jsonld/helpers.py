@@ -192,7 +192,8 @@ def strip_jsonld(node: Any, *, ref: bool = False, extra: tuple[str, ...] = ()) -
 
     Removed everywhere: `@context`, `@id` and `@type`. Removed from a ref, a value of a property that is a model object
     (rule 7): its `_type`. Removed from a model object (the response, or an item of `_data`): the keys in `extra`, for
-    keys that the rules add to a response that did not have them (`_id` and `_type` of a `select`, rule 7, 4.3).
+    keys that the rules add to a response that did not have them (`_type` of a `select`, rule 7, 4.3; `_id` only when the
+    client selects it, 10.17).
     """
     if isinstance(node, list):
         return [strip_jsonld(item, ref=ref, extra=extra) for item in node]

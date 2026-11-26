@@ -88,18 +88,16 @@ def enrich_object(context: Context, model: Model, data: dict[str, Any]) -> dict[
     """Add `@context`, `@id` and `@type` to one object of `model` (rules 3 and 7, 3.2).
 
     The three keys come first. The keys of `data` keep their order and values. A `protected` or `private` model is not
-    enriched (10.2), so `data` is returned as it is. `@id` is skipped, and logged, when `data` has no `_id` (task 9).
+    enriched (10.2), so `data` is returned as it is. A `select(...)` that leaves out `_id` gives no `@id` (rule 3). The
+    object is then a blank node in RDF, typed by `@type` (10.17). That is expected, so nothing is logged.
     """
     if not in_scope(model):
         return data
     data = enrich_refs(context, model, data)
     uris = uri_context(context, model.manifest)
     keys: dict[str, Any] = {"@context": context_value(context, model)}
-    _id = data.get("_id")
-    if _id is None:
-        log.warning("No `_id` in the response of %r, so `@id` is not added.", model.name)
-    else:
-        keys["@id"] = uris.instance_id(model, _id)
+    if data.get("_id") is not None:
+        keys["@id"] = uris.instance_id(model, data["_id"])
     keys["@type"] = uris.class_iri(model)
     return {**keys, **data}
 
@@ -136,23 +134,19 @@ def _enrich_value(context: Context, dtype: Any, value: Any) -> Any:
 def _enrich_ref(context: Context, target: Any, value: Any) -> Any:
     """The keys of one `ref` value, a model object of `target` (rule 7, 3.2).
 
-    Left as it is when the value is not an object, when `target` is `protected` or `private` (10.2), or when the value
-    has no target (`_id` is null, so no `@id` can be built, task 8).
+    Left as it is when the value is not an object, when `target` is `protected` or `private` (10.2), or when `_id` is
+    null: there is no target, so no `@id` can be built (task 8). A value without `_id` (a `select(...)` that leaves it
+    out) gets the keys without `@id`, and is a blank node in RDF (rule 7, 10.17).
     """
     if not isinstance(value, dict) or not isinstance(target, Model) or not in_scope(target):
         return value
     if "_id" in value and value["_id"] is None:
         return value
-    if "_id" not in value:
-        # The selection left `_id` out, so it cannot be built here (task 9 adds it to the selection).
-        log.warning("No `_id` in the `ref` value of %r, so its `@id` is not added.", target.name)
-        return value
     uris = uri_context(context, target.manifest)
-    keys: dict[str, Any] = {
-        "@context": context_value(context, target),
-        "@id": uris.instance_id(target, value["_id"]),
-        "@type": uris.class_iri(target),
-    }
+    keys: dict[str, Any] = {"@context": context_value(context, target)}
+    if "_id" in value:
+        keys["@id"] = uris.instance_id(target, value["_id"])
+    keys["@type"] = uris.class_iri(target)
     return {**keys, "_type": target.name, **value}
 
 

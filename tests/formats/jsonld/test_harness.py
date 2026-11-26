@@ -51,7 +51,8 @@ ALL_TRIPLES = 5  # 5.1
 BATCH_TRIPLES = 2  # 6.2
 NS_TRIPLES = 0  # 5.2 said 6, but `:ns` is not enriched (10.11), so its entries are not in the RDF
 WRITE_TRIPLES = 2  # PATCH: type and population
-SELECT_TRIPLES = 3  # select(code, population) with `_id` and `_type` added (4.3): type, identifier, population
+SELECT_TRIPLES = 3  # select(code, population) with `_type` added, no `_id` (4.3, 10.17): a blank node with 3 triples
+SELECT_ID_TRIPLES = 3  # select(_id, code, population): the same triples, on the named node of `_id`
 
 COUNTS = {
     "single": SINGLE_TRIPLES,
@@ -61,16 +62,19 @@ COUNTS = {
     "ns": NS_TRIPLES,
     "write": WRITE_TRIPLES,
     "select": SELECT_TRIPLES,
+    "select_id": SELECT_ID_TRIPLES,
 }
 
-# The plain counterpart of each golden, with `strip_jsonld` (9.5). `select` adds `_id` and `_type` (rule 7).
+# The plain counterpart of each golden, with `strip_jsonld` (9.5). `select` adds `_type` (rule 7). `_id` is added
+# only when the client selects it (10.17), so it is not an extra key.
 PLAIN_CASES = {
     "single": {},
     "collection": {},
     "all": {},
     "batch": {},
     "write": {},
-    "select": {"extra": ("_id", "_type")},
+    "select": {"extra": ("_type",)},
+    "select_id": {"extra": ("_type",)},
     "ns": {},
 }
 
@@ -329,5 +333,10 @@ def test_each_golden_is_in_the_expected_shape():
     assert golden("single")["@type"] == SCHEMA + "Country"
     assert golden("collection")["@context"] == PROTOCOL_URL
     assert golden("all")["@context"] == PROTOCOL_URL
-    assert golden("select")["_data"][0]["_id"] == COUNTRY_ID
-    assert "_id" not in plain("select")["_data"][0]
+    # `select` without `_id` has no `_id` and no `@id`, so it is a blank node (10.17). With `_id` it is named.
+    item = golden("select")["_data"][0]
+    assert "_id" not in item and "@id" not in item
+    assert item["_type"] == COUNTRY
+    assert golden("select_id")["_data"][0]["@id"] == f"{UR}/id/{COUNTRY}/{COUNTRY_ID}"
+    assert golden("select_id")["_data"][0]["_id"] == COUNTRY_ID
+    assert "_type" not in plain("select")["_data"][0]

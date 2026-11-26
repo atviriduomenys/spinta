@@ -10,7 +10,7 @@ from starlette.responses import FileResponse, RedirectResponse, Response
 from spinta import commands
 from spinta.accesslog import AccessLog, log_response
 from spinta.backends.components import Backend
-from spinta.backends.helpers import get_select_prop_names, get_select_tree
+from spinta.backends.helpers import _apply_always_show_id, get_select_prop_names, get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Model, Node, Page, Property, UrlParams, get_page_size, pagination_enabled
@@ -26,6 +26,8 @@ from spinta.exceptions import (
     TooShortPageSizeKeyRepetition,
     UnavailableSubresource,
 )
+from spinta.formats.jsonld.helpers import jsonld_enabled
+from spinta.manifests.jsonld.context import in_scope
 from spinta.renderer import render
 from spinta.types.datatype import DataType, File, Object
 from spinta.ufuncs.querybuilder.components import QueryParams
@@ -140,6 +142,22 @@ def prepare_data_for_response(
     prop_select = params.select_props
     func_select = params.select_funcs
 
+    # JSON-LD (rule 7, 4.3, 10.17): every model object has `_type`, so it is added to the selection when it is missing.
+    # `_id` is never added. Without a `select(...)` every key is already selected, and nothing is added. A
+    # `select(count())` has no property, so nothing is added (4.4). Protected and private models are not enriched
+    # (10.2), so their responses are not changed.
+    jsonld = jsonld_enabled(context, params.fmt) and in_scope(model)
+    if jsonld and prop_select is not None and not prop_select:
+        jsonld = False
+    names = None if prop_select is None else list(prop_select)
+    if jsonld:
+        # With `always_show_id`, a bare GETALL or SEARCH selects `_id` only (`_apply_always_show_id`), so `_type` is
+        # added to that selection too.
+        names = _apply_always_show_id(context, action, names)
+    add_type = jsonld and names is not None and "_type" not in names
+    if add_type:
+        prop_select = [*names, "_type"]
+
     prop_select_tree = get_select_tree(context, action, prop_select)
     func_select_tree = get_select_tree(context, action, func_select)
 
@@ -150,6 +168,11 @@ def prepare_data_for_response(
             reserved = ["_type", "_id", "_revision"]
         if pagination_enabled(model, params):
             reserved.append("_page")
+    if jsonld:
+        # GETONE passes `reserved=[]`, which makes `_id` and `_type` unknown properties of a `select(...)`. With
+        # JSON-LD a single object may select them (the acceptance of task 9: `select(_id, code)`). Plain JSON with the
+        # switch off is not changed.
+        reserved = [*reserved, *(name for name in ("_type", "_id") if name not in reserved)]
     prop_names = get_select_prop_names(
         context,
         model,
@@ -161,6 +184,9 @@ def prepare_data_for_response(
     )
 
     for row in rows:
+        if add_type and row.get("_type") is None:
+            # The backend gives the model name in `_type`. This is the fallback for a backend that does not.
+            row = {**row, "_type": model.model_type()}
         result = commands.prepare_data_for_response(
             context,
             model,
