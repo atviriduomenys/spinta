@@ -58,27 +58,29 @@ def test_cache_control_postgres_get_one(context, app):
     )
 
 
-def test_cache_control_postgres_get_all(context, app):
+def test_model_getall_becomes_cacheable_after_first_insert(app):
     model = "backends/postgres/Report"
     app.authmodel(model, ["insert", "getall", "changes"])
     app.authorize(["spinta_set_meta_fields"])
 
-    # create extra report
-    app.post(
+    empty = app.get(f"/{model}")
+
+    assert empty.status_code == 200
+    assert empty.json()["_data"] == []
+    assert empty.headers["Cache-Control"] == "no-store"
+    assert "ETag" not in empty.headers
+    assert "Last-Modified" not in empty.headers
+
+    inserted = app.post(
         f"/{model}",
         json={
             "_type": "Report",
             "status": "1",
         },
     )
-
-    resp = app.post(
-        f"/{model}",
-        json={
-            "_type": "Report",
-            "status": "2",
-        },
-    )
+    assert inserted.status_code == 201
+    assert inserted.headers["Cache-Control"] == "no-store"
+    report = inserted.json()
 
     changelog_entry = app.get(
         f"/{model}/:changes/-1",
@@ -89,12 +91,84 @@ def test_cache_control_postgres_get_all(context, app):
         f"/{model}",
     )
     assert resp.status_code == 200
+    assert [row["_id"] for row in resp.json()["_data"]] == [report["_id"]]
     assert resp.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
     assert resp.headers["Vary"] == "Accept, Accept-Language, Authorization"
     assert resp.headers["ETag"] == changelog_data["_revision"]
     assert resp.headers["Last-Modified"] == format_datetime(
         datetime.datetime.fromisoformat(changelog_data["_created"]).replace(tzinfo=timezone.utc), usegmt=True
     )
+
+
+def test_populated_model_head_returns_get_cache_headers(app):
+    model = "backends/postgres/Report"
+    app.authmodel(model, ["insert", "getall"])
+    inserted = app.post(f"/{model}", json={"status": "1"})
+    assert inserted.status_code == 201, inserted.text
+
+    get = app.get(f"/{model}")
+    head = app.head(f"/{model}")
+
+    assert get.status_code == head.status_code == 200
+    assert get.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
+    assert head.content == b""
+    for header in ("Cache-Control", "Vary", "ETag", "Last-Modified"):
+        assert head.headers[header] == get.headers[header]
+
+
+def test_populated_model_summary_is_cacheable(app):
+    model = "backends/postgres/Report"
+    app.authmodel(model, ["insert", "getall", "search"])
+    inserted = app.post(f"/{model}", json={"count": 1})
+    assert inserted.status_code == 201, inserted.text
+
+    get = app.get(f"/{model}")
+    summary = app.get(f"/{model}/:summary/count")
+
+    assert get.status_code == summary.status_code == 200
+    assert summary.json()["_data"]
+    assert summary.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
+    assert summary.headers["ETag"] == inserted.json()["_revision"]
+    for header in ("Vary", "Last-Modified"):
+        assert summary.headers[header] == get.headers[header]
+
+
+def test_empty_model_uses_delete_revision_after_last_row_is_removed(app):
+    model = "backends/postgres/Report"
+    app.authmodel(model, ["insert", "delete", "getall", "changes"])
+    inserted = app.post(f"/{model}", json={"status": "1"})
+    assert inserted.status_code == 201, inserted.text
+    report = inserted.json()
+    deleted = app.delete(f"/{model}/{report['_id']}")
+    assert deleted.status_code == 204, deleted.text
+    assert deleted.headers["Cache-Control"] == "no-store"
+
+    changelog = app.get(f"/{model}/:changes/-1")
+    assert changelog.status_code == 200, changelog.text
+    change = changelog.json()["_data"][0]
+    assert change["_op"] == "delete"
+
+    empty = app.get(f"/{model}")
+    assert empty.status_code == 200
+    assert empty.json()["_data"] == []
+    assert empty.headers["Cache-Control"] == "public, max-age=60, must-revalidate"
+    assert empty.headers["ETag"] == change["_revision"] != report["_revision"]
+    assert empty.headers["Last-Modified"] == format_datetime(
+        datetime.datetime.fromisoformat(change["_created"]).replace(tzinfo=timezone.utc), usegmt=True
+    )
+
+
+def test_model_patch_is_not_cacheable(app):
+    model = "backends/postgres/Report"
+    app.authmodel(model, ["insert", "patch"])
+    inserted = app.post(f"/{model}", json={"status": "1"})
+    assert inserted.status_code == 201, inserted.text
+    report = inserted.json()
+
+    patched = app.patch(f"/{model}/{report['_id']}", json={"status": "2", "_revision": report["_revision"]})
+
+    assert patched.status_code == 200, patched.text
+    assert patched.headers["Cache-Control"] == "no-store"
 
 
 def test_cache_control_postgres_changes(context, app):
