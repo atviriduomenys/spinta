@@ -4,8 +4,8 @@ Other packages import only from this module. Every name they need is in
 `__all__`. Everything else under `spinta` is internal.
 
 Implemented so far: `Spinta.version`, `Spinta.copy` (CSV, ASCII and XLSX
-sources to `simple`; `simple` to `simple`, `csv`, `xlsx`, `ascii`, `mermaid`
-and `rdf`), `Spinta.check` (link and check, without a backend) and
+sources to `simple`; `simple` to `simple`, `csv`, `xlsx`, `ascii`, `mermaid`,
+`rdf` and `jsonld`), `Spinta.check` (link and check, without a backend) and
 `Spinta.errors`. Rendered outputs are built from the loaded nodes, with the
 same writers as `spinta copy` (D14). An option that an output does not take
 raises `ValueError`, and an option not implemented yet raises
@@ -27,6 +27,7 @@ from spinta.core.config import Path as ConfigPath
 from spinta.core.config import RawConfig
 from spinta.core.enums import Access
 from spinta.exceptions import BaseError, DefaultBaseNotFound
+from spinta.manifests.jsonld.writer import render_jsonld_manifest
 from spinta.manifests.mermaid.helpers import write_mermaid_manifest
 from spinta.manifests.rdf.writer import render_rdf_manifest
 from spinta.manifests.simple.bases import DefaultBases, default_models, visibility_scope, with_default_base_elements
@@ -63,7 +64,7 @@ from spinta.naming.helpers import reformat_names
 from spinta.utils.enums import get_enum_by_name
 
 ReadFormat = Literal["csv", "ascii", "xlsx", "gsheets", "xml", "json", "xsd", "rdf", "sql", "openapi", "simple"]
-WriteFormat = Literal["csv", "ascii", "xlsx", "mermaid", "rdf", "simple"]
+WriteFormat = Literal["csv", "ascii", "xlsx", "mermaid", "rdf", "simple", "jsonld"]
 RawSource = str | os.PathLike | bytes | IO
 Manifests = SimpleManifest | Sequence[SimpleManifest]
 
@@ -91,6 +92,7 @@ _OUTPUT_OPTIONS: dict[str, frozenset[str]] = {
     "xlsx": frozenset({"source", "access", "order_by", "format_names", "rename_duplicates", "implied"}),
     "mermaid": frozenset({"dataset", "format_names", "rename_duplicates"}),
     "rdf": frozenset({"access", "dataset", "format_names", "rename_duplicates"}),
+    "jsonld": frozenset({"dataset", "model"}),
     "simple": frozenset(),
 }
 _RENAMES = frozenset({"format_names", "rename_duplicates"})
@@ -103,6 +105,7 @@ _DEFAULTS: dict[str, Any] = {
     "format_names": False,
     "rename_duplicates": False,
     "implied": False,
+    "model": None,
 }
 
 
@@ -177,6 +180,7 @@ class Spinta:
         source: bool = True,
         access: str = "private",
         dataset: str | None = None,
+        model: str | None = None,
         columns: Sequence[str] | None = None,
         order_by: str | None = None,
         include: Sequence[SimpleManifest] = (),
@@ -227,6 +231,13 @@ class Spinta:
         a table (a row that cannot be read, a link error). Then nothing is
         written and the result is `None`. Without `on_error` that error is raised
         instead, as `spinta copy` did (3.5, rule 4).
+
+        `jsonld` writes the JSON-LD context documents of the manifest (10.13, 10.15), as canonical JSON. Each key of
+        the result is a model name, and each value is that model's context document. `dataset` limits the models to
+        one dataset. `model` writes one model: its context document itself, not the object, so it can be hosted as
+        `{uri}/context/{model path}.jsonld`. A `protected` or `private` model has no context, and an unknown model, or
+        one outside `dataset`, raises `ValueError`. The IRIs of the contexts are the `uri` of `Spinta(uri=...)`, as
+        the `implied.uri` values of the same call.
         """
         run = self._copy_run(
             manifest,
@@ -234,6 +245,7 @@ class Spinta:
             source=source,
             access=access,
             dataset=dataset,
+            model=model,
             columns=columns,
             order_by=order_by,
             include=include,
@@ -253,6 +265,7 @@ class Spinta:
         source: bool,
         access: str | Access,
         dataset: str | None,
+        model: str | None,
         columns: Sequence[str] | None,
         order_by: str | None,
         include: Sequence[SimpleManifest],
@@ -265,7 +278,7 @@ class Spinta:
         """`copy`, with its errors and the error that stopped it (see `_CopyRun`)."""
         with self._lock:
             options = _copy_options(
-                source, access, dataset, columns, order_by, format_names, rename_duplicates, implied
+                source, access, dataset, columns, order_by, format_names, rename_duplicates, implied, model
             )
             if not _is_document(manifest):
                 # A raw source is read to `simple`. Renaming happens in the read, so it is allowed (3.1).
@@ -291,6 +304,7 @@ class Spinta:
         source: bool = True,
         access: str = "private",
         dataset: str | None = None,
+        model: str | None = None,
         columns: Sequence[str] | None = None,
         order_by: str | None = None,
         format_names: bool = False,
@@ -314,6 +328,7 @@ class Spinta:
                 source=source,
                 access=access,
                 dataset=dataset,
+                model=model,
                 columns=columns,
                 order_by=order_by,
                 format_names=format_names,
@@ -447,6 +462,7 @@ class Spinta:
         format_names: bool,
         rename_duplicates: bool,
         implied: bool = False,
+        model: str | None = None,
     ) -> _CopyRun:
         """Render `doc` from its nodes, with the writers that `spinta copy` uses (D14).
 
@@ -485,6 +501,8 @@ class Spinta:
                 output = _xlsx_bytes(rows)
         elif fmt == "mermaid":
             output = write_mermaid_manifest(context, manifest, dataset, None)
+        elif fmt == "jsonld":
+            output = render_jsonld_manifest(context, manifest, dataset=dataset, model=model)
         else:
             output = render_rdf_manifest(context, manifest, access=acc, dataset=dataset)
         return _CopyRun(output, [(manifest_error(e), False) for e in loaded.collector.errors], None)
@@ -848,6 +866,7 @@ _RENDER_OPTIONS = (
     "source",
     "access",
     "dataset",
+    "model",
     "columns",
     "order_by",
     "format_names",
@@ -865,6 +884,7 @@ def _copy_options(
     format_names: bool,
     rename_duplicates: bool,
     implied: bool = False,
+    model: str | None = None,
 ) -> dict[str, Any]:
     """The options of `copy`, by name. An `Access` is given by its name."""
     if isinstance(access, Access):
@@ -878,6 +898,7 @@ def _copy_options(
         "format_names": format_names,
         "rename_duplicates": rename_duplicates,
         "implied": implied,
+        "model": model,
     }
 
 

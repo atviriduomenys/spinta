@@ -92,10 +92,13 @@ Arguments
   One or more manifest files that will be loaded.
 
 - ``<path-to-output-file>``
-  OPTIONAL. Output file name. If specified, manifest will be written to this file. If file extension is `.mmd`, UML diagram will be generated in Mermaid syntax. If file extension is `.ttl`, manifest will be written as RDF Turtle, see `RDF Turtle output`_.
+  OPTIONAL. Output file name. If specified, manifest will be written to this file. If file extension is `.mmd`, UML diagram will be generated in Mermaid syntax. If file extension is `.ttl`, manifest will be written as RDF Turtle, see `RDF Turtle output`_. If file extension is `.jsonld`, JSON-LD context documents are written, see `JSON-LD context output`_.
 
 - ``<dataset-name>``
-  The name of the dataset. For Mermaid diagram, the specified dataset will not be wrapped in Mermaid class diagram `namespace <https://mermaid.js.org/syntax/classDiagram.html#define-namespace>`_. For RDF Turtle, only models of the specified dataset are written, see `Dataset selection`_. The dataset must exist in the manifest, otherwise the command fails.
+  The name of the dataset. For Mermaid diagram, the specified dataset will not be wrapped in Mermaid class diagram `namespace <https://mermaid.js.org/syntax/classDiagram.html#define-namespace>`_. For RDF Turtle and JSON-LD, only models of the specified dataset are written, see `Dataset selection`_. The dataset must exist in the manifest, otherwise the command fails.
+
+- ``-m <model-name>``
+  JSON-LD only: write only this model, as its context document, see `JSON-LD context output`_.
 
 Default bases
 -------------
@@ -243,6 +246,30 @@ number of items that are not drawn:
 
 Mermaid does not render a ``(N more...)`` line directly, so it is written with
 entities, ``#40;N more...#41;``, which Mermaid displays as ``(N more...)``.
+
+JSON-LD context output
+----------------------
+
+A manifest written to a ``.jsonld`` file is a set of JSON-LD context documents,
+one per model, which are the ``@context`` of the model's objects in the JSON-LD
+responses. The IRIs of the terms are the ones the ``simple`` output gives, see
+``implied.uri``, and they are built from the ``uri`` configuration option
+(``SPINTA_URI``), so set it first. Without ``uri`` the IRIs are relative, and
+the command logs a warning.
+
+Without ``-m`` the file is one JSON object: each key is a model name, and each
+value is that model's context document. A ``protected`` or ``private`` model has
+no context, so it is not in the file.
+
+.. code-block:: bash
+
+   spinta -o uri=https://data.gov.lt copy manifest.csv -o contexts.jsonld
+   spinta -o uri=https://data.gov.lt copy manifest.csv -m datasets/gov/vssa/demo/Country -o Country.jsonld
+
+With ``-m``, the file is the context document of that model itself. It is hosted
+as ``{uri}/context/{model path}.jsonld``, and Spinta does not serve it. ``-m``
+does not take a table or ``simple`` output, and it fails for an unknown model, a
+``protected`` or ``private`` model, or a model outside the ``-d`` dataset.
 
 RDF Turtle output
 -----------------

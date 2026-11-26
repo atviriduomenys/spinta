@@ -353,3 +353,26 @@ def test_instance_base_and_class_iri_are_the_implied_values(rc):
     assert uris.class_iri(model) == doc["model"]["ds/Region"]["implied"]["uri"]["concept"]
     assert uris.instance_base(model) == doc["model"]["ds/Region"]["implied"]["uri"]["object"]
     assert uris.instance_id(model, "abc") == f"{UR}/id/ds/Region/abc"
+
+
+def test_array_items_take_the_uri_of_the_same_item_in_their_base(rc):
+    # `tags[]` of `ds/Country` has no uri, so it is the item of its base (R2). The items are found by their name in
+    # the document, as the other properties are, so the base's `schema:keywords` is used, not a URI of `ds`.
+    doc = _simple(
+        _with_uri(rc),
+        table(
+            dict(dataset="addresses", type="vocabulary"),
+            dict(type="prefix", ref="schema", uri="https://schema.org/"),
+            dict(model="Country", ref="id"),
+            dict(property="id", type="integer"),
+            dict(property="tags[]", type="string", uri="schema:keywords"),
+            dict(dataset="ds"),
+            dict(base="/addresses/Country", ref="id"),
+            dict(model="Country", ref="id"),
+            dict(property="id", type="integer"),
+            dict(property="tags[]", type="string"),
+        ),
+    )
+
+    assert _implied(doc, "property", "ds/Country/tags[]")["uri"] == "https://schema.org/keywords"
+    assert _implied(doc, "property", "addresses/Country/tags[]")["uri"] == "https://schema.org/keywords"

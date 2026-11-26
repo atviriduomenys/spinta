@@ -48,6 +48,7 @@ from urllib.parse import quote
 
 from spinta.components import Model
 from spinta.manifests.inherit import _declared, expand_uri
+from spinta.types.datatype import Array, Object
 
 VOCABULARY = "vocabulary"
 REGISTRY = "registry"
@@ -111,7 +112,8 @@ class UriContext:
         """The dataset that owns the concept of `chain[0]`: R3, R4 and R5 (see the module doc).
 
         `chain` is a list of nodes that have a dataset, the element first and then its bases. The chain of a model is
-        its base chain. The chain of a property is the same property in each base of its model (`_property_chain`).
+        its base chain. The chain of a property is the same property, by its name in the document, in each base of its
+        model (`_property_chain`). The items of an array are the property `tags[]`, so they are found in the bases too.
         """
         deepest_first = list(reversed(chain[1:]))
         for kinds in ((VOCABULARY, REGISTRY), (DATASET,)):
@@ -150,7 +152,7 @@ class UriContext:
 
     def property_uri(self, prop: Any, model: Model, name: str) -> str:
         """The `uri` of a property of `model`. `name` is its name in the document, without `[]`: `address.street`."""
-        pairs = self._property_chain(prop, model)
+        pairs = self._property_chain(prop, model, name)
         concept = self._explicit((node, self.dataset(owner)) for node, owner in pairs)
         if concept is None:
             concept = self._build(
@@ -171,7 +173,7 @@ class UriContext:
                 return explicit
             return self._build("def", None, *_segments(enum), _segment(item.source))
 
-        chain = self._property_chain(prop, model)
+        chain = self._property_chain(prop, model, name or _flat_place(model, prop) or prop.name)
         pairs = []
         for node, owner in chain:
             items = (node.enums or {}).get(enum) or {}
@@ -235,14 +237,14 @@ class UriContext:
             return True
         return _declared(prefix, dataset, self.manifest) is not None
 
-    def _property_chain(self, prop: Any, model: Model) -> list[tuple[Any, Model]]:
-        """The property, then the property with the same place in each base of its model, while it exists."""
-        place = _flat_place(model, prop)
-        if place is None:
-            return [(prop, model)]
+    def _property_chain(self, prop: Any, model: Model, name: str) -> list[tuple[Any, Model]]:
+        """The property, then the property with the same `name` in each base of its model, while the base has it.
+
+        `name` is the name of the property in the document, so the items of an array are found in the bases too.
+        """
         pairs = [(prop, model)]
         for base in self.chain(model)[1:]:
-            base_prop = base.flatprops.get(place)
+            base_prop = _property_at(base, name)
             if base_prop is None:
                 break
             pairs.append((base_prop, base))
@@ -265,6 +267,32 @@ def _kind(dataset: Any) -> str:
 def _segments(name: str) -> list[str]:
     """The escaped segments of a name, which is a path of names: `tags[]` is `tags`, `a/b` is `a` and `b`."""
     return [_segment(part) for part in name.replace("[]", "").split("/") if part]
+
+
+def _property_at(model: Model, name: str) -> Any | None:
+    """The property of `model` at the document path `name` (`address.city`, `tags[]`, `children[].born_on`), or `None`.
+
+    The items of an array are its `[]` child: the items of `tags` are `tags[]`. The path is walked through the
+    properties, so items and the children of items are found, which the flat places of a model do not have.
+    """
+    prop = None
+    for segment in name.split("."):
+        many = segment.endswith("[]")
+        key = segment[:-2] if many else segment
+        children = model.properties if prop is None else _children(prop)
+        prop = (children or {}).get(key)
+        if prop is None:
+            return None
+        if many:
+            if not isinstance(prop.dtype, Array) or prop.dtype.items is None:
+                return None
+            prop = prop.dtype.items
+    return prop
+
+
+def _children(prop: Any) -> dict[str, Any] | None:
+    """The properties of an object, `None` for any other property."""
+    return prop.dtype.properties if isinstance(prop.dtype, Object) else None
 
 
 def _flat_place(model: Model, prop: Any) -> str | None:

@@ -12,6 +12,7 @@ from spinta.manifests.tabular.helpers import striptable
 from spinta.testing.cli import SpintaCliRunner
 from spinta.testing.manifest import load_manifest
 from spinta.testing.tabular import create_tabular_manifest
+from tests.manifests.jsonld.helpers import SPEC_CSV
 
 
 def test_copy(context: Context, rc, cli: SpintaCliRunner, tmp_path):
@@ -2118,3 +2119,89 @@ def test_copy_implied_of_a_raw_input_is_the_one_of_its_simple_document(context: 
 
     assert (tmp_path / "raw.csv").read_bytes() == (tmp_path / "stored.csv").read_bytes()
     assert (tmp_path / "raw.csv").read_bytes() != (tmp_path / "plain.csv").read_bytes()
+
+
+JSONLD_URI = "https://data.gov.lt"
+
+
+def _jsonld_manifest(tmp_path):
+    # The example of `.tmp/specs/json-ld.md` section 1, as a CSV manifest.
+    path = tmp_path / "spec.csv"
+    path.write_text(SPEC_CSV, encoding="utf-8")
+    return path
+
+
+def test_copy_jsonld_output_is_the_library_output(context: Context, rc, cli, tmp_path):
+    # `spinta copy -o FILE.jsonld` writes the bytes that `Spinta.copy(..., "jsonld")` returns, with `uri` set.
+    manifest = _jsonld_manifest(tmp_path)
+    cli.invoke(rc.fork({"uri": JSONLD_URI}), ["copy", "-o", tmp_path / "out.jsonld", manifest])
+
+    expected = Spinta(uri=JSONLD_URI).copy(Spinta(uri=JSONLD_URI).copy(str(manifest)), "jsonld")
+    assert (tmp_path / "out.jsonld").read_text(encoding="utf-8") == expected
+    assert sorted(json.loads(expected)) == [
+        "addresses/Continent",
+        "addresses/Country",
+        "addresses/Place",
+        "addresses/Region",
+        "datasets/gov/vssa/demo/Continent",
+        "datasets/gov/vssa/demo/Country",
+        "datasets/gov/vssa/demo/Region",
+    ]
+
+
+def test_copy_jsonld_model_option_writes_that_model_as_its_context(context: Context, rc, cli, tmp_path):
+    manifest = _jsonld_manifest(tmp_path)
+    model = "datasets/gov/vssa/demo/Country"
+    result = cli.invoke(
+        rc.fork({"uri": JSONLD_URI}),
+        ["copy", "-m", model, "-o", tmp_path / "Country.jsonld", manifest],
+    )
+    assert result.exit_code == 0, result.output
+
+    written = (tmp_path / "Country.jsonld").read_text(encoding="utf-8")
+    expected = Spinta(uri=JSONLD_URI).copy(Spinta(uri=JSONLD_URI).copy(str(manifest)), "jsonld", model=model)
+    assert written == expected
+    # The file is the context document itself, with `@context` at the top level.
+    assert list(json.loads(written)) == ["@context"]
+
+
+def test_copy_jsonld_dataset_option_limits_the_bundle(context: Context, rc, cli, tmp_path):
+    manifest = _jsonld_manifest(tmp_path)
+    cli.invoke(
+        rc.fork({"uri": JSONLD_URI}), ["copy", "-d", "datasets/gov/vssa/demo", "-o", tmp_path / "d.jsonld", manifest]
+    )
+
+    expected = Spinta(uri=JSONLD_URI).copy(
+        Spinta(uri=JSONLD_URI).copy(str(manifest)), "jsonld", dataset="datasets/gov/vssa/demo"
+    )
+    assert (tmp_path / "d.jsonld").read_text(encoding="utf-8") == expected
+    assert sorted(json.loads(expected)) == [
+        "datasets/gov/vssa/demo/Continent",
+        "datasets/gov/vssa/demo/Country",
+        "datasets/gov/vssa/demo/Region",
+    ]
+
+
+def test_copy_model_option_with_a_table_output_is_an_error(context: Context, rc, cli, tmp_path):
+    manifest = _jsonld_manifest(tmp_path)
+    result = cli.invoke(
+        rc,
+        ["copy", "-m", "datasets/gov/vssa/demo/Country", "-o", tmp_path / "out.csv", manifest],
+        fail=False,
+    )
+
+    assert isinstance(result.exception, ValueError)
+    assert "does not apply to `csv` output" in str(result.exception)
+    assert not (tmp_path / "out.csv").exists()
+
+
+def test_copy_model_option_with_an_unknown_model_is_an_error(context: Context, rc, cli, tmp_path):
+    manifest = _jsonld_manifest(tmp_path)
+    result = cli.invoke(
+        rc,
+        ["copy", "-m", "datasets/gov/vssa/demo/Nope", "-o", tmp_path / "out.jsonld", manifest],
+        fail=False,
+    )
+
+    assert isinstance(result.exception, ValueError)
+    assert not (tmp_path / "out.jsonld").exists()

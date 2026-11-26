@@ -45,7 +45,16 @@ def copy(
         None,
         "-d",
         "--dataset",
-        help=("Dataset name. Mermaid: main dataset. RDF Turtle: write only this dataset"),
+        help=("Dataset name. Mermaid: main dataset. RDF Turtle and JSON-LD: write only this dataset"),
+    ),
+    model: str | None = Option(
+        None,
+        "-m",
+        "--model",
+        help=(
+            "JSON-LD only: write only this model, as its context document, which is hosted as "
+            "{uri}/context/{model path}.jsonld. Without it, the output is one object with the context of every model."
+        ),
     ),
     columns: str | None = Option(None, "-c", "--columns", help=("Comma separated list of columns")),
     order_by: str | None = Option(
@@ -104,6 +113,7 @@ def copy(
         rename_duplicates=rename_duplicates,
         manifests=manifests,
         dataset=dataset,
+        model=model,
         base=base,
         base_visibility=_split_visibility(base_visibility),
         include=include,
@@ -135,6 +145,7 @@ def copy_manifest(
     base_visibility: list[str] | None = None,
     include: list[str] | None = None,
     implied: bool = False,
+    model: str | None = None,
     on_error: Callable[[ManifestError, bool], None] | None = None,
 ) -> str | None:
     """Copy models from CSV manifest files into another CSV manifest file
@@ -156,6 +167,7 @@ def copy_manifest(
             source=source,
             access=access,
             dataset=dataset,
+            model=model,
             columns=columns.split(",") if columns else None,
             order_by=order_by,
             format_names=format_names,
@@ -166,9 +178,14 @@ def copy_manifest(
             implied=implied,
             on_error=on_error,
         )
+    if lib_format == "jsonld":
+        # A JSON-LD output is written by `Spinta.copy` only, for the inputs it reads (3.5, rule 5).
+        raise NotImplementedError("`.jsonld` output is not implemented yet for this input.")
     if implied:
         # The option is written by `Spinta.copy` only, as the table of its output (3.5, rule 5).
         raise NotImplementedError("`--implied` is not implemented yet for this input or output.")
+    if model is not None:
+        raise NotImplementedError("`--model` is not implemented yet for this input or output.")
     if base or base_visibility is not None or include:
         # The default bases and the includes are `Spinta.copy` options, so only its inputs and outputs take them.
         raise NotImplementedError("`--base` and `--include` are not implemented yet for this input or output.")
@@ -259,6 +276,8 @@ def _lib_output_format(output: str | None, output_type: str | None) -> str | Non
         return "mermaid"
     if output.endswith(".ttl"):
         return "rdf"
+    if output.endswith(".jsonld"):
+        return "jsonld"
     if output.endswith(".simple.json"):
         return "simple"
     if output_type in ("mermaid", "rdf"):
@@ -299,6 +318,7 @@ def _copy_with_lib(
     base_visibility: list[str] | None,
     include: list[str],
     implied: bool,
+    model: str | None,
     on_error: Callable[[ManifestError, bool], None] | None,
 ) -> str | None:
     """`spinta copy` through `Spinta.copy` (3.5). The CLI parses the options and writes the result.
@@ -316,6 +336,7 @@ def _copy_with_lib(
         format_names=format_names,
         rename_duplicates=rename_duplicates,
         implied=implied,
+        model=model,
     )
     _refuse_implied_with_base(options, base)
     # The config and the store are loaded as before, and with `-o` the manifest is named (verbose).
