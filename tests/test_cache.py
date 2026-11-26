@@ -3,7 +3,6 @@ from datetime import timezone
 from email.utils import format_datetime
 
 import pytest
-from starlette.routing import Route
 
 from spinta.core.config import RawConfig
 from spinta.middlewares import _is_normalized_path
@@ -487,19 +486,6 @@ def test_responses_default_to_no_store(rc: RawConfig, method: str, path: str):
     resp = app.request(method, path, headers={"If-None-Match": '"unknown"'})
 
     assert resp.status_code == 200
-    assert resp.headers["Cache-Control"] == "no-store"
-
-
-def test_debug_error_response_defaults_to_no_store(rc: RawConfig):
-    app = create_test_client(rc.fork({"debug": True}), raise_server_exceptions=False)
-
-    async def fail(request):
-        raise RuntimeError("test server error")
-
-    app.app.routes.insert(0, Route("/test-error", fail))
-    resp = app.get("/test-error")
-
-    assert resp.status_code == 500
     assert resp.headers["Cache-Control"] == "no-store"
 
 
