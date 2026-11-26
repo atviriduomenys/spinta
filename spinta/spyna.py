@@ -286,6 +286,13 @@ class Visitor:
             "args": self._args(arg, self._args(*args)),
         }
 
+    def trailer_comp(self, _, arg: dict) -> dict:
+        # `x[]`, empty brackets: all items of the array `x`, a filter without conditions.
+        return {
+            "name": "filter",
+            "args": [self(arg), []],
+        }
+
     def composition(self, node, *args):
         res = None
         for arg in args:

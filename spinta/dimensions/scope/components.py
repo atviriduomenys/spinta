@@ -3,6 +3,7 @@ from typing import Any
 from spinta.components import ExtraMetaData, Model
 from spinta.core.enums import Access, Status, Visibility
 from spinta.core.ufuncs import Env, Expr
+from spinta.exceptions import PropertyNotFound
 from spinta.manifests.components import Manifest
 from spinta.ufuncs.propertyresolver.components import PropertyResolver
 
@@ -61,4 +62,15 @@ class ScopeLoader(Env):
             resolver = PropertyResolver(self.context)
             resolver = resolver.init(model=self.model, ufunc_types=False)
             self.update(property_resolver=resolver)
-        return resolver.resolve_property(*args, **kwargs)
+        try:
+            return resolver.resolve_property(*args, **kwargs)
+        except PropertyNotFound:
+            # A model inherits every field of its base, also the ones it does not list.
+            base = self.model.base
+            while base is not None and base.parent is not None:
+                try:
+                    base_resolver = PropertyResolver(self.context).init(model=base.parent, ufunc_types=False)
+                    return base_resolver.resolve_property(*args, **kwargs)
+                except PropertyNotFound:
+                    base = base.parent.base
+            raise

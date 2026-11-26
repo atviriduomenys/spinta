@@ -17,8 +17,19 @@ Bug fixes:
   the manifest loader the same way as ``name[]`` rows from tabular manifests
   (`#2099`_).
 
+- A formula with empty brackets, ``tags[] = 'x'``, no longer fails with
+  ``AttributeError: 'Visitor' object has no attribute 'trailer_comp'``.
+  ``tags[]`` means all items of the array ``tags``, and a scope's ``prepare``
+  can use it to filter rows (`#2112`_).
+
+- A scope's ``prepare`` can use properties of the model's base model, as a
+  model inherits every field of its base, so ``spinta check`` no longer fails
+  with ``PropertyNotFound`` for them. PostgreSQL can now filter on ``inherit``
+  properties, also in URL queries (`#2112`_).
+
 .. _#1469: https://github.com/atviriduomenys/spinta/issues/1469
 .. _#2099: https://github.com/atviriduomenys/spinta/issues/2099
+.. _#2112: https://github.com/atviriduomenys/spinta/issues/2112
 
 2.2.0 (2026-11-22)
 =====================
