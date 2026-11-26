@@ -511,7 +511,7 @@ def test_search_select_with_always_show_id_keeps_the_id(app, mocker, mode_config
 
 def test_getall_with_always_show_id_gets_type_only_with_jsonld(app, mocker, mode_config):
     # A bare GETALL with `always_show_id` selects `_id` only (`_apply_always_show_id`). With JSON-LD it still has
-    # `_type` (rule 7). Plain JSON with the switch off is unchanged.
+    # `_type` (rule 7), and the item is enriched like any collection item (task 10). Plain JSON is unchanged.
     app.authmodel(COUNTRY, ["getall"])
     mocker.patch.object(app.context.get("config"), "always_show_id", True)
 
@@ -523,7 +523,7 @@ def test_getall_with_always_show_id_gets_type_only_with_jsonld(app, mocker, mode
     [item] = resp.json()["_data"]
     assert item["_type"] == COUNTRY
     assert item["_id"] == COUNTRY_ID
-    assert list(item) == ["_type", "_id"]
+    assert list(item) == ["@context", "@id", "@type", "_type", "_id"]
 
 
 def test_count_select_is_unchanged(app, mode_config):

@@ -26,8 +26,7 @@ from spinta.exceptions import (
     TooShortPageSizeKeyRepetition,
     UnavailableSubresource,
 )
-from spinta.formats.jsonld.helpers import jsonld_enabled
-from spinta.manifests.jsonld.context import in_scope
+from spinta.formats.jsonld.helpers import jsonld_objects_enabled
 from spinta.renderer import render
 from spinta.types.datatype import DataType, File, Object
 from spinta.ufuncs.querybuilder.components import QueryParams
@@ -146,9 +145,7 @@ def prepare_data_for_response(
     # `_id` is never added. Without a `select(...)` every key is already selected, and nothing is added. A
     # `select(count())` has no property, so nothing is added (4.4). Protected and private models are not enriched
     # (10.2), so their responses are not changed.
-    jsonld = jsonld_enabled(context, params.fmt) and in_scope(model)
-    if jsonld and prop_select is not None and not prop_select:
-        jsonld = False
+    jsonld = jsonld_objects_enabled(context, model, params)
     names = None if prop_select is None else list(prop_select)
     if jsonld:
         # With `always_show_id`, a bare GETALL or SEARCH selects `_id` only (`_apply_always_show_id`), so `_type` is

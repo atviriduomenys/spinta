@@ -4,10 +4,15 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, Response, StreamingResponse
 
 from spinta import commands
-from spinta.components import Context, Model, Node, UrlParams
+from spinta.components import Context, Node, UrlParams
 from spinta.core.enums import Action
 from spinta.formats.json.components import Json
-from spinta.formats.jsonld.helpers import enrich_object, jsonld_enabled
+from spinta.formats.jsonld.helpers import (
+    enrich_object,
+    enrich_objects,
+    jsonld_objects_enabled,
+    protocol_context_value,
+)
 from spinta.types.text.components import Text
 from spinta.utils.response import async_response_iterator, peek_and_stream
 
@@ -53,8 +58,14 @@ def _render(
         # In python dict is also an iterable, but here we want a true iterable,
         # a list or a generator of dicts.
         assert not isinstance(data, dict), data
+        context_value = None
+        # `CHANGES` (LDES) is not covered by JSON-LD (spec section 7), so it keeps its body.
+        if action != Action.CHANGES and jsonld_objects_enabled(context, node, params):
+            # Each item is enriched (4.2), and the top-level `@context` makes `_data` a graph (10.4).
+            data = enrich_objects(context, node, data)
+            context_value = protocol_context_value(context)
         return StreamingResponse(
-            async_response_iterator(peek_and_stream(fmt(data))),
+            async_response_iterator(peek_and_stream(fmt(data, context_value=context_value))),
             status_code=status_code,
             media_type=fmt.content_type,
             headers=headers,
@@ -62,7 +73,7 @@ def _render(
     elif action == Action.DELETE:
         return Response(None, status_code=status_code, headers=headers)
     else:
-        if action == Action.GETONE and isinstance(node, Model) and jsonld_enabled(context, fmt):
+        if action == Action.GETONE and jsonld_objects_enabled(context, node, params):
             # A single object of a model (rule 3). Sub-resources have no model as `node`, so they are not enriched.
             data = enrich_object(context, node, data)
         return JSONResponse(fmt.data(data), status_code=status_code, headers=headers, media_type=fmt.content_type)

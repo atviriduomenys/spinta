@@ -5,14 +5,17 @@
 - `protocol_context_value`: the `@context` of a collection, `:all` or batch response.
 - `enrich_object`: the JSON-LD keys of one model object (rule 3), added to its data.
 - `enrich_refs`: the keys of every `ref` value in an object, at any depth (rule 7, 3.2).
+- `jsonld_objects_enabled`: whether the objects of a model response are enriched (format, switch, scope, 4.4).
+- `enrich_objects`: `enrich_object` for every item of a collection, streamed (4.2).
 """
 
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable, Iterator
 from typing import Any
 
-from spinta.components import Context, Model
+from spinta.components import Context, Model, Node, UrlParams
 from spinta.formats.components import Format
 from spinta.formats.json.components import Json
 from spinta.formats.jsonld.components import JsonLd
@@ -47,6 +50,17 @@ def jsonld_enabled(context: Context, fmt: Format) -> bool:
     if isinstance(fmt, Json):
         return bool(context.get("config").jsonld)
     return False
+
+
+def jsonld_objects_enabled(context: Context, model: Node, params: UrlParams) -> bool:
+    """Tell whether the objects of a response of `model` are enriched, for a single object or a collection.
+
+    `jsonld_enabled` for the format, and the model must be in scope (10.2). A `select(...)` with no property, such as
+    `select(count())`, gives function results and no objects, so it is not enriched (4.4). `select_props` is `{}` then.
+    """
+    if not isinstance(model, Model) or not jsonld_enabled(context, params.fmt) or not in_scope(model):
+        return False
+    return not (params.select_props is not None and not params.select_props)
 
 
 def jsonld_context_url(context: Context) -> str:
@@ -100,6 +114,16 @@ def enrich_object(context: Context, model: Model, data: dict[str, Any]) -> dict[
         keys["@id"] = uris.instance_id(model, data["_id"])
     keys["@type"] = uris.class_iri(model)
     return {**keys, **data}
+
+
+def enrich_objects(context: Context, model: Model, rows: Iterable[dict[str, Any]]) -> Iterator[dict[str, Any]]:
+    """Enrich every item of a collection of `model` with `enrich_object` (rule 7, 4.2).
+
+    A generator, so the collection is still streamed one item at a time. The `_page` key of an item is kept, because the
+    renderer reads it.
+    """
+    for row in rows:
+        yield enrich_object(context, model, row)
 
 
 def enrich_refs(context: Context, model: Model, data: dict[str, Any]) -> dict[str, Any]:

@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Any
 from uuid import UUID
 
 import ujson as json
@@ -14,9 +15,12 @@ class Json(Format):
     params = {}
     container_name = "_data"
 
-    def __call__(self, data):
+    def __call__(self, data, *, context_value: Any = None):
         page = None
-        yield f'{{"{self.container_name}":['
+        # A JSON-LD collection has a top-level `@context`, written before `_data` (10.4). Without it the output is
+        # the same as before.
+        head = "" if context_value is None else f'"@context":{json.dumps(context_value, ensure_ascii=False)},'
+        yield f'{{{head}"{self.container_name}":['
         for i, row in enumerate(data):
             if "_page" in row and row["_page"] is not None:
                 page = row["_page"]
