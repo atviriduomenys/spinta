@@ -20,18 +20,23 @@ and so on until a base that is not loaded (a default base, see `spinta.manifests
   A URI that is built by R3 to R5 does not count, so it is never in a chain. Inheritance (see
   `spinta.manifests.inherit`) has already copied such a `uri` onto the element, which is the same value. An ancestor's
   `uri` with a prefix that is not declared anywhere is not valid, so it is skipped, as inheritance skips it.
-- R3. No `uri` in the chain, but there is a base: build the URI from the `type=registry` dataset of the deepest
-  base, the last one in the chain. That is the dataset that owns the class.
-- R4. No `type=registry` dataset among the bases: build it from the deepest base whose dataset is `type=dataset`.
-  `dataset` is the default `type`.
+- R3. No `uri` in the chain, but there is a base: build the URI from the deepest base whose dataset is
+  `type=vocabulary` or `type=registry`. A vocabulary owns the concepts it defines (classes, properties and enums), and
+  a registry owns them too. The element's own dataset is not used here, only the bases.
+- R4. No such base: build it from the deepest base whose dataset is `type=dataset`. A vocabulary or a registry
+  that is a base is skipped here. `dataset` is the default `type`.
 - R5. No base, or no dataset of the bases to use: build it from the element's own dataset.
 
-The `object` of a model is owned by the registry too. It is built from the nearest `type=registry` dataset in the
-chain, the element's own first. Without a registry, the dataset that owns the class (R3 to R5) owns it.
+The `object` of a model is owned by a registry, never by a vocabulary. It is built from the nearest `type=registry`
+dataset in the chain, the element's own first. Without a registry, it is built from the deepest `type=dataset` base
+(R4, a vocabulary is skipped). Without that, it is built from the element's own dataset (R5). So when a vocabulary
+is deeper than a registry, the vocabulary owns the class and the registry owns the objects.
 
-A property and an enum item are built from the class that owns them: the dataset is the one that owns their
-model, and the class is the model's local name. The `uri` of a property is inherited from the same property of
-the bases of its model, so R2 looks at the properties of the chain, and R3 to R5 use the chain of the model.
+A property and an enum item are owned by the chain of their property, not by the chain of the model. The chain is the
+property, then the same property in each base of its model, while the base has it. R3 to R5 use the datasets of that
+chain: a property that a base has is owned by the vocabulary or registry of that base, and a property that no base has
+(`flag`, a private property of a model based on a vocabulary) is owned by its own dataset (R5). The class segment is the
+model's local name, so a property is `{uri}/def/{dataset}/{model}/{property}`.
 """
 
 from __future__ import annotations
@@ -44,6 +49,7 @@ from urllib.parse import quote
 from spinta.components import Model
 from spinta.manifests.inherit import _declared, expand_uri
 
+VOCABULARY = "vocabulary"
 REGISTRY = "registry"
 DATASET = "dataset"
 
@@ -101,23 +107,32 @@ class UriContext:
 
     # Owners (R3 to R5).
 
-    def class_owner(self, chain: list[Model]) -> Any | None:
-        """The dataset that owns the class of `chain[0]`: R3, R4 and R5 (see the module doc)."""
-        bases = chain[1:]
-        for kind in (REGISTRY, DATASET):
-            for base in reversed(bases):
+    def class_owner(self, chain: list[Any]) -> Any | None:
+        """The dataset that owns the concept of `chain[0]`: R3, R4 and R5 (see the module doc).
+
+        `chain` is a list of nodes that have a dataset, the element first and then its bases. The chain of a model is
+        its base chain. The chain of a property is the same property in each base of its model (`_property_chain`).
+        """
+        deepest_first = list(reversed(chain[1:]))
+        for kinds in ((VOCABULARY, REGISTRY), (DATASET,)):
+            for base in deepest_first:
                 dataset = self.dataset(base)
-                if dataset is not None and _kind(dataset) == kind:
+                if dataset is not None and _kind(dataset) in kinds:
                     return dataset
         return self.dataset(chain[0])
 
     def object_owner(self, chain: list[Model]) -> Any | None:
-        """The dataset that owns the objects of `chain[0]`: the nearest registry, else the owner of the class."""
+        """The dataset that owns the objects of `chain[0]`: the nearest registry, else the deepest dataset base, else
+        the element's own dataset. A vocabulary is never an object owner, so this does not use `class_owner`."""
         for model in chain:
             dataset = self.dataset(model)
             if dataset is not None and _kind(dataset) == REGISTRY:
                 return dataset
-        return self.class_owner(chain)
+        for base in reversed(chain[1:]):
+            dataset = self.dataset(base)
+            if dataset is not None and _kind(dataset) == DATASET:
+                return dataset
+        return self.dataset(chain[0])
 
     # URIs.
 
@@ -135,11 +150,12 @@ class UriContext:
 
     def property_uri(self, prop: Any, model: Model, name: str) -> str:
         """The `uri` of a property of `model`. `name` is its name in the document, without `[]`: `address.street`."""
-        concept = self._explicit((node, self.dataset(owner)) for node, owner in self._property_chain(prop, model))
+        pairs = self._property_chain(prop, model)
+        concept = self._explicit((node, self.dataset(owner)) for node, owner in pairs)
         if concept is None:
             concept = self._build(
                 "def",
-                self.class_owner(self.chain(model)),
+                self.class_owner([owner for _, owner in pairs]),
                 *_segments(self.local_name(model)),
                 *_segments(name),
             )
@@ -155,8 +171,9 @@ class UriContext:
                 return explicit
             return self._build("def", None, *_segments(enum), _segment(item.source))
 
+        chain = self._property_chain(prop, model)
         pairs = []
-        for node, owner in self._property_chain(prop, model):
+        for node, owner in chain:
             items = (node.enums or {}).get(enum) or {}
             if item.source in items:
                 pairs.append((items[item.source], self.dataset(owner)))
@@ -167,7 +184,32 @@ class UriContext:
         scheme = [*_segments(self.local_name(model)), *_segments(name or "")]
         if enum:
             scheme.extend(_segments(enum))
-        return self._build("def", self.class_owner(self.chain(model)), *scheme, _segment(item.source))
+        return self._build("def", self.class_owner([owner for _, owner in chain]), *scheme, _segment(item.source))
+
+    # What the JSON-LD code uses (`spinta/formats/jsonld`, `spinta copy -o *.jsonld`).
+
+    def class_iri(self, model: Model) -> str:
+        """The class IRI of a model: its `uri` (prefix expanded) when it is given, else the concept (R2 to R5)."""
+        return self.model_uri(model)["concept"]
+
+    def property_iri(self, model: Model, prop: Any, name: str | None = None) -> str:
+        """The IRI of a property of `model`: its `uri` when it is given, else resolved from the base chain.
+
+        `name` is the property's name in the document (`address.street`). It defaults to the flat place of the
+        property, or to its own name.
+        """
+        if name is None:
+            name = _flat_place(model, prop) or prop.name
+        return self.property_uri(prop, model, name)
+
+    def instance_base(self, model: Model) -> str:
+        """The base of the instance IRIs of a model: `{uri}/id/{owner}/{Model}`, without a trailing `/`."""
+        chain = self.chain(model)
+        return self._build("id", self.object_owner(chain), *_segments(self.local_name(model)))
+
+    def instance_id(self, model: Model, _id: str) -> str:
+        """The IRI of one instance of a model: `instance_base(model)/{_id}`."""
+        return f"{self.instance_base(model)}/{_id}"
 
     # Helpers.
 

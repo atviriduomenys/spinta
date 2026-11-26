@@ -123,8 +123,10 @@ class Spinta:
     """Spinta with its configuration and one context.
 
     Options are config keys, given by the caller only. No file, `.env` or
-    environment variable is read (D15). No option is supported yet, so any
-    option raises `ValueError`; `config` names files and is always refused.
+    environment variable is read (D15). `uri` is the only option (10.15): the
+    base of the IRIs that the outputs build, as `SPINTA_URI` is for the CLI.
+    Any other option raises `ValueError`; `config` names files and is always
+    refused.
 
     One instance is safe for threads: `copy` and `errors` take `self._lock`,
     so the calls run one after another.
@@ -133,11 +135,17 @@ class Spinta:
     def __init__(self, **options: Any) -> None:
         if "config" in options:
             raise ValueError("`config` names files, which only the CLI reads (3.6). Pass config keys instead.")
+        rc = _package_config()
+        if "uri" in options:
+            uri = options.pop("uri")
+            if not isinstance(uri, str):
+                raise ValueError(f"`uri` takes a string, such as `https://data.gov.lt`, not {type(uri).__name__}.")
+            rc = rc.fork({"uri": uri})
         if options:
             names = ", ".join(sorted(options))
-            raise ValueError(f"Unknown option(s): {names}. No option is supported yet.")
+            raise ValueError(f"Unknown option(s): {names}. The only option is `uri`.")
         self._lock = threading.RLock()
-        self._rc = _package_config()
+        self._rc = rc
 
     @classmethod
     def _from_context(cls, context: Any) -> Spinta:

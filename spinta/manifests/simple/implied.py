@@ -517,6 +517,15 @@ _BUILDERS = {
 }
 
 
+def uri_context(context, manifest) -> UriContext:
+    """The URIs of a loaded manifest, with the `uri` option of `context` (`uri.md`).
+
+    `implied_of_document` and the JSON-LD code use this one, so their IRIs are the same.
+    """
+    config = context.get("config")
+    return UriContext(manifest, datasets=commands.get_datasets(context, manifest), uri=config.uri)
+
+
 def implied_of_document(context, manifest, doc: SimpleManifest) -> dict[Key, dict[str, Any] | None]:
     """The `implied` of every element of `doc`, loaded as `manifest` (4.6).
 
@@ -524,9 +533,7 @@ def implied_of_document(context, manifest, doc: SimpleManifest) -> dict[Key, dic
     from `given` on read (4.7 step 2).
     """
     found = _index(context, manifest)
-    config = context.get("config")
-    uris = UriContext(manifest, datasets=commands.get_datasets(context, manifest), uri=config.uri)
-    env = _Env(manifest, doc, found, uris)
+    env = _Env(manifest, doc, found, uri_context(context, manifest))
     out: dict[Key, dict[str, Any] | None] = {}
     for key, element in env.elements.items():
         type_ = key[0]
