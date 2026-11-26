@@ -332,6 +332,45 @@ def test_wsdl_cyclic_extension_does_not_hang(tmp_path: Path):
     assert models == {"service/OpResponse": ["b", "a"]}
 
 
+def test_wsdl_inherited_property_name_collision(tmp_path: Path):
+    path = tmp_path / "service.wsdl"
+    path.write_text(
+        WSDL_TEMPLATE.format(
+            types="""
+                <xs:schema>
+                    <xs:complexType name="Base">
+                        <xs:sequence>
+                            <xs:element name="id" type="xs:int"/>
+                            <xs:element name="tag" type="xs:string" maxOccurs="unbounded"/>
+                        </xs:sequence>
+                    </xs:complexType>
+                    <xs:complexType name="Item">
+                        <xs:complexContent>
+                            <xs:extension base="tns:Base">
+                                <xs:sequence>
+                                    <xs:element name="ID" type="xs:string"/>
+                                    <xs:element name="TAG" type="xs:string"/>
+                                </xs:sequence>
+                            </xs:extension>
+                        </xs:complexContent>
+                    </xs:complexType>
+                    <xs:element name="OpResponse" type="tns:Item"/>
+                </xs:schema>
+            """,
+            messages='<wsdl:message name="Out"><wsdl:part name="body" element="tns:OpResponse"/></wsdl:message>',
+        )
+    )
+    model = next(data for _, data in read_schema(str(path)) if data["name"] == "service/OpResponse")
+    properties = model["properties"]
+    assert {name: properties[name].get("items", properties[name])["external"]["name"] for name in properties} == {
+        "id1": "id",
+        "tag1": "tag",
+        "id": "ID",
+        "tag": "TAG",
+    }
+    assert properties["tag1"]["given_name"] == properties["tag1"]["items"]["given_name"] == "tag1[]"
+
+
 WSDL_TEMPLATE = """
 <wsdl:definitions xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
                   xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://example.com/"

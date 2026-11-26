@@ -311,12 +311,27 @@ def _model_data(model: XSDModel) -> dict[str, Any]:
     # backends do not support `extends()`, so inherited properties are copied to the model
     data = model.get_data()
     data["external"].pop("prepare", None)
+    # own names are kept, because `pk` refers to them, colliding inherited names are renamed
+    names = Deduplicator()
+    for name in data["properties"]:
+        names(name)
+    inherited = [
+        dict(_renamed_property(names(name), prop) for name, prop in base.get_data()["properties"].items())
+        for base in _base_models(model)
+    ]
     properties = {}
-    for base in reversed(_base_models(model)):
-        properties.update(base.get_data()["properties"])
+    for base_properties in reversed(inherited):
+        properties.update(base_properties)
     properties.update(data["properties"])
     data["properties"] = properties
     return data
+
+
+def _renamed_property(name: str, prop: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    if "given_name" in prop:
+        # arrays keep the `name[]` form of the tabular reader
+        prop["given_name"] = prop["items"]["given_name"] = f"{name}[]"
+    return name, prop
 
 
 def _input_fields(
