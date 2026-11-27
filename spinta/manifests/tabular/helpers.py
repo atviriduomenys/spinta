@@ -1379,8 +1379,8 @@ class PrefixReader(TabularReader):
     data: PrefixRow
 
     def read(self, row: dict[str, str]) -> None:
-        if not row["ref"]:
-            # `ref` is a required parameter.
+        if not str(row["ref"]).strip():
+            # `ref` is a required parameter. A blank name is reported by the element reader, and is not a prefix.
             return
 
         self.name = row["ref"]

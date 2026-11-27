@@ -401,6 +401,44 @@ def test_table_reports_its_warnings_and_is_still_written(spinta):
     assert seen == [("UnresolvedReference", False)]
 
 
+# A prefix with a name is copied to a `simple` document, then its name is made blank, as a document can hold it.
+PREFIX_TABLE = striptable("""
+    d | r | b | m | property                     | type    | ref | uri
+    datasets/gov/rc/ar/uapi/addr                 |         |     |
+      |   |   |   |                              | prefix  | dct | http://purl.org/dc/terms/
+      |   |   | Country                          |         | id  |
+      |   |   |   | id                           | integer |     |
+""")
+
+
+def _doc_with_blank_prefix(spinta):
+    doc = spinta.copy(PREFIX_TABLE.encode("utf-8"), "ascii")
+    named = "datasets/gov/rc/ar/uapi/addr/dct"
+    doc["prefix"] = {"datasets/gov/rc/ar/uapi/addr/ ": doc["prefix"].pop(named)}
+    return doc
+
+
+def test_prefix_without_a_name_is_reported_and_the_table_is_still_written(spinta):
+    doc = _doc_with_blank_prefix(spinta)
+    seen = []
+    data = spinta.copy(doc, "csv", on_error=lambda error, raised: seen.append((error["code"], raised)))
+    assert seen == [("TabularManifestError", False)]
+    rows = _csv_rows(data)
+    assert not any("prefix" in row for row in rows)
+    assert any("Country" in row for row in rows)
+
+
+def test_prefix_without_a_name_does_not_raise_without_on_error(spinta):
+    doc = _doc_with_blank_prefix(spinta)
+    assert isinstance(spinta.copy(doc, "mermaid"), str)
+
+
+def test_prefix_without_a_name_is_stored_on_the_simple_output(spinta):
+    doc = _doc_with_blank_prefix(spinta)
+    out = spinta.copy(doc, "simple")
+    assert [e["code"] for e in spinta.errors(out)] == ["TabularManifestError"]
+
+
 def test_simple_output_stores_the_unresolved_reference_as_a_warning(spinta):
     # The warning that a table output reports (3.4), stored on its property. The row is kept.
     doc = spinta.copy(UNRESOLVED_TABLE.encode("utf-8"), "ascii")

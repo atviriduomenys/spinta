@@ -229,7 +229,9 @@ class Spinta:
         raised)`, in order: the errors stored in a `simple` result, or the errors
         found while writing a table. `raised` is true for the error that stopped
         a table (a row that cannot be read, a link error). Then nothing is
-        written and the result is `None`. Without `on_error` that error is raised
+        written and the result is `None`. A row that makes no element (a prefix
+        without a name, for example) is reported, not raised, and the table is
+        still written. Without `on_error` that error is raised
         instead, as `spinta copy` did (3.5, rule 4).
 
         `jsonld` writes the JSON-LD context documents of the manifest (10.13, 10.15), as canonical JSON. Each key of
@@ -479,11 +481,14 @@ class Spinta:
             rename_duplicates=rename_duplicates,
             default_bases=bases,
         )
+        # A row that makes no element (a prefix without a name, for example) is reported, not raised. It has no
+        # node, so the rest of the table is still written.
+        problems = [(read_error(p.code, p.message, index_of_line(p.line)), False) for p in loaded.log.table.problems]
         stop = _load_stop(loaded)
         if stop is not None:
             # The nodes are only partly linked, so they cannot be written. The error that stopped the run is
             # returned, as the CLI raised it before (3.5).
-            return _CopyRun(None, [(_as_error(stop), True)], stop)
+            return _CopyRun(None, problems + [(_as_error(stop), True)], stop)
 
         context, manifest = loaded.context, loaded.manifest
         if format_names:
@@ -505,7 +510,7 @@ class Spinta:
             output = render_jsonld_manifest(context, manifest, dataset=dataset, model=model)
         else:
             output = render_rdf_manifest(context, manifest, access=acc, dataset=dataset)
-        return _CopyRun(output, [(manifest_error(e), False) for e in loaded.collector.errors], None)
+        return _CopyRun(output, problems + [(manifest_error(e), False) for e in loaded.collector.errors], None)
 
     def check(
         self,
@@ -770,11 +775,11 @@ def _first_read_error(
 
 
 def _load_stop(loaded: LoadedDocument) -> Exception | None:
-    """The error that stopped a rendered run (3.5). Read errors come first, because rows are read first."""
+    """The error that stopped a rendered run (3.5): an element that cannot be read or linked.
+
+    A row that makes no element is a problem of the table, not a stop: it is reported by `_render`.
+    """
     table = loaded.log.table
-    if table.problems:
-        problem = table.problems[0]
-        return TabularManifestError(problem.message, line=problem.line)
     for element in table.elements:
         if element.errors:
             return TabularManifestError(element.errors[0][1])
