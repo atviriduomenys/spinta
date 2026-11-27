@@ -4,6 +4,35 @@ Changes
 2.3.0 (unreleased)
 =====================
 
+Backwards incompatible:
+
+- A scope named in the URL (``Model/@scope``) no longer makes the request a
+  search: its filter and ``select(...)`` are not the client's own query, so
+  ``GET /City/@ltu`` now needs the ``getall`` scope instead of ``search``
+  (`#2111`_).
+
+- Contract scope checks (``check_contract_scopes``) now count custom and
+  property scopes (``Model/@name``) towards their model, so a token holding
+  such a scope that no contract defines is refused (`#2111`_).
+
+- A manifest with a scope named like a property of its model no longer loads,
+  because ``Model/@name`` already names the scope of that property. Rename such
+  scopes (`#2111`_).
+
+New features:
+
+- A client whose access token grants a custom scope of a model, e.g.
+  ``uapi:/datasets/gov/example/City/@ltu/:getall``, but not the model itself,
+  now reads the model through that scope: its ``prepare`` filter limits the
+  rows and ``select(...)`` limits the columns, also when the URL names no
+  scope. Client filters can only narrow the result. With several such scopes
+  the URL must name one, and a scope the token does not grant is refused with
+  403. ``getone`` returns 404 for an object outside the scope. ``changes`` and
+  writes stay refused for such clients (`#2111`_).
+
+- ``spinta check`` rejects a scope named like a property of its model, because
+  ``Model/@name`` already names the scope of that property (`#2111`_).
+
 Bug fixes:
 
 - ``spinta copy`` from XSD no longer fails with "model already defined" when
@@ -17,8 +46,14 @@ Bug fixes:
   the manifest loader the same way as ``name[]`` rows from tabular manifests
   (`#2099`_).
 
+- ``count()`` no longer fails with ``PropertyNotFound`` under a scope that
+  selects columns (``select(...)``), whether the scope is named in the URL or
+  granted in the token. A function in ``select`` is allowed when every
+  property it reads is in the scope (`#2111`_).
+
 .. _#1469: https://github.com/atviriduomenys/spinta/issues/1469
 .. _#2099: https://github.com/atviriduomenys/spinta/issues/2099
+.. _#2111: https://github.com/atviriduomenys/spinta/issues/2111
 
 2.2.0 (2026-11-22)
 =====================

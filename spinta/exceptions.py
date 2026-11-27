@@ -260,6 +260,20 @@ class ScopeNotFound(UserError):
     template = "Scope {scope!r} not found in model {model!r}."
 
 
+class ScopeNamedLikeProperty(UserError):
+    template = (
+        "Scope {scope!r} of model {model!r} has the name of a property. A scope needs another name, "
+        "because '{model}/@{scope}' already names the scope of that property."
+    )
+
+
+class CustomScopeRequired(UserError):
+    status_code = 400
+    template = (
+        "Access to model {model!r} is granted through several scopes ({scopes}); choose one in the URL, e.g. {example}."
+    )
+
+
 class PropertiesNotFound(UserError):
     status_code = 404
     template = "Properties {properties!r} not found."

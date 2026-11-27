@@ -374,8 +374,8 @@ def test_multiple_scopes_on_same_model_load(manifest_type, tmp_path, rc):
     example                  |        |      |                 |
       |   |   | City         |        | id   |                 |
       |   |   |              | scope  | ids  | select(id)      | private
-      |   |   |              | scope  | code | code = 'lt'     | private
-      |   |   |              | scope  | name | select(name)    | private
+      |   |   |              | scope  | ltu  | code = 'lt'     | private
+      |   |   |              | scope  | names | select(name)   | private
       |   |   |   | id       | string |      |                 | private
       |   |   |   | code     | string |      |                 | private
       |   |   |   | name     | string |      |                 | private
@@ -384,7 +384,7 @@ def test_multiple_scopes_on_same_model_load(manifest_type, tmp_path, rc):
         tmp_path=tmp_path,
     )
     city = context.get("store").manifest.get_objects()["model"]["example/City"]
-    assert set(city.scopes.keys()) == {"ids", "code", "name"}
+    assert set(city.scopes.keys()) == {"ids", "ltu", "names"}
 
 
 @pytest.mark.manifests("csv")

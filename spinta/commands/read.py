@@ -9,13 +9,14 @@ from starlette.responses import FileResponse, RedirectResponse, Response
 
 from spinta import commands
 from spinta.accesslog import AccessLog, log_response
+from spinta.auth import CUSTOM_SCOPES
 from spinta.backends.components import Backend
 from spinta.backends.helpers import get_select_prop_names, get_select_tree
 from spinta.backends.nobackend.components import NoBackend
 from spinta.compat import urlparams_to_expr
 from spinta.components import Context, Model, Node, Page, Property, UrlParams, get_page_size, pagination_enabled
 from spinta.core.enums import Action
-from spinta.core.ufuncs import Expr
+from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.exceptions import (
     BackendNotGiven,
     InfiniteLoopWithPagination,
@@ -304,6 +305,9 @@ async def getone(
     action: Action,
     params: UrlParams,
 ) -> Response:
+    if params.prop:
+        # A property of an object outside the scope is not served either.
+        _check_custom_scope_row(context, params.model, params.model.backend, params)
     if params.prop and params.propref:
         resp = await commands.getone(
             context,
@@ -355,6 +359,35 @@ async def getone(
     raise UnavailableSubresource(prop=prop.name, prop_type=prop.dtype.name)
 
 
+def _object_filters(model: Model, data: dict, pk: str) -> list[dict]:
+    """Filters narrowing a query down to one object.
+
+    An external source has no `_id` column, so its primary-key properties with plain values are used instead.
+    """
+    if not (model.external and model.external.name):
+        return [{"name": "eq", "args": [{"name": "bind", "args": ["_id"]}, pk]}]
+    return [
+        {"name": "eq", "args": [{"name": "bind", "args": [prop.name]}, data[prop.name]]}
+        for prop in model.external.pkeys
+        if isinstance(data.get(prop.name), str | int | float | bool)
+    ]
+
+
+def _check_custom_scope_row(
+    context: Context, model: Model, backend: Backend, params: UrlParams, data: dict | None = None
+) -> None:
+    """Under a custom scope the token grants, an object outside the scope's filter is not found."""
+    if not params.query or not context.has(CUSTOM_SCOPES) or model.model_type() not in context.get(CUSTOM_SCOPES):
+        return
+    if data is None:
+        data = commands.getone(context, model, backend, id_=params.pk)
+    query = asttoexpr({"name": "and", "args": [*params.query, *_object_filters(model, data, params.pk)]})
+    rows = commands.getall(context, model, backend, query=query, default_expand=False)
+    # The filters may match more than one object when the key is partial, so the id decides.
+    if not any(row.get("_id") == params.pk for row in rows):
+        raise ItemDoesNotExist(model, id=params.pk)
+
+
 @overload
 @commands.getone.register(Context, Request, Model, Backend)
 async def getone(
@@ -380,6 +413,7 @@ async def getone(
     )
     try:
         data = commands.getone(context, model, backend, id_=params.pk)
+        _check_custom_scope_row(context, model, backend, params, data)
         data = next(prepare_data_for_response(context, model, action, params, data, reserved=[]))
         return render(context, request, model, params, data, action=action, headers=cache_control)
     except ItemDoesNotExist as e:

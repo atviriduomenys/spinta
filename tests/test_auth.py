@@ -1457,6 +1457,32 @@ class TestTokenCheckContractScopes:
             "Extra scopes: uapi:/datasets/test/example/Foo."
         )
 
+    def test_raise_error_if_token_has_custom_scope_not_in_contracts(self, rc: RawConfig):
+        context, _ = prepare_manifest(
+            rc,
+            """
+            id | d | r | b | m | property | type  | ref | prepare  | access
+               | datasets/test/example    |       |     |          | public
+               |   | data                 |       |     |          |
+               |   |   |   | Foo          |       |     |          | public
+               |   |   |   |              | scope | ltu | code='lt' |
+               |   |   |   |   | code     | string |    |          | public
+            """,
+            mode=Mode.external,
+        )
+        pkey = load_key(context, KeyType.private)
+        scopes = {"uapi:/datasets/test/example/Foo/:getall", "uapi:/datasets/test/example/Foo/@ltu/:getall"}
+        token = create_access_token(context, pkey, "5c8354ae-481b-4028-ae28-bdf268e81813", scopes=scopes)
+        token = Token(token, BearerTokenValidator(context))
+        context.set("auth.token", token)
+
+        with pytest.raises(InvalidExtraScopes) as e:
+            token.check_contract_scopes(context)
+        assert e.value.message == (
+            "Request contains extra scopes that are not defined in contract. "
+            "Extra scopes: uapi:/datasets/test/example/Foo/@ltu/:getall."
+        )
+
     def test_success_if_token_has_more_scopes_than_contracts_outside_available_namespace(self, rc: RawConfig):
         context, _ = prepare_manifest(
             rc,

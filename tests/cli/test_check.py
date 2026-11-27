@@ -879,6 +879,30 @@ def test_check_scope_duplicate_err(context: Context, rc, cli: SpintaCliRunner, t
     assert "already defined" in str(result.exception).lower()
 
 
+def test_check_scope_named_like_a_property_err(context: Context, rc, cli: SpintaCliRunner, tmp_path):
+    # `Model/@code` already names the property scope of `code`, so a custom scope cannot use that name.
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type   | ref  | source | prepare             | access
+    datasets/gov/example     |        |      |        |                     |
+      |   |   | Country      |        | code |        |                     |
+      |   |   |   |          | scope  | code |        | code='lt'           | private
+      |   |   |   | code     | string |      | kodas  |                     | public
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["check", tmp_path / "manifest.csv"],
+        fail=False,
+    )
+
+    assert result.exit_code != 0
+    assert "property" in str(result.exception).lower() and "code" in str(result.exception)
+
+
 def test_check_enum_named_under_property(context: Context, rc, cli: SpintaCliRunner, tmp_path):
     create_tabular_manifest(
         context,

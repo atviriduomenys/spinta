@@ -3,9 +3,11 @@ import urllib.parse
 from collections import OrderedDict
 from typing import Any
 
+from authlib.oauth2.rfc6750.errors import InsufficientScopeError
 from starlette.requests import Request
 
 from spinta import commands, exceptions, spyna
+from spinta.auth import CUSTOM_SCOPES, authorized, custom_scope_name, granted_custom_scopes
 from spinta.commands import is_object_id, prepare
 from spinta.components import (
     Config,
@@ -21,6 +23,7 @@ from spinta.components import (
 from spinta.core.enums import Action, Mode
 from spinta.core.ufuncs import Bind, Expr, asttoexpr
 from spinta.dimensions.param.components import ParamProperty, ParamPropertyBuilder
+from spinta.dimensions.scope.components import Scope
 from spinta.dimensions.scope.helpers import get_active_custom_scope
 from spinta.exceptions import InvalidPageKey, InvalidPageParameterCount, ModelNotFound
 from spinta.manifests.components import Manifest
@@ -90,7 +93,9 @@ def parse_url_query(query):
 def prepare_urlparams(context: Context, params: UrlParams, request: Request):
     _prepare_urlparams_from_path(params)
     _resolve_path(context, params)
-    _apply_custom_scope(params)
+    # The action comes from the client's own query, before the scope adds its filter and select to it.
+    params.action = get_action(params, request)
+    _apply_scope(context, params)
 
     params.format = get_response_type(context, request, params)
     params.accept_langs = get_preferred_accept_lang(request, params)
@@ -436,17 +441,47 @@ def _apply_scope_select(params: UrlParams, allowed_args: list[dict]) -> None:
     allowed = {spyna.unparse(allowed) for allowed in allowed_args}
     for select in params.select:
         name = spyna.unparse(select)
-        if name not in allowed:
+        # A function such as count() reads only the properties it names, which may be none.
+        is_function = isinstance(select, dict) and select.get("name") not in ("bind", "getattr")
+        if name not in allowed and not (is_function and _collect_field_refs(select) <= allowed):
             raise exceptions.PropertyNotFound(property=name)
 
 
-def _apply_custom_scope(params: UrlParams) -> None:
+def _apply_scope(context: Context, params: UrlParams) -> None:
+    """Apply the scope named in the URL, or the one the token grants when it gives access only through scopes."""
     if not isinstance(params.model, Model):
         return
-    scope = get_active_custom_scope(params.model, params)
-    if scope is None:
-        return
+    model = params.model
+    scope = get_active_custom_scope(model, params)
+    if (
+        context.has("auth.token")
+        and not authorized(context, model, params.action)
+        and (granted := granted_custom_scopes(context, model, params.action))
+    ):
+        if scope is None and len(granted) > 1:
+            raise exceptions.CustomScopeRequired(
+                model=model.name,
+                scopes=", ".join(f"@{name}" for name in granted),
+                example=f"{model.name}/@{granted[0]}",
+            )
+        scope = scope or model.scopes[granted[0]]
+        if scope.name not in granted:
+            raise InsufficientScopeError(
+                description=f"Missing scope: {custom_scope_name(context, model, scope.name, params.action)}"
+            )
+        select_args, _ = _extract_scope_parts(scope.prepare)
+        selected = None if select_args is None else frozenset(spyna.unparse(arg) for arg in select_args)
+        custom_scopes = context.get(CUSTOM_SCOPES) if context.has(CUSTOM_SCOPES) else {}
+        context.set(CUSTOM_SCOPES, {**custom_scopes, model.model_type(): selected})
+    if scope is not None:
+        _apply_custom_scope(params, scope)
 
+
+def _apply_custom_scope(params: UrlParams, scope: Scope | None = None) -> None:
+    """Limit the request to the scope's filter and select; without `scope`, the one named in the URL."""
+    if scope is None:
+        if not isinstance(params.model, Model) or (scope := get_active_custom_scope(params.model, params)) is None:
+            return
     select_args, filter_exprs = _extract_scope_parts(scope.prepare)
 
     if select_args is not None:

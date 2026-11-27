@@ -54,6 +54,8 @@ def load_scopes(
 def link_scopes(context: Context, model: Model, scopes: dict[str, Scope]) -> None:
     if not scopes:
         return
+    if clash := next((name for name in scopes if name in model.properties), None):
+        raise exceptions.ScopeNamedLikeProperty(scope=clash, model=model.name)
     loader = ScopeLoader(context)
     loader.update(model=model)
     loader.resolve(Expr("resolve_scope", list(scopes.values())))
