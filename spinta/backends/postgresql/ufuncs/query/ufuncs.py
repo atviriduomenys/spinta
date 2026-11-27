@@ -594,6 +594,14 @@ def compare(env, op: str, fpr: ForeignProperty, value: Any):
     return env.call(op, fpr, fpr.right, value)
 
 
+@ufunc.resolver(PgQueryBuilder, Inherit, object, names=COMPARE)
+def compare(env, op: str, dtype: Inherit, value: Any):
+    # An inherited property is stored in its base model's table, joined the same way as for select.
+    table = env.get_joined_base_table(dtype.prop.model, dtype.prop.name)
+    cond = _sa_compare(env, dtype.prop, op, table.c[dtype.prop.name], value)
+    return _prepare_condition(env, dtype.prop, cond)
+
+
 @ufunc.resolver(PgQueryBuilder, PrimaryKey, object, names=COMPARE)
 def compare(env, op, dtype, value):
     str_value = str(value)

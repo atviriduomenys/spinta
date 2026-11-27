@@ -388,8 +388,20 @@ def _resolve_path(context: Context, params: UrlParams) -> None:
         raise ModelNotFound(model=given_path)
 
 
+def _array_items_as_property(expr: Any) -> Any:
+    """`x[]` names all items of the array `x`, which a query reads through the property `x` itself."""
+    if isinstance(expr, list):
+        return [_array_items_as_property(arg) for arg in expr]
+    if not isinstance(expr, dict):
+        return expr
+    if expr.get("name") == "filter" and expr.get("args", [None, None])[1] == []:
+        return _array_items_as_property(expr["args"][0])
+    return {**expr, "args": _array_items_as_property(expr.get("args", []))}
+
+
 def _extract_scope_parts(prepare: dict) -> tuple[list[dict] | None, list[dict]]:
     # Top-level `and` is flattened; `select(...)` is pulled out as field restriction.
+    prepare = _array_items_as_property(prepare)
     conditions = prepare.get("args", []) if prepare.get("name") == "and" else [prepare]
 
     select_args = None
