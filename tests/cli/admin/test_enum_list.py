@@ -317,8 +317,8 @@ def test_admin_enum_list_invalid_multiple_models(
         ["model", "property", "invalid_value"],
         ["datasets/enums/cli/req/City", "id", "10"],
         ["", "name", "0 C"],
-        ["datasets/enums/cli/req/Country", "name", "1 C"],
-        ["", "", "0 C"],
+        ["datasets/enums/cli/req/Country", "name", "0 C"],
+        ["", "", "1 C"],
     ]
 
 

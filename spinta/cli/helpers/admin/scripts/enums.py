@@ -11,6 +11,7 @@ from multipledispatch import dispatch
 from spinta import commands
 from spinta.backends import Backend
 from spinta.backends.postgresql.components import PostgreSQL
+from spinta.backends.postgresql.helpers.name import get_pg_column_name
 from spinta.cli.helpers.script.helpers import ensure_store_is_loaded
 from spinta.components import Context, Model, Property
 from spinta.core.ufuncs import Expr
@@ -27,7 +28,15 @@ def gather_unique_property_values() -> list:
 def gather_unique_property_values(backend: PostgreSQL, prop: Property) -> list:
     table = backend.get_table(prop)
     column = backend.get_column(table, prop)
-    result = backend.engine.execute(sa.select(column).distinct()).scalars().all()
+    # Without ORDER BY the database may return distinct values in any order,
+    # so the report would change between runs. Order by the first insertion
+    # of each value, when the table has `_created`; list tables do not.
+    created = table.c.get(get_pg_column_name("_created"))
+    if created is not None:
+        query = sa.select(column).group_by(column).order_by(sa.func.min(created), column)
+    else:
+        query = sa.select(column).distinct().order_by(column)
+    result = backend.engine.execute(query).scalars().all()
     return result
 
 
