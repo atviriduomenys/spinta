@@ -1,12 +1,13 @@
 import dataclasses
 
 from spinta.components import Component
-from spinta.core.enums import Access
+from spinta.core.enums import Access, Status
 
 
 @dataclasses.dataclass
 class CommentGiven:
     access: str = None
+    status: str = None
 
 
 @dataclasses.dataclass
@@ -21,4 +22,5 @@ class Comment(Component):
     given: CommentGiven
     prepare: str | None = None
     level: int | None = None
+    status: Status | None = None
     uri: str | None = None

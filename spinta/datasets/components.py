@@ -7,7 +7,7 @@ from sqlalchemy.engine.base import Engine
 
 from spinta.backends.components import Backend
 from spinta.components import EntryId, ExtraMetaData, MetaData, Model, Namespace, Property
-from spinta.core.enums import Access, Level
+from spinta.core.enums import Access, Level, Status
 from spinta.core.ufuncs import Expr
 from spinta.dimensions.comments.components import Comment
 from spinta.dimensions.lang.components import LangData
@@ -205,6 +205,7 @@ class Param(ExtraMetaData):
     # Given values
     source: list[Any]
     prepare: list[Any]
+    status: Status | None = None
 
     schema = {
         "type": {"type": "string"},
@@ -213,6 +214,7 @@ class Param(ExtraMetaData):
         "name": {"type": "string"},
         "source": {"type": "list"},
         "prepare": {"type": "list"},
+        "status": {"type": "string"},
     }
 
     def __init__(self):

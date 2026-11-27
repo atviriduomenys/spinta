@@ -1493,6 +1493,7 @@ class ParamReader(TabularReader):
             "prepare": [_parse_spyna(self, row[PREPARE])],
             "title": row[TITLE],
             "description": row[DESCRIPTION],
+            "status": row[STATUS],
         }
 
     def _get_and_append_data(self, old: dict, row: ManifestRow):
@@ -1715,8 +1716,22 @@ class CommentReader(TabularReader):
     type: str = "comment"
     data: CommentData
 
-    def read(self, row: ManifestRow) -> None:
-        reader = self.state.stack[-1]
+    def _owner(self) -> TabularReader:
+        # The element the comment belongs to. The stack top is not always the
+        # owner: a comment row that follows another comment row (a second
+        # comment, or a continuation row) finds the previous comment reader on
+        # top of the stack, and comments stored there would be lost.
+        for reader in reversed(self.state.stack):
+            if not isinstance(reader, CommentReader | AppendReader):
+                return reader
+        return self.state.stack[-1]
+
+    def _store(self, row: ManifestRow) -> None:
+        if is_skipped_row(row):
+            # A blank line after a comment is not a comment, it must not be stored as one.
+            return
+
+        reader = self._owner()
 
         if "comments" not in reader.data:
             reader.data["comments"] = []
@@ -1734,18 +1749,25 @@ class CommentReader(TabularReader):
                 "comment": row[DESCRIPTION],
                 "prepare": row[PREPARE],
                 "level": row[LEVEL],
+                "status": row[STATUS],
                 "uri": row[URI],
             }
         )
 
+    def read(self, row: ManifestRow) -> None:
+        # Stored in `enter`, when the reader is pushed. By then the rows read
+        # before it are released, so a continuation row (see `append`) that
+        # comes before it is stored first and the order of rows is kept.
+        self.comment_row = row
+
     def append(self, row: ManifestRow) -> None:
-        self.read(row)
+        self._store(row)
 
     def release(self, reader: TabularReader = None) -> bool:
         return not isinstance(reader, AppendReader)
 
     def enter(self) -> None:
-        pass
+        self._store(self.comment_row)
 
     def leave(self) -> None:
         pass
@@ -2505,6 +2527,7 @@ def _comments_to_tabular(
                 "access": comment.given.access,
                 "prepare": comment.prepare,
                 "level": comment.level,
+                "status": comment.status.name if comment.status else "",
                 "uri": comment.uri,
                 "title": comment.created,
                 "description": comment.comment,
@@ -2538,6 +2561,7 @@ def _params_to_tabular(params: list[Param]) -> Iterator[ManifestRow]:
                         "ref": param.name,
                         "source": source,
                         "prepare": prepare,
+                        "status": param.status.name if param.status else "",
                         "title": param.title,
                         "description": param.description,
                     },

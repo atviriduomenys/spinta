@@ -175,6 +175,9 @@ def _comment_owner(state: Any) -> Element | None:
     top = _top(state)
     if top is not None and top.type == "append":
         return _owner(state)
+    if top is not None and top.type == "comment":
+        # A comment has no comments of its own, the next comment belongs to the same element.
+        return top.parent
     return top
 
 

@@ -125,8 +125,9 @@ def _name_cell(
 
 # Extra dimensions whose rows may continue the row above with an empty `type` (4.3). The reader registers a
 # continuation of these. The others keep their keyword on every row: a `ns` row with a `dataset` cell is a
-# dataset, the reader does not register a continuation of a `scope`, `unique` or `comment` (it would read
-# an update, or drop the row), and a `param` keeps the `type` cell it was written with.
+# dataset, the reader does not register a continuation of a `scope` or `unique` (it would read an update),
+# and a `param` keeps the `type` cell it was written with. A `comment` continuation is read as another comment
+# of the same element, but the writer always writes the keyword on a comment row.
 GROUPED_TYPES = frozenset({"prefix", "enum", "lang"})
 
 

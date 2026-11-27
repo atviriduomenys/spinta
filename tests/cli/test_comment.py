@@ -442,3 +442,69 @@ def test_comment_base_does_not_save_model_level_when_not_above_structured(
 
     assert comment_row["level"] == ""
     assert model_rows[0]["level"] == model_level
+
+
+def test_comment_keeps_every_comment_row(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """Every comment row of an element survives, not only the first one, including continuation rows."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type    | ref  | source | prepare                     | level | access  | status
+    example                  |         |      |        |                             |       |         |
+                             |         |      |        |                             |       |         |
+      |   |   | City         |         |      |        |                             |       |         |
+      |   |   |   | name     | string  |      |        |                             |       | private |
+                             | comment | type |        | update(level:3)             | 3     |         |
+                             |         | type |        | create(level:2)             |       |         |
+                             | comment | type |        | update(level:1)             | 1     |         |
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["comment", "missing-external-refs", "-o", tmp_path / "result.csv", tmp_path / "manifest.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "result.csv")
+    prepares = [
+        row["prepare"] for row in rows if row.get("prepare") and row["prepare"].split("(")[0] in {"update", "create"}
+    ]
+    assert prepares == [
+        "update(level:3)",
+        "create(level:2)",
+        "update(level:1)",
+    ]
+
+
+def test_comment_keeps_status_of_comments_and_params(context: Context, rc, cli: SpintaCliRunner, tmp_path: Path):
+    """The status column of comment rows and param rows is read and written back."""
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        striptable("""
+    d | r | b | m | property | type    | ref         | source           | prepare          | level | access  | status
+    example                  |         |             |                  |                  |       |         |
+                             |         |             |                  |                  |       |         |
+      |   |   | City         |         |             |                  |                  |       |         | develop
+                             | param   | caller_code | input/CallerCode | input('TEST')    |       |         | develop
+                             | param   | time_val    | input/Time       | input('2026')   |       |         | completed
+      |   |   |   | name     | string  |             |                  |                  |       | private |
+                             | comment | type        |                  | update(level:3)  | 3     |         | develop
+    """),
+    )
+
+    result = cli.invoke(
+        rc,
+        ["comment", "missing-external-refs", "-o", tmp_path / "result.csv", tmp_path / "manifest.csv"],
+    )
+    assert result.exit_code == 0, result.output
+
+    rows = _read_csv(tmp_path / "result.csv")
+    params = {row["ref"]: row for row in rows if row.get("type") == "param"}
+    assert params["caller_code"]["status"] == "develop"
+    assert params["time_val"]["status"] == "completed"
+
+    comment_row = next(row for row in rows if row.get("type") == "comment")
+    assert comment_row["status"] == "develop"

@@ -184,6 +184,7 @@ class ParamRow(TypedDict):
     prepare: list[Any]  # list of formulas
     title: str
     description: str
+    status: str
 
 
 class ModelExtraData(TypedDict):
@@ -294,6 +295,7 @@ class CommentRow(TypedDict, total=False):
     comment: str
     prepare: str
     level: str
+    status: str
     uri: str
 
 

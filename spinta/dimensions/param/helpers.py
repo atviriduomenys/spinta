@@ -2,6 +2,7 @@ from typing import Any
 
 from spinta import commands, spyna
 from spinta.components import Context, Model
+from spinta.core.enums import Status
 from spinta.core.ufuncs import Expr, asttoexpr
 from spinta.datasets.components import Dataset, Param, Resource
 from spinta.dimensions.param.components import ParamLoader, ParamValues, is_param_property
@@ -10,6 +11,7 @@ from spinta.manifests.components import Manifest
 from spinta.nodes import load_node
 from spinta.ufuncs.linkbuilder.components import LinkBuilder
 from spinta.ufuncs.loadbuilder.components import LoadBuilder
+from spinta.utils.enums import enum_by_name
 from spinta.utils.schema import NA
 
 
@@ -47,6 +49,7 @@ def load_params(context: Context, manifest: Manifest, param_data: Any, resource:
         for key, data in param_data.items():
             param = Param()
             load_node(context, param, data)
+            param.status = enum_by_name(param, "status", Status, param.status)
             param.name = data["name"]
             load_param_formulas_and_sources(context, param, data["prepare"], data["source"].copy(), resource)
             params.append(param)
