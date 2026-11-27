@@ -22,6 +22,11 @@ def inspect(
     output: str | None = Option(None, "-o", "--output", help=("Output tabular manifest in a specified file")),
     auth: str | None = Option(None, "-a", "--auth", help=("Authorize as a client")),
     priority: str = Option("manifest", "-p", "--priority", help=("Merge property priority ('manifest' or 'external')")),
+    count: bool = Option(
+        False,
+        "--count",
+        help=("Count rows of models, non-NULL values of properties and enum values, to fill `count` column"),
+    ),
 ):
     """Update manifest schema from an external data source"""
     if priority not in ["manifest", "external"]:
@@ -39,6 +44,7 @@ def inspect(
         backend=backend,
         auth=auth,
         priority=priority,
+        count=count,
     )
 
     add_explicit_id_properties(context, manifest, verbose=False)

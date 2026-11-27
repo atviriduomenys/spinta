@@ -11,6 +11,8 @@ from spinta.core.context import configure_context, create_context
 from spinta.core.enums import Mode
 from spinta.datasets.components import Dataset, ExternalBackend, Resource
 from spinta.datasets.inspect.components import PriorityKey
+from spinta.dimensions.enum.components import EnumItem
+from spinta.dimensions.enum.helpers import get_prop_enum
 from spinta.exceptions import InvalidResourceSource
 from spinta.manifests.components import Manifest, ManifestPath
 from spinta.manifests.helpers import init_manifest
@@ -28,6 +30,7 @@ def create_manifest_from_inspect(
     auth: str = None,
     priority: str = "manifest",
     only_url: bool = False,
+    count: bool = False,
 ):
     # Reset Context, to not have any outside influence from given
     if context is None:
@@ -76,7 +79,42 @@ def create_manifest_from_inspect(
                 else:
                     sorted_models[key] = model
         commands.set_models(context, manifest, sorted_models)
+
+        if count:
+            count_manifest(context, manifest)
     return context, manifest
+
+
+def count_manifest(context: Context, manifest: Manifest) -> None:
+    """Fill `count` of datasets, models, properties and enum values.
+
+    - dataset: number of models in a dataset
+    - model: number of rows in a model table
+    - property: number of non-NULL values in a property column
+    - enum item: number of rows with the enum value, summed over all properties
+      using the enum
+
+    Counts are left empty, if backend of a model can not count.
+    """
+    for dataset in commands.get_datasets(context, manifest).values():
+        dataset.count = len(_filter_models_for_dataset(context, manifest, dataset))
+
+    enum_counts: dict[int, tuple[EnumItem, list[int | None]]] = {}
+    for model in commands.get_models(context, manifest).values():
+        resource = model.external.resource if model.external else None
+        backend = resource.backend if resource else None
+        if backend is None:
+            continue
+
+        model.count = commands.count_rows(context, backend, model)
+        for prop in model.properties.values():
+            prop.count = commands.count_values(context, backend, model, prop)
+            for item in (get_prop_enum(prop) or {}).values():
+                _, counts = enum_counts.setdefault(id(item), (item, []))
+                counts.append(commands.count_enum_value(context, backend, model, prop, item))
+
+    for item, counts in enum_counts.values():
+        item.count = None if None in counts else sum(counts)
 
 
 def _merge(

@@ -4,6 +4,118 @@
 CLI
 ##########
 
+.. _cli_inspect:
+
+inspect
+=======
+
+The ``inspect`` CLI command reads the schema of an external data source, such as
+a database table, and writes it as a manifest. Models, properties and their
+external sources are taken from the data source, and the manifest given as an
+argument is updated with them.
+
+Usage
+-----
+
+.. code-block:: bash
+
+   spinta inspect [<manifest>] [-r <type> <source>] [-b <backend>] [-o <path-to-output-file>]
+
+Arguments
+---------
+
+- ``<manifest>``
+  OPTIONAL. Path to the manifest to update. Without it, a new manifest is
+  created from the data source.
+
+Options
+-------
+
+- ``-r``, ``--resource <type> <source>``
+  Resource type and source URI, for example ``-r sql sqlite:////tmp/db.sqlite``.
+
+- ``-f``, ``--formula <formula>``
+  Formula, if needed, to prepare the resource for reading.
+
+- ``-b``, ``--backend <connection-string>``
+  Backend connection string.
+
+- ``-o``, ``--output <path-to-output-file>``
+  OPTIONAL. Write the manifest to this file, for example ``manifest.csv`` or
+  ``manifest.xlsx``. Without it, the manifest is printed as a table.
+
+- ``-a``, ``--auth <client>``
+  Authorize as a client.
+
+- ``-p``, ``--priority <manifest|external>``
+  Which value wins for a property that both the manifest and the data source
+  define, such as its ``type``, ``uri`` or ``description``. ``manifest``
+  (default) keeps the manifest value, ``external`` takes the value from the data
+  source. A value that only one of them has is always used.
+
+- ``--count``
+  OPTIONAL. Count rows and values in the data source and fill the ``count``
+  column, see `inspect --count`_.
+
+Example
+-------
+
+**Command**:
+
+.. code-block:: bash
+
+   spinta inspect sqlite:////data.db -o manifest.csv
+
+The manifest is written to ``manifest.csv``, with one model for each table of
+the database. Use ``--count`` to fill the ``count`` column as well.
+
+.. _cli_inspect_count:
+
+inspect --count
+---------------
+
+With ``--count``, the ``count`` column of the manifest is filled from the data
+source. Each dataset, model, property and enum value gets a count:
+
+- dataset: the number of models of the dataset,
+- model: the number of rows in the model's table,
+- property: the number of non-NULL values in the property's column,
+- enum value: the number of rows whose column has the enum value, that is the
+  ``source`` of the enum item. Counts of the same enum are summed over all the
+  properties that use it, and the sum is empty if any of them can not be counted.
+
+A count is left empty when it can not be made. This happens for a model or
+property without a table or column in the data source, and for a data source
+that does not support counting, such as a JSON resource. A database error
+is logged as a warning, and the count is left empty, without stopping the
+command. The dataset count is always filled.
+
+Each count is a separate query on the table, so counting a large table takes
+longer than inspecting its schema.
+
+**Command**:
+
+.. code-block:: bash
+
+   spinta inspect --count sqlite:////data.db -o manifest.csv
+
+**Output** for a SQLite database with four tables, shortened. ``Apskritis``
+has ``10`` rows, and ``Gyvenviete`` has ``26231`` rows, all of them with a value
+in ``gyv_kodas``:
+
+.. code-block:: text
+
+   d | r | m | property    | type    | source      | count
+   data_db               |         |             | 4
+     | resource1         | sql     |             |
+     |   | Apskritis     |         | Apskritis   | 10
+     |   |   | adm_kodas   | integer | adm_kodas   | 10
+     |   |   | pavadinimas | string  | pavadinimas | 10
+     |   | Gyvenviete    |         | Gyvenviete  | 26231
+     |   |   | gyv_kodas   | integer | gyv_kodas   | 26231
+
+The count of the dataset, ``4``, is the number of its models.
+
 .. _cli_getall:
 
 getall

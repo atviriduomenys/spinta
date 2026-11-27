@@ -2937,3 +2937,124 @@ def test_inspect_column_with_json_type(
       |   |   |   | name     | string  |     | NAME      |         |         |       |
     """
     )
+
+
+def test_inspect_count(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    sqlite.init(
+        {
+            "COUNTRY": [
+                sa.Column("ID", sa.Integer, primary_key=True),
+                sa.Column("CODE", sa.Text),
+                sa.Column("NAME", sa.Text),
+            ],
+            "CITY": [
+                sa.Column("NAME", sa.Text),
+                sa.Column("COUNTRY_ID", sa.Integer, sa.ForeignKey("COUNTRY.ID")),
+            ],
+        }
+    )
+    sqlite.write(
+        "COUNTRY",
+        [
+            {"ID": 1, "CODE": "LT", "NAME": "Lithuania"},
+            {"ID": 2, "CODE": "PL", "NAME": None},
+            {"ID": 3, "CODE": None, "NAME": None},
+        ],
+    )
+    sqlite.write(
+        "CITY",
+        [
+            {"NAME": "Vilnius", "COUNTRY_ID": 1},
+            {"NAME": None, "COUNTRY_ID": 1},
+        ],
+    )
+
+    cli.invoke(rc_new, ["inspect", "--count", sqlite.dsn, "-o", tmp_path / "result.csv"])
+
+    # Dataset count is a number of models, model count is a number of rows,
+    # property count is a number of non-NULL values.
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+    assert (
+        manifest
+        == """
+    d | r | b | m | property   | type    | ref     | source     | count
+    db_sqlite                  |         |         |            | 2
+      | resource1              | sql     |         | sqlite     |
+                               |         |         |            |
+      |   |   | City           |         |         | CITY       | 2
+      |   |   |   | country_id | ref     | Country | COUNTRY_ID | 2
+      |   |   |   | name       | string  |         | NAME       | 1
+                               |         |         |            |
+      |   |   | Country        |         | id      | COUNTRY    | 3
+      |   |   |   | _id        | integer |         |            |
+      |   |   |   | code       | string  |         | CODE       | 2
+      |   |   |   | id         | integer |         | ID         | 3
+      |   |   |   | name       | string  |         | NAME       | 1
+    """
+    )
+
+
+def test_inspect_count_enum(
+    rc_new: RawConfig,
+    cli: SpintaCliRunner,
+    tmp_path: Path,
+    sqlite: Sqlite,
+):
+    sqlite.init(
+        {
+            "COUNTRY": [
+                sa.Column("ID", sa.Integer, primary_key=True),
+                sa.Column("CODE", sa.Text),
+            ],
+        }
+    )
+    sqlite.write(
+        "COUNTRY",
+        [
+            {"ID": 1, "CODE": "LT"},
+            {"ID": 2, "CODE": "LT"},
+            {"ID": 3, "CODE": "PL"},
+            {"ID": 4, "CODE": None},
+        ],
+    )
+    context = create_test_context(rc_new)
+    create_tabular_manifest(
+        context,
+        tmp_path / "manifest.csv",
+        f"""
+    d | r | b | m | property | type    | ref | source       | prepare     | access
+    db_sqlite                |         |     |              |             |
+      | resource1            | sql     |     | {sqlite.dsn} |             |
+      |   |   | Country      |         |     | COUNTRY      |             |
+      |   |   |   | code     | string  |     | CODE         |             | open
+      |   |   |   |          | enum    |     | LT           | "Lithuania" | open
+      |   |   |   |          | enum    |     | DE           | "Germany"   | open
+    """,
+    )
+
+    cli.invoke(rc_new, ["inspect", "--count", tmp_path / "manifest.csv", "-o", tmp_path / "result.csv"])
+
+    # Enum value count is a number of rows with that value, `DE` is not used in the data.
+    context, manifest = load_manifest_and_context(rc_new, tmp_path / "result.csv")
+    commands.get_dataset(context, manifest, "db_sqlite").resources["resource1"].external = "sqlite"
+    assert (
+        manifest
+        == """
+    d | r | b | m | property | type    | ref | source  | prepare     | count
+    db_sqlite                |         |     |         |             | 1
+      | resource1            | sql     |     | sqlite  |             |
+                             |         |     |         |             |
+      |   |   | Country      |         | id  | COUNTRY |             | 4
+      |   |   |   | _id      | integer |     |         |             |
+      |   |   |   | code     | string  |     | CODE    |             | 3
+      |   |   |   |          | enum    |     | LT      | 'Lithuania' | 2
+      |   |   |   |          |         |     | DE      | 'Germany'   | 0
+      |   |   |   | id       | integer |     | ID      |             | 4
+    """
+    )

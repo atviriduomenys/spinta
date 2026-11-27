@@ -977,6 +977,30 @@ def inspect(*args) -> Iterator[ManifestSchema]:
     """
 
 
+@command()
+def count_rows(*args, **kwargs) -> int | None:
+    """Count rows of a model in its external table, `None` if it can not be counted.
+
+    Used by `spinta inspect --count`.
+    """
+
+
+@command()
+def count_values(*args, **kwargs) -> int | None:
+    """Count non-NULL values of a property in its external column, `None` if it can not be counted.
+
+    Used by `spinta inspect --count`.
+    """
+
+
+@command()
+def count_enum_value(*args, **kwargs) -> int | None:
+    """Count rows, where property external column has the value of an enum item (`item.source`).
+
+    Used by `spinta inspect --count`.
+    """
+
+
 @overload
 def merge(
     context: Context,
