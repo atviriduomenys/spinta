@@ -441,7 +441,9 @@ def _apply_scope_select(params: UrlParams, allowed_args: list[dict]) -> None:
     allowed = {spyna.unparse(allowed) for allowed in allowed_args}
     for select in params.select:
         name = spyna.unparse(select)
-        if name not in allowed:
+        # A function such as count() reads only the properties it names, which may be none.
+        is_function = isinstance(select, dict) and select.get("name") not in ("bind", "getattr")
+        if name not in allowed and not (is_function and _collect_field_refs(select) <= allowed):
             raise exceptions.PropertyNotFound(property=name)
 
 

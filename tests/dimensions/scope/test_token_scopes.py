@@ -220,3 +220,28 @@ def test_subresource_of_an_object_outside_the_scope_is_not_found(internal_app: T
 
     assert internal_app.get(f"/example/internal/City/{ids['Vilnius']}/info").status_code == 200
     assert internal_app.get(f"/example/internal/City/{ids['Riga']}/info").status_code == 404
+
+
+def test_count_is_allowed_under_a_column_scope(app: TestClient):
+    # count() reads no column, so a scope that selects columns does not forbid it.
+    app.authorize(_scopes("@names/:getall", "@names/:search"), strict_set=True)
+
+    resp = app.get("/example/City?count()")
+
+    assert resp.status_code == 200, resp.text
+    assert listdata(resp, "count()") == [3]
+
+
+def test_count_is_allowed_under_a_column_scope_named_in_the_url(app: TestClient):
+    app.authorize(["uapi:/example/City/:getall", "uapi:/example/City/:search"], strict_set=True)
+
+    resp = app.get("/example/City/@names?count()")
+
+    assert resp.status_code == 200, resp.text
+    assert listdata(resp, "count()") == [3]
+
+
+def test_function_over_a_column_outside_the_scope_is_refused(app: TestClient):
+    app.authorize(_scopes("@names/:getall", "@names/:search"), strict_set=True)
+
+    assert error(app.get("/example/City?select(max(country_code))")) == "PropertyNotFound"

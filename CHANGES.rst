@@ -46,6 +46,11 @@ Bug fixes:
   the manifest loader the same way as ``name[]`` rows from tabular manifests
   (`#2099`_).
 
+- ``count()`` no longer fails with ``PropertyNotFound`` under a scope that
+  selects columns (``select(...)``), whether the scope is named in the URL or
+  granted in the token. A function in ``select`` is allowed when every
+  property it reads is in the scope (`#2111`_).
+
 .. _#1469: https://github.com/atviriduomenys/spinta/issues/1469
 .. _#2099: https://github.com/atviriduomenys/spinta/issues/2099
 .. _#2111: https://github.com/atviriduomenys/spinta/issues/2111
